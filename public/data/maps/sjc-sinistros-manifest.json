@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 2,
+  "area": "São José dos Campos, SP, Brasil",
+  "bbox": [
+    -23.35,
+    -46.02,
+    -23.05,
+    -45.75
+  ],
+  "source": {
+    "name": "Detran-SP · Infosiga",
+    "dataset": "eventos-de-sinistro",
+    "license": "Creative Commons Attribution 4.0"
+  },
+  "range": {
+    "from": "2025-08",
+    "to": "2026-07",
+    "months": 12
+  },
+  "eventCount": 2869,
+  "featureCount": 1667,
+  "geocodedRate": 58.1,
+  "sha256": "0ab6d23923a84a04b9734c2501b0c39e2005f7d584b4ef0e135a567f254f34dd",
+  "resources": [
+    {
+      "period": "2025-08",
+      "id": "d88cef83-8d78-4e1e-84d5-97a0dc4e219e",
+      "name": "Eventos de Sinistro - Agosto de 2025",
+      "sha256": "b38b6f2f021e2860e31ae18bc5992f8fb46b992a1ba1d16cb4133b461a4abb1f",
+      "updatedAt": "2026-02-25T15:21:38.942014",
+      "page": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro/resource/d88cef83-8d78-4e1e-84d5-97a0dc4e219e"
+    },
+    {
+      "period": "2025-09",
+      "id": "010045a9-89b1-44c8-918b-0158b2c5ed1e",
+      "name": "Eventos de Sinistro - Setembro de 2025",
+      "sha256": "e1ffd90ed5af0ca3408973b742732f3ad88dfed9f15b47f7aa0dffaf9c977217",
+      "updatedAt": "2026-02-25T15:22:19.550925",
+      "page": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro/resource/010045a9-89b1-44c8-918b-0158b2c5ed1e"
+    },
+    {
+      "period": "2025-10",
+      "id": "9ebe412a-da86-4d53-a19b-a008389dca6d",
+      "name": "Eventos de Sinistro - Outubro de 2025",
+      "sha256": "865e25cd82583528a332ff7c72ee7916739a0960db467702088dbb40a89631e0",
+      "updatedAt": "2026-02-25T15:23:10.444832",
+      "page": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro/resource/9ebe412a-da86-4d53-a19b-a008389dca6d"
+    },
+    {
+      "period": "2025-11",
+      "id": "034ff02b-f6ed-4668-a5e7-352385ff9e5f",
+      "name": "Eventos de Sinistro - Novembro de 2025",
+      "sha256": "8724734addf1668b5879c458ee9caafe6a770a14118f8366742d608c556c9fa8",
+      "updatedAt": "2026-02-25T15:23:45.000665",
+      "page": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro/resource/034ff02b-f6ed-4668-a5e7-352385ff9e5f"
+    },
+    {
+      "period": "2025-12",
+      "id": "326b3d91-d07c-4d64-9ad0-07eace082b80",
+      "name": "Eventos de Sinistro - Dezembro de 2025",
+      "sha256": "9a5559d517f64dcd25a1350c65be33428fb2292aee9ae912471164bc9579fdb7",
+      "updatedAt": "2026-02-25T15:24:16.325767",
+      "page": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro/resource/326b3d91-d07c-4d64-9ad0-07eace082b80"
+    },
+    {
+      "period": "2026-01",
+      "id": "64847d9c-8aae-42d7-83bd-42550b3c97a9",
+      "name": "Eventos de Sinistro - Janeiro de 2026",
+      "sha256": "aa341499e8abe67e539a6dd7627e99d06f4e01ec30fb8de19cacc3b249b2eb23",
+      "updatedAt": "2026-02-25T15:24:47.247953",
+      "page": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro/resource/64847d9c-8aae-42d7-83bd-42550b3c97a9"
+    },
+    {
+      "period": "2026-02",
+      "id": "eb2b7394-bad8-483e-ad5a-f7968283e8d3",
+      "name": "Eventos de Sinistro - Fevereiro de 2026",
+      "sha256": "b313281a2008ee09d9dc56631948a442a6ab5827425a838674523b6fe84b0f67",
+      "updatedAt": "2026-03-25T16:45:01.330342",
+      "page": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro/resource/eb2b7394-bad8-483e-ad5a-f7968283e8d3"
+    },
+    {
+      "period": "2026-03",
+      "id": "50ff2517-de3a-4ccf-9846-1edbc79fff3e",
+      "name": "Eventos de Sinistro - Março de 2026",
+      "sha256": "a1ca5d374cd9c616f51bfd873e18b4a07bc3efcbfc4ed487c3a5c6d35dbd1122",
+      "updatedAt": "2026-04-22T20:55:22.762252",
+      "page": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro/resource/50ff2517-de3a-4ccf-9846-1edbc79fff3e"
+    },
+    {
+      "period": "2026-04",
+      "id": "a6e63f6e-0029-4dd6-8dda-757539fbaa1b",
+      "name": "Eventos de Sinistro - Abril de 2026",
+      "sha256": "3893bdf4194c6898adb290862d6c1a30e3d050e0719f933052f13457f91a82c3",
+      "updatedAt": "2026-05-21T17:29:04.081152",
+      "page": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro/resource/a6e63f6e-0029-4dd6-8dda-757539fbaa1b"
+    },
+    {
+      "period": "2026-05",
+      "id": "7576e651-0f03-412e-8469-2c8223530035",
+      "name": "Eventos de Sinistro - Maio de 2026",
+      "sha256": "fdb3e2483f59069328bbf3893b9c5f0dbab2896304514d4f806dcdb6e713049b",
+      "updatedAt": "2026-06-19T18:21:52.859494",
+      "page": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro/resource/7576e651-0f03-412e-8469-2c8223530035"
+    },
+    {
+      "period": "2026-06",
+      "id": "e92123ee-6d67-40cc-b918-5367c40d56b5",
+      "name": "Eventos de Sinistro - Junho de 2026",
+      "sha256": "5666922daf401dd86ea3695d6d33db542958c9ef4365543d504bfc3db90fe4a3",
+      "updatedAt": "2026-07-23T13:48:42.107229",
+      "page": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro/resource/e92123ee-6d67-40cc-b918-5367c40d56b5"
+    },
+    {
+      "period": "2026-07",
+      "id": "f20fdf61-64b4-450a-b217-c2be12cb35b7",
+      "name": "Eventos de Sinistro - Julho de 2026",
+      "sha256": "ba3ce68c6cdc3ae56631da5ae658a61fd71f37f04a48b8ea83dfa929af9277d0",
+      "updatedAt": "2026-08-21T18:35:59.530462",
+      "page": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro/resource/f20fdf61-64b4-450a-b217-c2be12cb35b7"
+    }
+  ],
+  "artifact": "/data/maps/sjc-sinistros.geojson"
+}

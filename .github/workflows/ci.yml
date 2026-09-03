@@ -30,6 +30,9 @@ jobs:
       - name: Validate persisted map snapshot
         run: npm run map:data:validate
 
+      - name: Validate persisted safety snapshot
+        run: npm run safety:data:validate
+
       - name: Build
         run: npm run build:app
 

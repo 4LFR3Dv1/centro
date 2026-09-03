@@ -1,0 +1,204 @@
+{
+  "version": 2,
+  "city": "São José dos Campos",
+  "authority": "Detran-SP · Infosiga · Dados Abertos SP",
+  "dataset": "eventos-de-sinistro",
+  "datasetPage": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro",
+  "license": "Creative Commons Attribution 4.0",
+  "latestPeriod": "2026-07",
+  "range": {
+    "from": "2025-08",
+    "to": "2026-07",
+    "months": 12
+  },
+  "metrics": {
+    "total": 2869,
+    "geocoded": 1667,
+    "geocodedRate": 58.1,
+    "fatalEvents": 73,
+    "fatalVictims": 78,
+    "seriousVictims": 118,
+    "topTypes": [
+      {
+        "label": "COLISAO",
+        "value": 1156
+      },
+      {
+        "label": "OUTROS",
+        "value": 749
+      },
+      {
+        "label": "ATROPELAMENTO",
+        "value": 270
+      },
+      {
+        "label": "CHOQUE",
+        "value": 150
+      }
+    ],
+    "topTurns": [
+      {
+        "label": "TARDE",
+        "value": 907
+      },
+      {
+        "label": "NOITE",
+        "value": 826
+      },
+      {
+        "label": "MANHA",
+        "value": 821
+      },
+      {
+        "label": "MADRUGADA",
+        "value": 313
+      }
+    ],
+    "topRoadTypes": [
+      {
+        "label": "VIAS URBANAS",
+        "value": 2405
+      },
+      {
+        "label": "ESTRADAS E RODOVIAS",
+        "value": 460
+      }
+    ],
+    "involved": [
+      {
+        "label": "Automóveis",
+        "value": 1317
+      },
+      {
+        "label": "Motocicletas",
+        "value": 937
+      },
+      {
+        "label": "Pedestres",
+        "value": 159
+      },
+      {
+        "label": "Caminhões",
+        "value": 109
+      },
+      {
+        "label": "Ônibus",
+        "value": 65
+      },
+      {
+        "label": "Bicicletas",
+        "value": 40
+      }
+    ]
+  },
+  "periods": [
+    {
+      "period": "2025-08",
+      "total": 217,
+      "geocoded": 106,
+      "fatalEvents": 15,
+      "fatalVictims": 16
+    },
+    {
+      "period": "2025-09",
+      "total": 270,
+      "geocoded": 150,
+      "fatalEvents": 5,
+      "fatalVictims": 6
+    },
+    {
+      "period": "2025-10",
+      "total": 268,
+      "geocoded": 148,
+      "fatalEvents": 4,
+      "fatalVictims": 4
+    },
+    {
+      "period": "2025-11",
+      "total": 267,
+      "geocoded": 136,
+      "fatalEvents": 5,
+      "fatalVictims": 5
+    },
+    {
+      "period": "2025-12",
+      "total": 253,
+      "geocoded": 136,
+      "fatalEvents": 5,
+      "fatalVictims": 6
+    },
+    {
+      "period": "2026-01",
+      "total": 232,
+      "geocoded": 116,
+      "fatalEvents": 5,
+      "fatalVictims": 5
+    },
+    {
+      "period": "2026-02",
+      "total": 187,
+      "geocoded": 143,
+      "fatalEvents": 5,
+      "fatalVictims": 6
+    },
+    {
+      "period": "2026-03",
+      "total": 251,
+      "geocoded": 203,
+      "fatalEvents": 7,
+      "fatalVictims": 8
+    },
+    {
+      "period": "2026-04",
+      "total": 197,
+      "geocoded": 76,
+      "fatalEvents": 3,
+      "fatalVictims": 3
+    },
+    {
+      "period": "2026-05",
+      "total": 264,
+      "geocoded": 132,
+      "fatalEvents": 7,
+      "fatalVictims": 7
+    },
+    {
+      "period": "2026-06",
+      "total": 232,
+      "geocoded": 127,
+      "fatalEvents": 10,
+      "fatalVictims": 10
+    },
+    {
+      "period": "2026-07",
+      "total": 231,
+      "geocoded": 194,
+      "fatalEvents": 2,
+      "fatalVictims": 2
+    }
+  ],
+  "schema": {
+    "municipalityField": "municipio",
+    "municipalitySelector": "São José dos Campos",
+    "id": "id_sinistro",
+    "latitude": "latitude",
+    "longitude": "longitude",
+    "type": "tp_sinistro_primario",
+    "date": "data_sinistro",
+    "hour": "hora_sinistro",
+    "turn": "turno",
+    "roadType": "tipo_via",
+    "street": "logradouro",
+    "fatal": "qtd_gravidade_fatal",
+    "serious": "qtd_gravidade_grave",
+    "pedestrian": "qtd_pedestre",
+    "bicycle": "qtd_bicicleta",
+    "motorcycle": "qtd_motocicleta",
+    "automobile": "qtd_automovel",
+    "bus": "qtd_onibus",
+    "truck": "qtd_caminhao"
+  },
+  "snapshotFingerprint": "d0ae12455e7a9aa0347d84826a0f54636e3eee246ef7279c2d4d2bd13ad19f30",
+  "mapArtifact": "/data/maps/sjc-sinistros.geojson",
+  "mapManifest": "/data/maps/sjc-sinistros-manifest.json"
+}
