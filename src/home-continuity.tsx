@@ -7,6 +7,7 @@ import {
   trafficIntelligence,
 } from './traffic-intelligence';
 import './home-continuity.css';
+import './home-context.css';
 
 type PublicGoal = 'first-license' | 'addition' | 'licensed';
 type PublicStage = 'not-started' | 'medical' | 'theory' | 'practical' | 'exam';
@@ -119,7 +120,7 @@ function continuationFor(journey: StoredJourney) {
   return {
     kicker: intent === 'first-license' ? 'SUA PRIMEIRA CNH' : 'SUA CNH',
     ...stageCopy[journey.stage],
-    href: journey.stage === 'not-started' ? '/cnh' : '/ferramentas/minha-jornada',
+    href: '/cnh',
     badge: `Categoria ${journey.category}`,
   };
 }
@@ -278,35 +279,137 @@ function HomeContinuity() {
   );
 }
 
-function TrafficPulseLater() {
+function contextualGuide(journey: StoredJourney | null) {
+  if (!journey) {
+    return {
+      title: 'Como tirar a primeira CNH em 2026',
+      copy: 'Veja a ordem atual do processo e o que pode ser resolvido diretamente pelo cidadão.',
+      href: '/guias/primeira-habilitacao-2026',
+    };
+  }
+  const intent = journey.intent ?? inferIntent(journey);
+  if (intent === 'licensed') {
+    return {
+      title: 'Medo de dirigir',
+      copy: 'Entenda como retomar a direção com progressão e sem transformar insegurança em pressa.',
+      href: '/guias/medo-de-dirigir',
+    };
+  }
+  if (journey.stage === 'practical' || journey.stage === 'exam') {
+    return {
+      title: 'Como funciona o exame prático',
+      copy: 'Entenda o que acontece na prova, o que levar e como se preparar para o dia do exame.',
+      href: '/guias/exame-pratico',
+    };
+  }
+  if (intent === 'city') {
+    return {
+      title: 'Guias para quem dirige na cidade',
+      copy: 'Use a biblioteca do Centro para tirar dúvidas sem interromper sua exploração dos dados de São José.',
+      href: '/guias',
+    };
+  }
+  return {
+    title: 'Como tirar a primeira CNH em 2026',
+    copy: 'Veja a ordem atual do processo e o que pode ser resolvido diretamente pelo cidadão.',
+    href: '/guias/primeira-habilitacao-2026',
+  };
+}
+
+function citySignal(journey: StoredJourney | null) {
   const practical = trafficIntelligence.datasets.practical.latest;
   const fleet = trafficIntelligence.datasets.fleet.latest;
   const infractions = trafficIntelligence.datasets.infractions.latest;
+  const intent = journey ? (journey.intent ?? inferIntent(journey)) : null;
+
+  if (journey?.stage === 'practical' || journey?.stage === 'exam') {
+    return {
+      label: 'PROVA PRÁTICA',
+      value: formatPercent(practical?.metrics.approvalRate),
+      copy: 'aprovação entre resultados decididos em São José',
+    };
+  }
+  if (intent === 'city') {
+    return {
+      label: 'INFRAÇÕES',
+      value: formatCompactCount(infractions?.metrics.total),
+      copy: 'lavradas pelo Detran-SP no último período',
+    };
+  }
+  return {
+    label: 'FROTA',
+    value: formatCompactCount(fleet?.metrics.total),
+    copy: 'veículos ativos no último período',
+  };
+}
+
+function HomeContextNow() {
+  const [journey, setJourney] = useState<StoredJourney | null>(() => readJourney());
+
+  useEffect(() => {
+    const sync = () => setJourney(readJourney());
+    window.addEventListener('storage', sync);
+    window.addEventListener('centro:public-journey-change', sync);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('centro:public-journey-change', sync);
+    };
+  }, []);
+
+  const continuation = journey ? continuationFor(journey) : {
+    kicker: 'COMECE AQUI',
+    title: 'Resolva sua CNH sem depender de alguém para explicar o caminho.',
+    copy: 'O Centro mostra o que você consegue fazer sozinho, os canais oficiais e quando vale pedir ajuda.',
+    href: '/cnh',
+    badge: 'Primeira visita',
+  };
+  const signal = citySignal(journey);
+  const guide = contextualGuide(journey);
 
   return (
-    <div className="continuity-metrics-inner">
-      <div className="continuity-metrics-copy">
-        <p className="eyebrow">SÃO JOSÉ AGORA</p>
-        <h2>Os números continuam disponíveis — só não precisam ser a primeira decisão.</h2>
-        <p>Depois de entender o que você precisa, veja o recorte mais recente de São José dos Campos.</p>
-        <a href="/transito">Ver todos os dados →</a>
+    <div className="home-context-inner">
+      <div className="home-context-head">
+        <div>
+          <p className="eyebrow">AGORA PARA VOCÊ</p>
+          <h2>O que vale a pena fazer agora.</h2>
+        </div>
+        <p>A navegação mostra tudo o que existe no Centro. Aqui aparecem apenas o próximo passo, um sinal da cidade e uma leitura útil para o seu momento.</p>
       </div>
-      <div className="continuity-metric-grid">
-        <a href="/transito"><small>PROVA PRÁTICA</small><strong>{formatPercent(practical?.metrics.approvalRate)}</strong><span>aprovação entre resultados decididos</span></a>
-        <a href="/transito"><small>FROTA</small><strong>{formatCompactCount(fleet?.metrics.total)}</strong><span>veículos ativos no último período</span></a>
-        <a href="/transito"><small>INFRAÇÕES</small><strong>{formatCompactCount(infractions?.metrics.total)}</strong><span>lavradas pelo Detran-SP</span></a>
+
+      <div className="home-context-grid">
+        <article className="home-context-card home-context-card--primary">
+          <span>{continuation.kicker}</span>
+          <h3>{continuation.title}</h3>
+          <p>{continuation.copy}</p>
+          <a href={continuation.href}>Continuar <i>→</i></a>
+        </article>
+
+        <a className="home-context-card home-context-card--signal" href="/transito">
+          <span>SÃO JOSÉ AGORA · {trafficIntelligence.latestPeriod ? formatPeriod(trafficIntelligence.latestPeriod) : 'atualizando'}</span>
+          <small>{signal.label}</small>
+          <strong>{signal.value}</strong>
+          <p>{signal.copy}</p>
+          <i>Ver dados →</i>
+        </a>
+
+        <a className="home-context-card home-context-card--guide" href={guide.href}>
+          <span>PARA ENTENDER</span>
+          <h3>{guide.title}</h3>
+          <p>{guide.copy}</p>
+          <i>Ler guia →</i>
+        </a>
       </div>
-      <small className="continuity-metrics-period">{trafficIntelligence.latestPeriod ? formatPeriod(trafficIntelligence.latestPeriod) : 'Dados em atualização'} · recorte calculado a partir dos arquivos oficiais do Detran-SP.</small>
     </div>
   );
 }
 
 type MountState = {
   hero: HTMLElement;
+  replacedSection: HTMLElement | null;
   continuityHost: HTMLElement;
-  metricsHost: HTMLElement;
+  contextHost: HTMLElement;
   continuityRoot: Root;
-  metricsRoot: Root;
+  contextRoot: Root;
 };
 
 let active: MountState | null = null;
@@ -314,9 +417,10 @@ let active: MountState | null = null;
 function cleanup() {
   if (!active) return;
   try { active.continuityRoot.unmount(); } catch { /* already detached */ }
-  try { active.metricsRoot.unmount(); } catch { /* already detached */ }
+  try { active.contextRoot.unmount(); } catch { /* already detached */ }
+  active.replacedSection?.classList.remove('home-domain-section--replaced');
   active.continuityHost.remove();
-  active.metricsHost.remove();
+  active.contextHost.remove();
   active = null;
 }
 
@@ -340,18 +444,20 @@ function mount() {
   hero.append(continuityHost);
 
   const sections = Array.from(document.querySelectorAll<HTMLElement>('section.platform-section.shell-width'));
-  const firstSection = sections[0];
-  const metricsHost = document.createElement('section');
-  metricsHost.className = 'platform-section shell-width continuity-metrics-section';
-  if (firstSection?.parentElement) firstSection.insertAdjacentElement('afterend', metricsHost);
-  else hero.insertAdjacentElement('afterend', metricsHost);
+  const firstSection = sections[0] ?? null;
+  if (firstSection) firstSection.classList.add('home-domain-section--replaced');
+
+  const contextHost = document.createElement('section');
+  contextHost.className = 'platform-section shell-width home-context-section';
+  if (firstSection?.parentElement) firstSection.insertAdjacentElement('afterend', contextHost);
+  else hero.insertAdjacentElement('afterend', contextHost);
 
   const continuityRoot = createRoot(continuityHost);
-  const metricsRoot = createRoot(metricsHost);
+  const contextRoot = createRoot(contextHost);
   continuityRoot.render(<HomeContinuity />);
-  metricsRoot.render(<TrafficPulseLater />);
+  contextRoot.render(<HomeContextNow />);
 
-  active = { hero, continuityHost, metricsHost, continuityRoot, metricsRoot };
+  active = { hero, replacedSection: firstSection, continuityHost, contextHost, continuityRoot, contextRoot };
 }
 
 new MutationObserver(mount).observe(document.documentElement, { childList: true, subtree: true });
