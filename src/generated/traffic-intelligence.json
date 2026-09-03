@@ -5,7 +5,7 @@
   "authority": "Detran-SP · Portal de Dados Abertos do Estado de São Paulo",
   "datasetLicense": "Creative Commons Attribution 4.0",
   "latestPeriod": "2026-08",
-  "snapshotFingerprint": "a5a32bc19d5507819da420442e48049a3a8dfc015057ba7c4392b877e86f2876",
+  "snapshotFingerprint": "f46dbb2bb2704cda539b3eae2746c441ee131f4e9799eacd839b6e6fb85b0b9d",
   "datasets": {
     "practical": {
       "status": "ready",
@@ -868,103 +868,103 @@
       "datasetPage": "https://dadosabertos.sp.gov.br/dataset/frota-ativa",
       "authority": "Detran-SP · Dados Abertos SP",
       "license": "Creative Commons Attribution 4.0",
-      "catalogUpdatedAt": "2026-08-03T16:09:57.389677",
+      "catalogUpdatedAt": "2026-09-03T16:29:18.298540",
       "latest": {
-        "period": "2026-07",
-        "rowCount": 27229,
+        "period": "2026-08",
+        "rowCount": 27329,
         "municipalityField": "NOME_MUNICIPIO",
         "municipalitySelector": "São José dos Campos",
-        "sha256": "15aa04749bc8efd189fa029d4e91ce69910f2d988c32ac9d518496b550062aba",
-        "resourceId": "5d481e8d-f2e2-4300-93cc-fa55100cbf24",
-        "resourceName": "Frota Ativa - Julho de 2026",
-        "resourcePage": "https://dadosabertos.sp.gov.br/dataset/frota-ativa/resource/5d481e8d-f2e2-4300-93cc-fa55100cbf24",
-        "resourceUpdatedAt": "2026-08-03T16:09:57.530124",
+        "sha256": "fdb47edc9fe711c818cf238102f37a71014b777a2c2fad1a882f39f7edd27ee7",
+        "resourceId": "3aaf9b43-ee93-4736-945c-58eb2c5ee9d9",
+        "resourceName": "Frota Ativa - Agosto de 2026",
+        "resourcePage": "https://dadosabertos.sp.gov.br/dataset/frota-ativa/resource/3aaf9b43-ee93-4736-945c-58eb2c5ee9d9",
+        "resourceUpdatedAt": "2026-09-03T16:29:18.441258",
         "metrics": {
-          "total": 420853,
+          "total": 422479,
           "topTypes": [
             {
               "label": "AUTOMOVEL",
-              "value": 267218
+              "value": 267869
             },
             {
               "label": "MOTOCICLO",
-              "value": 57633
+              "value": 57904
             },
             {
               "label": "CAMINHONET",
-              "value": 30126
+              "value": 30275
             },
             {
               "label": "CAMIONETA",
-              "value": 23902
+              "value": 24099
             },
             {
               "label": "UTILITARIO",
-              "value": 11947
+              "value": 12118
             },
             {
               "label": "MOTONETA",
-              "value": 7549
-            },
-            {
-              "label": "CAMINHAO",
-              "value": 6718
+              "value": 7608
             },
             {
               "label": "REBOQUE",
-              "value": 6700
+              "value": 6745
+            },
+            {
+              "label": "CAMINHAO",
+              "value": 6731
             }
           ],
           "topFuels": [
             {
               "label": "ALCOOL/GASOLINA",
-              "value": 228717
+              "value": 229640
             },
             {
               "label": "GASOLINA",
-              "value": 138849
+              "value": 139082
             },
             {
               "label": "DIESEL",
-              "value": 23344
+              "value": 23443
             },
             {
               "label": "ALCOOL",
-              "value": 10828
+              "value": 10823
             },
             {
               "label": "NAO SE APLICA",
-              "value": 9849
+              "value": 9936
             },
             {
               "label": "GASOLINA/GAS NATURAL VEICULAR",
-              "value": 3055
+              "value": 3040
             }
           ],
           "topSpecies": [
             {
               "label": "PASSAGEIRO",
-              "value": 334127
+              "value": 335077
             },
             {
               "label": "CARGA",
-              "value": 37954
+              "value": 38128
             },
             {
               "label": "MISTO",
-              "value": 34694
+              "value": 35065
             },
             {
               "label": "ESPECIAL",
-              "value": 10885
+              "value": 10959
             },
             {
               "label": "TRACAO",
-              "value": 2227
+              "value": 2264
             },
             {
               "label": "COLECAO",
-              "value": 963
+              "value": 983
             }
           ],
           "schema": {
@@ -977,101 +977,101 @@
       },
       "history": [
         {
-          "period": "2026-07",
-          "rowCount": 27229,
+          "period": "2026-08",
+          "rowCount": 27329,
           "municipalityField": "NOME_MUNICIPIO",
           "municipalitySelector": "São José dos Campos",
-          "sha256": "15aa04749bc8efd189fa029d4e91ce69910f2d988c32ac9d518496b550062aba",
-          "resourceId": "5d481e8d-f2e2-4300-93cc-fa55100cbf24",
-          "resourceName": "Frota Ativa - Julho de 2026",
-          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/frota-ativa/resource/5d481e8d-f2e2-4300-93cc-fa55100cbf24",
-          "resourceUpdatedAt": "2026-08-03T16:09:57.530124",
+          "sha256": "fdb47edc9fe711c818cf238102f37a71014b777a2c2fad1a882f39f7edd27ee7",
+          "resourceId": "3aaf9b43-ee93-4736-945c-58eb2c5ee9d9",
+          "resourceName": "Frota Ativa - Agosto de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/frota-ativa/resource/3aaf9b43-ee93-4736-945c-58eb2c5ee9d9",
+          "resourceUpdatedAt": "2026-09-03T16:29:18.441258",
           "metrics": {
-            "total": 420853,
+            "total": 422479,
             "topTypes": [
               {
                 "label": "AUTOMOVEL",
-                "value": 267218
+                "value": 267869
               },
               {
                 "label": "MOTOCICLO",
-                "value": 57633
+                "value": 57904
               },
               {
                 "label": "CAMINHONET",
-                "value": 30126
+                "value": 30275
               },
               {
                 "label": "CAMIONETA",
-                "value": 23902
+                "value": 24099
               },
               {
                 "label": "UTILITARIO",
-                "value": 11947
+                "value": 12118
               },
               {
                 "label": "MOTONETA",
-                "value": 7549
-              },
-              {
-                "label": "CAMINHAO",
-                "value": 6718
+                "value": 7608
               },
               {
                 "label": "REBOQUE",
-                "value": 6700
+                "value": 6745
+              },
+              {
+                "label": "CAMINHAO",
+                "value": 6731
               }
             ],
             "topFuels": [
               {
                 "label": "ALCOOL/GASOLINA",
-                "value": 228717
+                "value": 229640
               },
               {
                 "label": "GASOLINA",
-                "value": 138849
+                "value": 139082
               },
               {
                 "label": "DIESEL",
-                "value": 23344
+                "value": 23443
               },
               {
                 "label": "ALCOOL",
-                "value": 10828
+                "value": 10823
               },
               {
                 "label": "NAO SE APLICA",
-                "value": 9849
+                "value": 9936
               },
               {
                 "label": "GASOLINA/GAS NATURAL VEICULAR",
-                "value": 3055
+                "value": 3040
               }
             ],
             "topSpecies": [
               {
                 "label": "PASSAGEIRO",
-                "value": 334127
+                "value": 335077
               },
               {
                 "label": "CARGA",
-                "value": 37954
+                "value": 38128
               },
               {
                 "label": "MISTO",
-                "value": 34694
+                "value": 35065
               },
               {
                 "label": "ESPECIAL",
-                "value": 10885
+                "value": 10959
               },
               {
                 "label": "TRACAO",
-                "value": 2227
+                "value": 2264
               },
               {
                 "label": "COLECAO",
-                "value": 963
+                "value": 983
               }
             ],
             "schema": {
