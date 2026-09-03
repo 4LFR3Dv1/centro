@@ -1,7 +1,7 @@
 {
   "name": "centro",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,10 +10,12 @@
     "map:data:validate": "node scripts/refresh-map-data.mjs --validate-existing",
     "safety:data:refresh": "node scripts/refresh-safety-data-v2.mjs --strict",
     "safety:data:validate": "node scripts/refresh-safety-data-v2.mjs --validate-existing",
+    "transit:data:refresh": "node scripts/refresh-transit-data.mjs --strict",
+    "transit:data:validate": "node scripts/refresh-transit-data.mjs --validate-existing",
     "build:app": "tsc --noEmit && vite build",
     "build": "npm run data:ingest && npm run build:app",
     "preview": "vite preview",
-    "check": "npm run data:ingest -- --strict && npm run map:data:validate && npm run safety:data:validate && npm run build:app"
+    "check": "npm run data:ingest -- --strict && npm run map:data:validate && npm run safety:data:validate && npm run transit:data:validate && npm run build:app"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
