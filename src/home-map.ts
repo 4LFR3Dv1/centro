@@ -1,4 +1,4 @@
-import { GeolocateControl, Map, Marker, NavigationControl, Popup } from 'maplibre-gl';
+import { GeolocateControl, Map, Marker, NavigationControl, Popup, type StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './home-map.css';
 
@@ -10,14 +10,15 @@ type OverpassElement = {
   geometry?: Array<{ lat: number; lon: number }>;
 };
 type OverpassResponse = { elements?: OverpassElement[] };
-
 type CycleData = ReturnType<typeof toCycleGeoJson>;
 
-const PRIMARY_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
-const FALLBACK_MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+const BASE_SOURCE_ID = 'centro-osm-basemap';
+const BASE_LAYER_ID = 'centro-osm-basemap-layer';
+const BASEMAP_TIMEOUT_MS = 10_000;
+const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 const OVERPASS = 'https://overpass-api.de/api/interpreter';
-const SCHOOL_QUERY = 'Avenida São José, 1009, Centro, São José dos Campos, SP, Brasil';
+const SCHOOL_QUERY = 'Avenida São José, 1009';
 const CITY_CENTER: [number, number] = [-45.8872, -23.1896];
 const CITY_BBOX = '-23.35,-46.02,-23.05,-45.75';
 const SEARCH_VIEWBOX = '-46.02,-23.05,-45.75,-23.35';
@@ -25,7 +26,30 @@ const CYCLE_CACHE = 'centro.map.cycleways.v1';
 const SEARCH_CACHE = 'centro.map.search.v1:';
 const DAY = 86_400_000;
 
-let active: { anchor: Element; section: HTMLElement; map: Map } | null = null;
+const BASEMAP_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    [BASE_SOURCE_ID]: {
+      type: 'raster',
+      tiles: [OSM_TILE_URL],
+      tileSize: 256,
+      minzoom: 0,
+      maxzoom: 19,
+      attribution: '© OpenStreetMap contributors',
+    },
+  },
+  layers: [
+    {
+      id: BASE_LAYER_ID,
+      type: 'raster',
+      source: BASE_SOURCE_ID,
+      minzoom: 0,
+      maxzoom: 19,
+    },
+  ],
+};
+
+let active: { anchor: Element; section: HTMLElement; map: Map; watchdog: number | null } | null = null;
 let lastSearchAt = 0;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
@@ -39,6 +63,7 @@ function status(node: HTMLElement, message: string, isError = false) {
 function sectionMarkup() {
   const section = document.createElement('section');
   section.className = 'home-map-explorer';
+  section.dataset.mapState = 'loading';
   section.innerHTML = `
     <div class="home-map-copy">
       <div>
@@ -69,7 +94,7 @@ function sectionMarkup() {
       <div class="home-map-canvas" aria-label="Mapa interativo de São José dos Campos"></div>
       <div class="home-map-results" hidden></div>
       <div class="home-map-status" aria-live="polite">Carregando mapa de São José dos Campos…</div>
-      <div class="home-map-source">Mapa baseado em dados do OpenStreetMap. A camada de ciclovias usa traçados comunitários e pode diferir do mapa oficial da Prefeitura.</div>
+      <div class="home-map-source">Mapa © OpenStreetMap contributors. A camada de ciclovias usa traçados comunitários e pode diferir do mapa oficial da Prefeitura.</div>
     </div>`;
   return section;
 }
@@ -198,6 +223,11 @@ async function toggleBike(map: Map, button: HTMLButtonElement, live: HTMLElement
     return;
   }
 
+  if (!map.isStyleLoaded()) {
+    status(live, 'Aguarde o mapa terminar de iniciar antes de abrir as ciclovias.', true);
+    return;
+  }
+
   button.disabled = true;
   status(live, 'Carregando ciclovias e ciclofaixas mapeadas…');
   try {
@@ -249,7 +279,7 @@ function mount(anchor: Element) {
 
   const map = new Map({
     container: canvas,
-    style: PRIMARY_MAP_STYLE,
+    style: BASEMAP_STYLE,
     center: CITY_CENTER,
     zoom: 11.6,
     minZoom: 9,
@@ -257,24 +287,34 @@ function mount(anchor: Element) {
   });
 
   let baseMapReady = false;
-  let fallbackUsed = false;
-  map.once('idle', () => {
-    baseMapReady = true;
-    status(live, 'Mapa pronto. Busque um lugar ou escolha um atalho.');
-  });
-  map.on('error', () => {
-    if (!baseMapReady && !fallbackUsed) {
-      fallbackUsed = true;
-      status(live, 'Tentando uma segunda fonte de mapa…');
-      map.setStyle(FALLBACK_MAP_STYLE);
-      map.once('idle', () => {
-        baseMapReady = true;
-        status(live, 'Mapa pronto. Busque um lugar ou escolha um atalho.');
-      });
+  let watchdog: number | null = null;
+
+  const verifyBaseMap = () => {
+    if (baseMapReady || !map.isStyleLoaded()) return;
+    try {
+      if (!map.isSourceLoaded(BASE_SOURCE_ID)) return;
+    } catch {
       return;
     }
-    if (!baseMapReady) status(live, 'O mapa-base está indisponível agora. Busca e localização continuam funcionando.', true);
+    baseMapReady = true;
+    section.dataset.mapState = 'ready';
+    if (watchdog !== null) window.clearTimeout(watchdog);
+    watchdog = null;
+    status(live, 'Mapa pronto. Busque um lugar ou escolha um atalho.');
+  };
+
+  map.on('load', verifyBaseMap);
+  map.on('sourcedata', verifyBaseMap);
+  map.on('render', verifyBaseMap);
+  map.on('error', () => {
+    if (!baseMapReady) section.dataset.mapState = 'degraded';
   });
+
+  watchdog = window.setTimeout(() => {
+    if (baseMapReady) return;
+    section.dataset.mapState = 'unavailable';
+    status(live, 'O mapa não carregou agora. Busca, localização e atalhos continuam disponíveis.', true);
+  }, BASEMAP_TIMEOUT_MS);
 
   map.addControl(new NavigationControl({ showCompass: false }), 'bottom-right');
   const geolocate = new GeolocateControl({
@@ -324,11 +364,12 @@ function mount(anchor: Element) {
     }
   };
 
-  return { anchor, section, map };
+  return { anchor, section, map, watchdog };
 }
 
 function cleanup() {
   if (!active) return;
+  if (active.watchdog !== null) window.clearTimeout(active.watchdog);
   try { active.map.remove(); } catch { /* already detached */ }
   active.section.remove();
   active = null;
