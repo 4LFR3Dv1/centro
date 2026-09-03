@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "area": "São José dos Campos, SP, Brasil",
+  "bbox": [
+    -23.35,
+    -46.02,
+    -23.05,
+    -45.75
+  ],
+  "source": {
+    "name": "OpenStreetMap",
+    "transport": "Overpass API",
+    "endpoint": "https://overpass-api.de/api/interpreter",
+    "license": "ODbL 1.0"
+  },
+  "retrievedAt": "2026-09-03T14:25:43.035Z",
+  "featureCount": 418,
+  "sha256": "39015acdc8db04c3d33113c0033e673aab3bed492a197e0fb5fb609ee09c6bbc",
+  "artifact": "/data/maps/sjc-cycleways.geojson"
+}
