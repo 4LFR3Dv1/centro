@@ -1,0 +1,119 @@
+/* Keep /guias on the same typography scale already established across Centro. */
+.guides-hero {
+  padding-top: 96px;
+  padding-bottom: 76px;
+  max-width: 1120px;
+}
+
+.guides-hero h1,
+.guide-article-header h1,
+.guide-not-found h1 {
+  max-width: 970px;
+  margin-top: 16px;
+  font-size: clamp(48px, 6.8vw, 88px);
+  line-height: .94;
+  letter-spacing: -.065em;
+  font-weight: 500;
+}
+
+.guides-hero-lead,
+.guide-article-header > p:not(.eyebrow),
+.guide-not-found p {
+  max-width: 70ch;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.guide-feature-copy h2,
+.guide-resolver-bridge h2,
+.guides-section-heading h2 {
+  font-size: clamp(34px, 4.5vw, 60px);
+  line-height: 1.02;
+  letter-spacing: -.055em;
+  font-weight: 500;
+}
+
+.guide-feature-copy > p:not(.eyebrow),
+.guide-resolver-bridge > div > p:not(.eyebrow),
+.guides-section-heading > p {
+  font-size: 11px;
+  line-height: 1.72;
+}
+
+.education-card {
+  min-height: 255px;
+  padding: 21px;
+}
+
+.education-card h3 {
+  margin-top: 40px;
+  font-size: 21px;
+  line-height: 1.12;
+  letter-spacing: -.035em;
+}
+
+.education-card p {
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.education-card-meta {
+  font-size: 8px;
+  letter-spacing: .1em;
+}
+
+.education-card > strong {
+  font-size: 10px;
+}
+
+.guide-summary p {
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.guide-content-section h2 {
+  font-size: clamp(28px, 3vw, 38px);
+  line-height: 1.08;
+  letter-spacing: -.035em;
+  font-weight: 500;
+}
+
+.guide-content-section p,
+.guide-content-section li {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.guide-official-links h2,
+.guide-assistance h2 {
+  font-size: 28px;
+  line-height: 1.08;
+}
+
+.guide-empty {
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .guides-hero h1,
+  .guide-article-header h1,
+  .guide-not-found h1 {
+    font-size: clamp(46px, 10vw, 72px);
+  }
+}
+
+@media (max-width: 640px) {
+  .guides-hero {
+    padding-top: 72px;
+    padding-bottom: 62px;
+  }
+
+  .guides-hero-lead,
+  .guide-article-header > p:not(.eyebrow) {
+    font-size: 14px;
+  }
+
+  .education-card {
+    min-height: 220px;
+  }
+}

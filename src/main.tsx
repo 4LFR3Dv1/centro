@@ -6,6 +6,7 @@ import GuidesApp from './guides-app';
 import './styles.css';
 import './r3a.css';
 import './platform.css';
+import './guides-standard-scale.css';
 import './home-continuity';
 import './home-map';
 import './home-map-overlays.css';
