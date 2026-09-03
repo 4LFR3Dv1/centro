@@ -1,95 +1,53 @@
 # ADMIN-002 — Enrollment Materialization
 
-Status: `CHECKPOINT C2 — AUTHENTICATED_API_CANDIDATE`
-
 Program ledger: issue #26.
+
+Status: `C4_CANDIDATE — PRODUCTION_DB_PENDING`
 
 ## Authority
 
-ADMIN-002 materializes a real enrollment transaction and the minimum authenticated admin surface required to invoke it. It may switch the production runtime from static nginx to Node only after the transaction and API are independently proven.
+This cut materializes one operational act only: **a Staff user creates an Enrollment and receives the Student's institutional access receipt when a credential is first created.**
 
-It does not yet own the full Student workspace, lessons, schedule, milestones or document engine.
+It does not authorize student portal, lessons, scheduling, process milestones, student guides, reports, or a general admin cockpit.
 
-## Transaction law
-
-```text
-CONFIRM ENROLLMENT
-  ↓
-Staff session establishes actor
-  ↓
-lock normalized document identity
-  ↓
-find/reuse Student OR create Student
-  ↓
-ensure one StudentCredential
-  ↓
-create Enrollment
-  ↓
-write AuditEvent(s)
-  ↓
-COMMIT
-```
-
-Any failure before commit must erase every newly-created row in that enrollment attempt.
-
-## Identity behavior
-
-- The same normalized document reuses the same `Student` and `student.public_id`.
-- A new Student gets the next `student_public_id_seq` value formatted as `CEN-YY-NNNNN`.
-- A credential is created only when the Student does not already have one.
-- The initial password plaintext is returned only in the enrollment receipt where that credential was first created.
-- A later enrollment never reveals or regenerates the existing password automatically.
-
-## C1 / C1R findings
-
-C1 exposed an inherited contradiction in ADMIN-001: audit actor foreign keys used `ON DELETE SET NULL` while the actor consistency check required those IDs to exist for Staff/Student actors.
-
-C1R reconciles that law with `ON DELETE RESTRICT`. Audit actor identity is now preserved.
-
-## Staff authority
-
-The browser never supplies `actorStaffUserId` to the enrollment transaction.
+## Accepted laws inherited from ADMIN-001
 
 ```text
-centro_admin_session (HttpOnly cookie)
-  ↓
-SHA-256 token lookup
-  ↓
-active StaffUser + StaffCredential
-  ↓
-StaffSession.staffUserId
-  ↓
-materializeEnrollment(actorStaffUserId)
+PUBLIC VISITOR != STUDENT
+STUDENT REQUIRES ENROLLMENT
+Student != Enrollment
+CPF/document != login
+plaintext password != durable state
+audited actor identity is preserved
 ```
 
-This makes audit authority server-derived.
+## C1 — transactional materialization
 
-### Bootstrap
+`materializeEnrollment()` performs one SERIALIZABLE transaction:
 
-`npm run admin:bootstrap` is a one-time first-admin operation controlled by:
+```text
+normalized document
+  -> advisory transaction lock
+  -> find/reuse Student OR create Student
+  -> create StudentCredential only when absent
+  -> create Enrollment
+  -> append AuditEvents
+  -> COMMIT
+```
 
-- `ADMIN_BOOTSTRAP_USERNAME`
-- `ADMIN_BOOTSTRAP_DISPLAY_NAME`
-- `ADMIN_BOOTSTRAP_PASSWORD`
+If any write or audit insertion fails, the entire operation rolls back. The initial password is cleared from runtime state on rollback.
 
-It refuses to create another bootstrap admin once any StaffUser exists and never prints the password.
+A later Enrollment for the same normalized document reuses the Student and `public_id`; it does not create a second credential or reveal/reset the existing password.
 
-### Session contract
+## C1R — audit actor preservation
 
-- 256-bit random token;
-- SHA-256 digest stored in PostgreSQL;
-- plaintext token only in an HttpOnly cookie;
-- `SameSite=Lax`;
-- `Secure` in production;
-- 12-hour lifetime;
-- revoked on logout;
-- Staff login is audited.
+The first ADMIN-002 witness exposed a contradiction in ADMIN-001: `audit_events` required an explicit Staff/Student actor but its actor foreign keys used `ON DELETE SET NULL`.
 
-### Mutation origin
+Migration `0002_audit_actor_preservation.sql` reconciles this to `ON DELETE RESTRICT`. An actor referenced by durable audit history cannot be deleted silently.
 
-Admin POST requests require the configured same-origin value when `publicOrigin` is supplied. This is the first CSRF boundary; no CORS is enabled.
+## C2 — Staff-authenticated HTTP authority
 
-## API in C2
+Routes:
 
 ```text
 POST /api/admin/auth/login
@@ -98,26 +56,78 @@ POST /api/admin/auth/logout
 POST /api/admin/enrollments
 ```
 
-Enrollment response exposes the initial password only when `credential.created=true`; no password hash is ever serialized.
+The Enrollment endpoint never accepts an actor ID from the browser. It resolves a Staff session from the `centro_admin_session` HttpOnly cookie and supplies that Staff identity to `materializeEnrollment()`.
 
-## Proof targets
+Session properties:
 
-PostgreSQL + HTTP integration tests require:
+- random 256-bit bearer token;
+- only SHA-256 digest is durable;
+- HttpOnly;
+- SameSite=Lax;
+- Secure in production;
+- 12-hour expiration;
+- explicit logout revocation;
+- POST origin validation when `CENTRO_PUBLIC_ORIGIN` is configured (mandatory in production runtime).
 
-1. wrong Origin rejected;
-2. wrong password rejected with generic 401;
-3. enrollment without Staff session rejected;
-4. successful login sets HttpOnly session cookie and does not return token in JSON;
-5. first enrollment returns one-time credential receipt;
-6. second enrollment reuses Student ID and returns no password;
-7. Enrollment audit actor equals the authenticated StaffUser;
-8. logout revokes the session;
-9. old cookie cannot mutate after logout.
+First Staff bootstrap is one-time and guarded by a PostgreSQL advisory lock. Existing Staff state prevents reapplying a bootstrap credential.
 
-## Planned checkpoints
+## C3 — minimal admin surface
 
-- C1 — transaction + PostgreSQL proof.
-- C1R — audit actor preservation reconciliation.
-- C2 — Staff bootstrap/auth + Enrollment HTTP API.
-- C3 — `/admin/matriculas/nova` + one-time credential receipt.
-- C4 — Node production runtime + Railway PostgreSQL migration witness.
+Routes under `/admin` have a dedicated React surface, separate from the public Centro shell.
+
+Available behavior only:
+
+```text
+/admin/login
+/admin
+/admin/matriculas/nova
+```
+
+The form accepts student identification/contact data, service and category. `FIRST_LICENSE + D` is omitted by the UI and still rejected by domain/DB laws.
+
+A successful first enrollment renders an ephemeral access receipt:
+
+```text
+student public ID
+initial password
+```
+
+The receipt lives only in React memory. Reload/logout removes it. Existing Students show `Acesso existente`; no password is recovered or exposed.
+
+The print action in this cut prints only the access receipt. Full school/student guide generation remains `DOCS-001` authority.
+
+## C4 — production runtime candidate
+
+The deployment image moves from static Nginx ownership to one Node process:
+
+```text
+startup
+  -> migrations (advisory locked)
+  -> PostgreSQL readiness
+  -> optional one-time Staff bootstrap
+  -> listen
+
+request
+  -> /healthz (includes DB witness)
+  -> /api/admin/*
+  -> dist static asset / SPA fallback
+```
+
+Production startup fails closed when `CENTRO_PUBLIC_ORIGIN` is absent.
+
+CI builds frontend + server + Docker image and boots the final production image against PostgreSQL 17 before accepting the runtime.
+
+## Production admission still pending
+
+The Railway project currently has only `centro-web`. A managed/durable PostgreSQL service must be provisioned before this PR can be merged/deployed. A raw PostgreSQL image without a persistent Railway volume is explicitly **not** an acceptable substitute.
+
+After durable PostgreSQL exists, production admission requires:
+
+1. `DATABASE_URL` reference attached to `centro-web`;
+2. `CENTRO_PUBLIC_ORIGIN=https://centro-web-production.up.railway.app` (or canonical production domain);
+3. one-time bootstrap admin variables;
+4. merge/deploy;
+5. `/healthz = 200`;
+6. `/admin` serves the operational SPA;
+7. login + real test Enrollment witness;
+8. bootstrap secret variables removed after first Staff creation.
