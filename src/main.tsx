@@ -5,6 +5,7 @@ import App from './App';
 import './styles.css';
 import './r3a.css';
 import './platform.css';
+import './home-map';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
