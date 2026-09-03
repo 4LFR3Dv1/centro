@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "area": "São José dos Campos, SP, Brasil",
+  "source": {
+    "official": "Prefeitura de São José dos Campos",
+    "mappedStops": "OpenStreetMap via Overpass",
+    "stationCoordinates": "OSM transit points / bounded geocoding / persisted coordinates",
+    "licenseOSM": "ODbL 1.0"
+  },
+  "featureCount": 623,
+  "linhaVerdeStations": 13,
+  "mappedStopsAndTerminals": 610,
+  "sha256": "7526143cbbee45d4fa6a2f5952f6bf2097904b9a6b3ef83a7bf123d5167dc01b",
+  "artifact": "/data/maps/sjc-transit.geojson"
+}
