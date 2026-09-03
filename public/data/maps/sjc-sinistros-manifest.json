@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "area": "São José dos Campos, SP, Brasil",
   "bbox": [
     -23.35,
@@ -20,7 +20,7 @@
   "eventCount": 2869,
   "featureCount": 1667,
   "geocodedRate": 58.1,
-  "sha256": "410b29747bce34994d611e3a39f1a968a5565416f354fe09047870a6757fc350",
+  "sha256": "0ab6d23923a84a04b9734c2501b0c39e2005f7d584b4ef0e135a567f254f34dd",
   "resources": [
     {
       "period": "2025-08",
