@@ -1,5 +1,5 @@
 import { readdir, readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
@@ -7,8 +7,7 @@ const { Client } = pg;
 const migrationDir = join(dirname(fileURLToPath(import.meta.url)), 'migrations');
 const LOCK_KEY = 'centro-schema-migrations-v1';
 
-async function run(): Promise<void> {
-  const connectionString = process.env.DATABASE_URL;
+export async function runMigrations(connectionString = process.env.DATABASE_URL): Promise<void> {
   if (!connectionString) {
     throw new Error('DATABASE_URL is required to run database migrations.');
   }
@@ -57,8 +56,11 @@ async function run(): Promise<void> {
   }
 }
 
-run().catch((error) => {
-  console.error('[centro-db] migration failed');
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+const invokedPath = process.argv[1] ? resolve(process.argv[1]) : '';
+if (invokedPath && invokedPath === fileURLToPath(import.meta.url)) {
+  runMigrations().catch((error) => {
+    console.error('[centro-db] migration failed');
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}
