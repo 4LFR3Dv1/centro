@@ -1,10 +1,11 @@
 # Centro
 
-Digital acquisition and operating surface for **Auto Escola Central**, São José dos Campos — SP.
+Digital acquisition and operating surface for **Auto Escola Centro**, São José dos Campos — SP.
 
 ## Canonical business identity
 
-- **Name:** Auto Escola Central
+- **Name:** Auto Escola Centro
+- **Legacy name found in old copy:** Auto Escola Central
 - **Address:** Avenida São José, 1.009 — Centro — São José dos Campos, SP
 - **Phone / WhatsApp:** (12) 9 8177-9745
 - **Operating history:** more than 20 years, according to the business's supplied institutional copy
@@ -14,7 +15,7 @@ The canonical public identity now lives in `src/business.ts`. Public surfaces sh
 
 ## Product thesis
 
-Centro is not a brochure site. It is the public interface between a student, the CNH journey and Auto Escola Central's real operating capacity.
+Centro is not a brochure site. It is the public interface between a student, the CNH journey and Auto Escola Centro's real operating capacity.
 
 The product focuses on:
 
@@ -34,8 +35,8 @@ The previous institutional copy contained strong local-search intent but repeate
 
 The UI is inspired by the product discipline of Lisa App rather than copied from its identity: warm neutral canvas, editorial hierarchy, restrained surfaces, semantic accent color, compact operational cards and short state transitions.
 
-Central translates that language into a driving system: route/progress primitives, category/state signals, local context and direct operational handoff.
+Centro translates that language into a driving system: route/progress primitives, category/state signals, local context and direct operational handoff.
 
 ## Status
 
-`CENTRO-R2 / BUSINESS-RECONCILIATION` — real business identity materialized; operational catalog and presence reconciliation are next.
+`CENTRO-R2 / BUSINESS-RECONCILIATION` — current business identity materialized; operational catalog and presence reconciliation are next.
