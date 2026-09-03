@@ -24,7 +24,7 @@ const STATIONS = [
   { name: 'Estação Jardim América', aliases: ['jardim america'], queries: ['Rua Kiyoshi Enomoto, 158, Jardim San Marino', 'Rua Arequipa, Jardim América'] },
   { name: 'Estação Jardim Satélite', aliases: ['jardim satelite', 'satelite'], queries: ['Avenida Doutor Sebastião Henrique da Cunha Pontes, 189, Palmeiras de São José', 'Rua Andaraí, Jardim Satélite'] },
   { name: 'Estação Dutra', aliases: ['estacao dutra', 'dutra'], queries: ['Avenida Andrômeda, 100, Jardim Satélite', 'Avenida Andrômeda, Jardim Satélite'] },
-  { name: 'Estação Vila Sanches', aliases: ['vila sanches'], queries: ['Avenida Doutor Nelson D Avila, 2740, Jardim São Dimas', 'Avenida Doutor Nelson D Avila, 2726, Jardim São Dimas'] },
+  { name: 'Estação Vila Sanches', aliases: ['vila sanches'], queries: ['Avenida Doutor Nelson D Avila, 1941, Vila Sanches', 'Avenida Doutor Nelson D Avila, 1880, Vila Sanches'] },
   { name: "Estação Nelson D'Ávila", aliases: ['nelson d avila', 'nelson davila'], queries: ['Avenida Doutor Nelson D Avila, 560, Jardim São Dimas', 'Praça Kennedy, Avenida Doutor Nelson D Avila'] },
   { name: 'Estação Praça Maurício Cury', aliases: ['mauricio cury'], queries: ['Avenida Doutor João Guilhermino, 46, Centro', 'Praça Maurício Cury, Centro'] },
   { name: 'Estação Vila Bandeirantes', aliases: ['vila bandeirantes', 'frederico ozanam', 'rodoviaria'], queries: ['Rua Antônio Porfírio da Silva, 150, Jardim Paulista', 'Terminal Rodoviário Frederico Ozanam, Jardim Paulista'] },
@@ -108,7 +108,6 @@ async function resolveStations(stopFeatures) {
     const station = STATIONS[index];
     let coordinates = previous.get(station.name) ?? null;
     let coordinateSource = coordinates ? 'persisted-coordinate' : null;
-
     if (!coordinates) {
       coordinates = await boundedGeocode(station.queries);
       if (coordinates) coordinateSource = 'bounded-address-geocode';
@@ -122,7 +121,6 @@ async function resolveStations(stopFeatures) {
       if (coordinates) coordinateSource = 'bounded-name-geocode';
     }
     if (!coordinates) throw new Error(`Could not resolve official Linha Verde station: ${station.name}`);
-
     features.push({ type: 'Feature', properties: {
       kind: 'linha-verde-station', name: station.name, sequence: index + 1,
       officialNameSource: OFFICIAL_LINE_GREEN, coordinateSource, coordinateRevision: COORDINATE_REVISION,
