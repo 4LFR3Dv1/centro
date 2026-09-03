@@ -41,15 +41,22 @@ export const commercialProfile = {
     note: 'Meios e condições de pagamento ainda não foram confirmados.',
   },
   services: {
-    state: 'needs_review',
-    value: ['Primeira habilitação', 'Adição de categoria', 'Treinamento para habilitados'],
-    note: 'Intenções recuperadas do conteúdo institucional legado; confirmar catálogo comercial atual antes de publicar condições específicas.',
+    state: 'verified',
+    value: [
+      'Primeira habilitação',
+      'Categoria A',
+      'Categoria B',
+      'Categoria D',
+      'Adição de categoria',
+      'Treinamento para habilitados',
+    ],
+    note: 'Catálogo essencial confirmado pela operação: categorias A, B e D, primeira habilitação, adição e treinamento para habilitados.',
   },
 } satisfies Record<string, CommercialField<unknown>>;
 
 const whatsappMessages: Record<JourneyId, string> = {
   'not-started':
-    'Olá! Vim pelo site da Auto Escola Centro. Quero começar minha primeira habilitação e gostaria de saber quais são as opções e condições atuais.',
+    'Olá! Vim pelo site da Auto Escola Centro. Quero começar minha primeira habilitação e gostaria de saber quais são as opções e condições atuais para categorias A e/ou B.',
   'in-process':
     'Olá! Vim pelo site da Auto Escola Centro. Já iniciei meu processo de CNH e gostaria de explicar quais etapas concluí para entender como vocês podem me atender a partir daqui.',
   'theory-done':
@@ -57,7 +64,7 @@ const whatsappMessages: Record<JourneyId, string> = {
   'practical-only':
     'Olá! Vim pelo site da Auto Escola Centro. Estou procurando aulas práticas para treinar e ganhar confiança. Gostaria de saber como funciona o atendimento atualmente.',
   addition:
-    'Olá! Vim pelo site da Auto Escola Centro. Quero informações sobre adição de categoria. Posso informar minha categoria atual e a categoria que desejo adicionar.',
+    'Olá! Vim pelo site da Auto Escola Centro. Quero fazer adição de categoria. Minha categoria atual é ___ e quero adicionar ___. Gostaria de saber as condições atuais para A, B ou D.',
   licensed:
     'Olá! Vim pelo site da Auto Escola Centro. Já tenho CNH e estou procurando treinamento para voltar a dirigir com mais confiança. Gostaria de saber como funciona.',
 };
