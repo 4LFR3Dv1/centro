@@ -1,72 +1,160 @@
 # Centro
 
-Digital acquisition and operating surface for **Auto Escola Centro**, São José dos Campos — SP.
+Public traffic platform for São José dos Campos, with **Auto Escola Centro** as the first premium provider.
 
-## Canonical business identity
+## Constitutional product boundary
 
-- **Name:** Auto Escola Centro
-- **Legacy name found in old copy:** Auto Escola Central
-- **Address:** Avenida São José, 1.009 — Centro — São José dos Campos, SP
-- **Phone / WhatsApp:** (12) 9 8177-9745
-- **Operating history:** more than 20 years, according to the business's supplied institutional copy
-- **Confirmed categories:** A, B and D
-- **Confirmed service intents:** first CNH, category addition and training for licensed drivers
+```text
+PUBLIC VALUE MUST NOT REQUIRE
+AUTO ESCOLA CENTRO ENROLLMENT.
 
-The canonical public identity lives in `src/business.ts`. Commercial knowledge lives in `src/commercial.ts` and must carry an explicit state instead of being inferred from missing data.
+STUDENT STATE MUST NOT EXIST
+WITHOUT AN ENROLLMENT.
+```
 
-## Commercial knowledge model
+Centro is not a landing page for a driving school. The public product must remain independently useful to any driver or future driver.
 
-Each commercial field is classified as:
+## R3B — Public Traffic Platform
 
-- `verified` — confirmed by the operation and safe to state publicly;
-- `unknown` — not currently known and must not be invented;
-- `needs_review` — recovered from a legacy/public source but still requires reconciliation.
+The public information architecture is now:
 
-Current state:
+```text
+/
+├── /cnh
+├── /transito
+├── /guias
+├── /ferramentas
+│   └── /ferramentas/minha-jornada
+├── /sao-jose-dos-campos
+└── /auto-escola-centro
+```
 
-| Field | State |
-| --- | --- |
-| Categories A / B / D | `verified` |
-| First CNH / category addition / licensed-driver training | `verified` |
-| Pricing | `unknown` |
-| Fleet | `unknown` |
-| Opening hours | `unknown` |
-| Lesson availability | `unknown` |
-| Payment methods | `unknown` |
+### Public regime
 
-Public UI renders unknown commercial data as **consult current conditions**, never as fabricated placeholders.
+No login and no account creation.
 
-## R3A — Commercial Foundation
+The user can:
 
-R3A establishes four contracts:
+- understand the current CNH process;
+- distinguish public fees from private services;
+- explore official traffic and mobility sources;
+- read situational guides;
+- build a self-declared CNH checkpoint locally in the browser;
+- continue independently without contacting Auto Escola Centro.
 
-1. **Canonical commercial state** — known and unknown facts are represented explicitly.
-2. **Contextual WhatsApp** — the selected CNH journey determines the message handed to the real WhatsApp channel.
-3. **Service reconciliation** — A, B and D are verified; unconfirmed pricing/fleet/scheduling data remain unknown.
-4. **Official guidance boundary** — Detran-SP rules, fees and process guidance live separately from Auto Escola Centro commercial conditions.
+The public journey is persisted only in `localStorage` under `centro.publicJourney.v1`. It is not an institutional student record.
 
-Official guidance is represented in `src/official-guidance.ts` as a dated snapshot, with the Detran-SP source retained. It is not treated as Auto Escola Centro policy.
+### Premium provider regime
 
-## Product thesis
+`Auto Escola Centro` is represented as a provider, not as the owner of the public journey.
 
-Centro is not a brochure site. It is the public interface between a student, the CNH journey and Auto Escola Centro's real operating capacity.
+Verified state:
 
-The product focuses on:
+- Auto Escola Centro;
+- Avenida São José, 1.009 — Centro — São José dos Campos, SP;
+- WhatsApp / phone `(12) 9 8177-9745`;
+- categories A, B and D;
+- first-license, category-addition and licensed-driver training intents.
 
-- diagnosing where the student is in the CNH journey;
-- recommending the next practical action;
-- handing a qualified lead to WhatsApp with context;
-- separating public regulation from private commercial offer;
-- making location and contact information first-class product objects;
-- establishing canonical state that can later reconcile the website, Google Business Profile and other public surfaces;
-- preparing for scheduling, Detran-SP intelligence, ViaCEP, weather and mobility adapters without making those integrations runtime dependencies.
+Explicitly unknown commercial state remains modeled in `src/commercial.ts`:
 
-## Interface direction
+- pricing;
+- fleet;
+- opening hours;
+- lesson availability;
+- payment methods.
 
-The UI is inspired by the product discipline of Lisa App rather than copied from its identity: warm neutral canvas, editorial hierarchy, restrained surfaces, semantic accent color, compact operational cards and short state transitions.
+## Public data provenance
 
-Centro translates that language into a driving system: route/progress primitives, category/state signals, local context and direct operational handoff.
+`src/platform-data.ts` is the R3B source registry. Each public source carries:
+
+```text
+source
+scope
+freshness
+checkedAt
+status
+```
+
+Current source families include:
+
+- Detran-SP CNH guidance;
+- Detran-SP practical exams;
+- Detran-SP theoretical exams;
+- Detran-SP active fleet;
+- Detran-SP traffic infractions;
+- São José dos Campos municipal traffic monitoring;
+- São José dos Campos mobility updates.
+
+R3B exposes source availability and verified public facts only. Historical ingestion and municipal indicators belong to R3C; the UI must not fabricate a number when a dataset has not yet been ingested.
+
+## Architecture
+
+Current client stack:
+
+- React + TypeScript;
+- Vite;
+- React Router;
+- deterministic public journey tool;
+- local browser persistence;
+- canonical business/commercial state;
+- canonical official-guidance snapshot;
+- public source registry.
+
+No backend is required for R3B.
+
+## Deployment contract
+
+The repository is deploy-ready as a static SPA using the included multi-stage Docker image:
+
+```text
+Node build
+   ↓
+/dist
+   ↓
+nginx
+   ↓
+SPA fallback to /index.html
+```
+
+Files:
+
+- `Dockerfile`
+- `nginx.conf`
+- `railway.toml`
+
+Health endpoint:
+
+```text
+GET /healthz → 200 ok
+```
+
+The deployment boundary is deliberately after CI. No production URL is part of R3B itself.
+
+## Next regimes
+
+### R3C — Public Intelligence
+
+Ingest official snapshots, normalize municipal observations and publish provenance-bearing indicators for São José dos Campos.
+
+### R3D — Public Tools
+
+Add official-cost and document/checklist tools without requiring authentication.
+
+### R4 — Student Identity
+
+Student identity is issued only after enrollment. No public self-registration.
+
+```text
+Student UUID (internal)
+Student code (public)
+Credential issued by school
+```
+
+### R5 — Student Portal
+
+Checkpoint-oriented private surface for enrolled students: real process, lessons, next lesson, documents, exam and financial state.
 
 ## Status
 
-`CENTRO-R3A / COMMERCIAL-FOUNDATION` — canonical commercial state, contextual WhatsApp, verified A/B/D catalog and official-guidance boundary materialized.
+`CENTRO-R3B / PUBLIC-TRAFFIC-PLATFORM` — implementation candidate; deploy gate requires green CI.
