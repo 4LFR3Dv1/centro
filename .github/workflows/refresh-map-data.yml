@@ -1,0 +1,48 @@
+name: Refresh map data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '43 10 * * *'
+  push:
+    branches:
+      - main
+      - feat/map-server-snapshot
+    paths:
+      - 'scripts/refresh-map-data.mjs'
+      - '.github/workflows/refresh-map-data.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Materialize São José map snapshot
+        run: node scripts/refresh-map-data.mjs --strict
+
+      - name: Validate snapshot
+        run: node scripts/refresh-map-data.mjs --validate-existing
+
+      - name: Persist snapshot when source changed
+        run: |
+          if git diff --quiet -- public/data/maps/sjc-cycleways.geojson public/data/maps/sjc-map-manifest.json; then
+            echo "No map source change detected."
+            exit 0
+          fi
+          git config user.name "centro-map-data"
+          git config user.email "actions@users.noreply.github.com"
+          git add public/data/maps/sjc-cycleways.geojson public/data/maps/sjc-map-manifest.json
+          git commit -m "data: refresh São José map snapshot"
+          git push origin HEAD:${{ github.ref_name }}
