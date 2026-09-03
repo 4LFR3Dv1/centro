@@ -3,28 +3,32 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import './home-map.css';
 
 type SearchResult = { display_name: string; lat: string; lon: string };
-type OverpassElement = {
-  id: number;
-  type: string;
-  tags?: Record<string, string>;
-  geometry?: Array<{ lat: number; lon: number }>;
+type CycleGeoJson = {
+  type: 'FeatureCollection';
+  features: Array<{
+    type: 'Feature';
+    id?: number;
+    properties?: Record<string, unknown>;
+    geometry: { type: 'LineString'; coordinates: number[][] };
+  }>;
 };
-type OverpassResponse = { elements?: OverpassElement[] };
-type CycleData = ReturnType<typeof toCycleGeoJson>;
+type MapManifest = {
+  retrievedAt?: string;
+  featureCount?: number;
+  sha256?: string;
+};
 
 const BASE_SOURCE_ID = 'centro-osm-basemap';
 const BASE_LAYER_ID = 'centro-osm-basemap-layer';
 const BASEMAP_TIMEOUT_MS = 10_000;
 const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
-const OVERPASS = 'https://overpass-api.de/api/interpreter';
+const CYCLEWAYS_URL = '/data/maps/sjc-cycleways.geojson';
+const MAP_MANIFEST_URL = '/data/maps/sjc-map-manifest.json';
 const SCHOOL_QUERY = 'Avenida São José, 1009';
 const CITY_CENTER: [number, number] = [-45.8872, -23.1896];
-const CITY_BBOX = '-23.35,-46.02,-23.05,-45.75';
 const SEARCH_VIEWBOX = '-46.02,-23.05,-45.75,-23.35';
-const CYCLE_CACHE = 'centro.map.cycleways.v1';
 const SEARCH_CACHE = 'centro.map.search.v1:';
-const DAY = 86_400_000;
 
 const BASEMAP_STYLE: StyleSpecification = {
   version: 8,
@@ -51,6 +55,8 @@ const BASEMAP_STYLE: StyleSpecification = {
 
 let active: { anchor: Element; section: HTMLElement; map: Map; watchdog: number | null } | null = null;
 let lastSearchAt = 0;
+let cycleSnapshot: CycleGeoJson | null = null;
+let cycleManifest: MapManifest | null = null;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 const compact = (value: string) => value.replace(/\s+/g, ' ').trim();
@@ -94,7 +100,7 @@ function sectionMarkup() {
       <div class="home-map-canvas" aria-label="Mapa interativo de São José dos Campos"></div>
       <div class="home-map-results" hidden></div>
       <div class="home-map-status" aria-live="polite">Carregando mapa de São José dos Campos…</div>
-      <div class="home-map-source">Mapa © OpenStreetMap contributors. A camada de ciclovias usa traçados comunitários e pode diferir do mapa oficial da Prefeitura.</div>
+      <div class="home-map-source">Mapa © OpenStreetMap contributors. Ciclovias são servidas pelo Centro a partir de um retrato periódico dos dados do OpenStreetMap e podem diferir do mapa oficial da Prefeitura.</div>
     </div>`;
   return section;
 }
@@ -128,7 +134,7 @@ async function searchPlace(query: string) {
   const response = await fetch(`${NOMINATIM}?${params.toString()}`, { headers: { Accept: 'application/json' } });
   if (!response.ok) throw new Error(`Busca indisponível agora (${response.status}).`);
   const results = (await response.json()) as SearchResult[];
-  try { sessionStorage.setItem(`${SEARCH_CACHE}${query.toLowerCase()}`, JSON.stringify(results)); } catch { /* optional cache */ }
+  try { sessionStorage.setItem(`${SEARCH_CACHE}${query.toLowerCase()}`, JSON.stringify(results)); } catch { /* optional session cache */ }
   return results;
 }
 
@@ -163,53 +169,35 @@ function searchResults(node: HTMLElement, results: SearchResult[], map: Map) {
   }
 }
 
-function toCycleGeoJson(payload: OverpassResponse) {
-  const seen = new Set<number>();
-  const features = (payload.elements ?? []).flatMap((element) => {
-    if (element.type !== 'way' || !element.geometry?.length || seen.has(element.id)) return [];
-    seen.add(element.id);
-    return [{
-      type: 'Feature' as const,
-      id: element.id,
-      properties: { name: element.tags?.name ?? '' },
-      geometry: {
-        type: 'LineString' as const,
-        coordinates: element.geometry.map((point) => [point.lon, point.lat]),
-      },
-    }];
-  });
-  return { type: 'FeatureCollection' as const, features };
-}
+async function loadCycleSnapshot() {
+  if (cycleSnapshot) return { data: cycleSnapshot, manifest: cycleManifest };
 
-function cachedCycleways(): CycleData | null {
-  try {
-    const raw = localStorage.getItem(CYCLE_CACHE);
-    if (!raw) return null;
-    const cached = JSON.parse(raw) as { fetchedAt: number; data: CycleData };
-    return Date.now() - cached.fetchedAt <= DAY ? cached.data : null;
-  } catch {
-    return null;
+  const [geoResponse, manifestResponse] = await Promise.all([
+    fetch(CYCLEWAYS_URL, { headers: { Accept: 'application/geo+json,application/json' }, cache: 'force-cache' }),
+    fetch(MAP_MANIFEST_URL, { headers: { Accept: 'application/json' }, cache: 'force-cache' }),
+  ]);
+  if (!geoResponse.ok) throw new Error(`Mapa cicloviário indisponível agora (${geoResponse.status}).`);
+  if (!manifestResponse.ok) throw new Error(`Informações do mapa indisponíveis agora (${manifestResponse.status}).`);
+
+  const data = (await geoResponse.json()) as CycleGeoJson;
+  const manifest = (await manifestResponse.json()) as MapManifest;
+  if (data.type !== 'FeatureCollection' || !Array.isArray(data.features) || data.features.length === 0) {
+    throw new Error('O retrato de ciclovias está vazio ou inválido.');
   }
+  if (manifest.featureCount !== data.features.length) {
+    throw new Error('O retrato de ciclovias não passou pela validação de integridade.');
+  }
+
+  cycleSnapshot = data;
+  cycleManifest = manifest;
+  return { data, manifest };
 }
 
-async function cycleways() {
-  const cached = cachedCycleways();
-  if (cached) return cached;
-  const query = `[out:json][timeout:25];(
-    way["highway"="cycleway"](${CITY_BBOX});
-    way["cycleway"](${CITY_BBOX});
-    way["cycleway:left"](${CITY_BBOX});
-    way["cycleway:right"](${CITY_BBOX});
-  );out geom;`;
-  const response = await fetch(OVERPASS, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-    body: `data=${encodeURIComponent(query)}`,
-  });
-  if (!response.ok) throw new Error(`Camada cicloviária indisponível agora (${response.status}).`);
-  const data = toCycleGeoJson((await response.json()) as OverpassResponse);
-  try { localStorage.setItem(CYCLE_CACHE, JSON.stringify({ fetchedAt: Date.now(), data })); } catch { /* optional cache */ }
-  return data;
+function snapshotLabel(manifest: MapManifest | null) {
+  if (!manifest?.retrievedAt) return '';
+  const date = new Date(manifest.retrievedAt);
+  if (Number.isNaN(date.getTime())) return '';
+  return ` · atualizado em ${date.toLocaleDateString('pt-BR')}`;
 }
 
 async function toggleBike(map: Map, button: HTMLButtonElement, live: HTMLElement) {
@@ -229,10 +217,11 @@ async function toggleBike(map: Map, button: HTMLButtonElement, live: HTMLElement
   }
 
   button.disabled = true;
-  status(live, 'Carregando ciclovias e ciclofaixas mapeadas…');
+  status(live, 'Abrindo ciclovias de São José…');
   try {
     if (!map.getSource(source)) {
-      map.addSource(source, { type: 'geojson', data: await cycleways() });
+      const snapshot = await loadCycleSnapshot();
+      map.addSource(source, { type: 'geojson', data: snapshot.data });
       map.addLayer({
         id: layer,
         type: 'line',
@@ -255,9 +244,9 @@ async function toggleBike(map: Map, button: HTMLButtonElement, live: HTMLElement
       map.setLayoutProperty(layer, 'visibility', 'visible');
     }
     button.setAttribute('aria-pressed', 'true');
-    status(live, 'Ciclovias visíveis. Toque em um trecho para identificar o local.');
+    status(live, `Ciclovias visíveis${snapshotLabel(cycleManifest)}. Toque em um trecho para identificar o local.`);
   } catch (error) {
-    status(live, error instanceof Error ? error.message : 'Não foi possível carregar as ciclovias.', true);
+    status(live, error instanceof Error ? error.message : 'Não foi possível abrir as ciclovias.', true);
   } finally {
     button.disabled = false;
   }
