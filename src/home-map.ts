@@ -35,16 +35,28 @@ type TransitManifest = {
 };
 type OverlayId = 'cycling' | 'safety' | 'transit';
 type OverlayRuntime = {
+  ready: boolean;
   enabled: Record<OverlayId, boolean>;
   loading: Record<OverlayId, boolean>;
   loaded: Record<OverlayId, boolean>;
+  lastError: Record<OverlayId, string | null>;
   buttons: Record<OverlayId, HTMLButtonElement>;
 };
 
 const BASE_SOURCE_ID = 'centro-osm-basemap';
 const BASE_LAYER_ID = 'centro-osm-basemap-layer';
+const SOURCE_IDS: Record<OverlayId, string> = {
+  cycling: 'centro-cycleways',
+  safety: 'centro-safety',
+  transit: 'centro-transit',
+};
+const LAYERS = {
+  cycling: ['centro-cycleways-line'],
+  safety: ['centro-safety-heat', 'centro-safety-points'],
+  transit: ['centro-transit-stops', 'centro-transit-terminals', 'centro-linha-verde-stations'],
+} as const;
+
 const BASEMAP_TIMEOUT_MS = 10_000;
-const OVERLAY_RENDER_TIMEOUT_MS = 8_000;
 const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 const CYCLEWAYS_URL = '/data/maps/sjc-cycleways.geojson';
@@ -57,20 +69,8 @@ const SCHOOL_QUERY = 'Avenida São José, 1009';
 const CITY_CENTER: [number, number] = [-45.8872, -23.1896];
 const SEARCH_VIEWBOX = '-46.02,-23.05,-45.75,-23.35';
 const SEARCH_CACHE = 'centro.map.search.v1:';
-
-const SOURCE_IDS: Record<OverlayId, string> = {
-  cycling: 'centro-cycleways',
-  safety: 'centro-safety',
-  transit: 'centro-transit',
-};
-
-const LAYERS = {
-  cycling: ['centro-cycleways-line'],
-  safety: ['centro-safety-heat', 'centro-safety-points'],
-  transit: ['centro-transit-stops', 'centro-transit-terminals', 'centro-linha-verde-stations'],
-} as const;
-
 const EMPTY_FEATURES: FeatureCollection = { type: 'FeatureCollection', features: [] };
+const HIDDEN = { visibility: 'none' as const };
 
 const BASEMAP_STYLE: StyleSpecification = {
   version: 8,
@@ -83,11 +83,114 @@ const BASEMAP_STYLE: StyleSpecification = {
       maxzoom: 19,
       attribution: '© OpenStreetMap contributors',
     },
+    [SOURCE_IDS.cycling]: { type: 'geojson', data: EMPTY_FEATURES as never },
+    [SOURCE_IDS.safety]: { type: 'geojson', data: EMPTY_FEATURES as never },
+    [SOURCE_IDS.transit]: { type: 'geojson', data: EMPTY_FEATURES as never },
   },
-  layers: [{ id: BASE_LAYER_ID, type: 'raster', source: BASE_SOURCE_ID, minzoom: 0, maxzoom: 19 }],
+  // Bottom -> top. This is the only place that owns visual overlay order.
+  layers: [
+    { id: BASE_LAYER_ID, type: 'raster', source: BASE_SOURCE_ID, minzoom: 0, maxzoom: 19 },
+    {
+      id: 'centro-safety-heat',
+      type: 'heatmap',
+      source: SOURCE_IDS.safety,
+      maxzoom: 13.5,
+      layout: HIDDEN,
+      paint: {
+        'heatmap-weight': ['case', ['boolean', ['get', 'fatal'], false], 1.8, 0.8],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 9, 0.6, 13, 1.1],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 9, 10, 13, 24],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.65, 13.5, 0.15],
+        'heatmap-color': [
+          'interpolate', ['linear'], ['heatmap-density'],
+          0, 'rgba(45,91,255,0)',
+          0.25, 'rgba(45,91,255,0.35)',
+          0.55, 'rgba(255,149,64,0.55)',
+          0.8, 'rgba(224,80,55,0.7)',
+          1, 'rgba(140,24,24,0.82)',
+        ],
+      },
+    },
+    {
+      id: 'centro-cycleways-line',
+      type: 'line',
+      source: SOURCE_IDS.cycling,
+      layout: { ...HIDDEN, 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': '#087f5b',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2.4, 15, 5.5],
+        'line-opacity': 0.95,
+      },
+    },
+    {
+      id: 'centro-transit-stops',
+      type: 'circle',
+      source: SOURCE_IDS.transit,
+      minzoom: 11,
+      filter: ['==', ['get', 'kind'], 'transit-stop'],
+      layout: HIDDEN,
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 2.8, 15, 4.8],
+        'circle-color': '#2f6f9f',
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.55, 14, 0.82],
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 0.9,
+      },
+    },
+    {
+      id: 'centro-safety-points',
+      type: 'circle',
+      source: SOURCE_IDS.safety,
+      minzoom: 11.2,
+      layout: HIDDEN,
+      paint: {
+        'circle-radius': ['case', ['boolean', ['get', 'fatal'], false], 6, 3.6],
+        'circle-color': ['case', ['boolean', ['get', 'fatal'], false], '#a3261f', '#e56f2d'],
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11.2, 0.5, 14, 0.88],
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1,
+      },
+    },
+    {
+      id: 'centro-transit-terminals',
+      type: 'circle',
+      source: SOURCE_IDS.transit,
+      minzoom: 9,
+      filter: ['==', ['get', 'kind'], 'transit-terminal'],
+      layout: HIDDEN,
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 5.5, 15, 8.5],
+        'circle-color': '#244c70',
+        'circle-opacity': 0.98,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.6,
+      },
+    },
+    {
+      id: 'centro-linha-verde-stations',
+      type: 'circle',
+      source: SOURCE_IDS.transit,
+      minzoom: 9,
+      filter: ['==', ['get', 'kind'], 'linha-verde-station'],
+      layout: HIDDEN,
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 6.5, 14, 9.5],
+        'circle-color': '#087f5b',
+        'circle-opacity': 1,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 2.2,
+      },
+    },
+  ],
 };
 
-let active: { anchor: Element; section: HTMLElement; map: Map; watchdog: number | null } | null = null;
+let active: {
+  anchor: Element;
+  section: HTMLElement;
+  map: Map;
+  watchdog: number | null;
+  getSchoolMarker: () => Marker | null;
+} | null = null;
 let lastSearchAt = 0;
 let cycleSnapshot: FeatureCollection | null = null;
 let cycleManifest: MapManifest | null = null;
@@ -143,9 +246,9 @@ function sectionMarkup() {
       </form>
       <div class="home-map-actions" aria-label="Camadas e atalhos do mapa">
         <button type="button" data-action="locate"><span>◎</span> Minha localização</button>
-        <button type="button" data-overlay="cycling" aria-pressed="false"><span>⌁</span> Ciclovias</button>
-        <button type="button" data-overlay="safety" aria-pressed="false"><span>＋</span> Sinistros</button>
-        <button type="button" data-overlay="transit" aria-pressed="false"><span>▦</span> Transporte</button>
+        <button type="button" data-overlay="cycling" aria-pressed="false" aria-disabled="true" disabled><span>⌁</span> Ciclovias</button>
+        <button type="button" data-overlay="safety" aria-pressed="false" aria-disabled="true" disabled><span>＋</span> Sinistros</button>
+        <button type="button" data-overlay="transit" aria-pressed="false" aria-disabled="true" disabled><span>▦</span> Transporte</button>
         <button type="button" data-action="school"><span>●</span> Auto Escola Centro</button>
       </div>
       <div class="home-map-canvas" aria-label="Mapa interativo de São José dos Campos"></div>
@@ -183,20 +286,24 @@ async function searchPlace(query: string) {
   const response = await fetch(`${NOMINATIM}?${params.toString()}`, { headers: { Accept: 'application/json' } });
   if (!response.ok) throw new Error(`Busca indisponível agora (${response.status}).`);
   const results = (await response.json()) as SearchResult[];
-  try { sessionStorage.setItem(`${SEARCH_CACHE}${query.toLowerCase()}`, JSON.stringify(results)); } catch { /* optional */ }
+  try { sessionStorage.setItem(`${SEARCH_CACHE}${query.toLowerCase()}`, JSON.stringify(results)); } catch { /* optional cache */ }
   return results;
 }
 
-function showPlace(map: Map, result: SearchResult, label?: string) {
+function placeCoordinates(result: SearchResult): [number, number] | null {
   const lng = Number(result.lon);
   const lat = Number(result.lat);
-  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
-  map.flyTo({ center: [lng, lat], zoom: 15.5, duration: 900 });
-  const marker = new Marker({ color: '#2d5bff' })
-    .setLngLat([lng, lat])
-    .setPopup(new Popup({ offset: 22 }).setText(label ?? compact(result.display_name)))
+  return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null;
+}
+
+function showSearchPlace(map: Map, result: SearchResult) {
+  const coordinate = placeCoordinates(result);
+  if (!coordinate) return;
+  map.flyTo({ center: coordinate, zoom: 15.5, duration: 900 });
+  new Marker({ color: '#2d5bff' })
+    .setLngLat(coordinate)
+    .setPopup(new Popup({ offset: 22, focusAfterOpen: false }).setText(compact(result.display_name)))
     .addTo(map);
-  marker.togglePopup();
 }
 
 function searchResults(node: HTMLElement, results: SearchResult[], map: Map) {
@@ -213,7 +320,10 @@ function searchResults(node: HTMLElement, results: SearchResult[], map: Map) {
     button.type = 'button';
     button.className = 'home-map-result';
     button.textContent = compact(result.display_name);
-    button.onclick = () => { showPlace(map, result); node.hidden = true; };
+    button.onclick = () => {
+      showSearchPlace(map, result);
+      node.hidden = true;
+    };
     node.append(button);
   }
 }
@@ -225,9 +335,10 @@ async function loadPair<TManifest>(dataUrl: string, manifestUrl: string, emptyMe
   ]);
   if (!geoResponse.ok) throw new Error(`${emptyMessage} (${geoResponse.status}).`);
   if (!manifestResponse.ok) throw new Error(`Informações da camada indisponíveis agora (${manifestResponse.status}).`);
+
   const data = (await geoResponse.json()) as FeatureCollection;
   const manifest = (await manifestResponse.json()) as TManifest & { featureCount?: number };
-  if (data.type !== 'FeatureCollection' || !Array.isArray(data.features) || !data.features.length) {
+  if (data.type !== 'FeatureCollection' || !Array.isArray(data.features) || data.features.length === 0) {
     throw new Error(`${emptyMessage}: retrato vazio ou inválido.`);
   }
   if (manifest.featureCount !== data.features.length) {
@@ -236,160 +347,50 @@ async function loadPair<TManifest>(dataUrl: string, manifestUrl: string, emptyMe
   return { data, manifest };
 }
 
-async function cycleData() {
-  if (!cycleSnapshot) {
-    const loaded = await loadPair<MapManifest>(CYCLEWAYS_URL, MAP_MANIFEST_URL, 'Mapa cicloviário indisponível agora');
-    cycleSnapshot = loaded.data;
-    cycleManifest = loaded.manifest;
+async function overlayData(overlay: OverlayId) {
+  if (overlay === 'cycling') {
+    if (!cycleSnapshot) {
+      const loaded = await loadPair<MapManifest>(CYCLEWAYS_URL, MAP_MANIFEST_URL, 'Mapa cicloviário indisponível agora');
+      cycleSnapshot = loaded.data;
+      cycleManifest = loaded.manifest;
+    }
+    return cycleSnapshot;
   }
-  return { data: cycleSnapshot, manifest: cycleManifest };
-}
 
-async function safetyData() {
-  if (!safetySnapshot) {
-    const loaded = await loadPair<SafetyManifest>(SAFETY_URL, SAFETY_MANIFEST_URL, 'Dados de sinistros indisponíveis agora');
-    safetySnapshot = loaded.data;
-    safetyManifest = loaded.manifest;
+  if (overlay === 'safety') {
+    if (!safetySnapshot) {
+      const loaded = await loadPair<SafetyManifest>(SAFETY_URL, SAFETY_MANIFEST_URL, 'Dados de sinistros indisponíveis agora');
+      safetySnapshot = loaded.data;
+      safetyManifest = loaded.manifest;
+    }
+    return safetySnapshot;
   }
-  return { data: safetySnapshot, manifest: safetyManifest };
-}
 
-async function transitData() {
   if (!transitSnapshot) {
     const loaded = await loadPair<TransitManifest>(TRANSIT_URL, TRANSIT_MANIFEST_URL, 'Dados de transporte indisponíveis agora');
     transitSnapshot = loaded.data;
     transitManifest = loaded.manifest;
   }
-  return { data: transitSnapshot, manifest: transitManifest };
-}
-
-function snapshotLabel(manifest: MapManifest | null) {
-  if (!manifest?.retrievedAt) return '';
-  const date = new Date(manifest.retrievedAt);
-  if (Number.isNaN(date.getTime())) return '';
-  return ` · atualizado em ${date.toLocaleDateString('pt-BR')}`;
-}
-
-function installOverlayRegistry(map: Map) {
-  for (const sourceId of Object.values(SOURCE_IDS)) {
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, { type: 'geojson', data: EMPTY_FEATURES as never });
-    }
-  }
-
-  const hidden = { visibility: 'none' as const };
-
-  if (!map.getLayer('centro-safety-heat')) {
-    map.addLayer({
-      id: 'centro-safety-heat',
-      type: 'heatmap',
-      source: SOURCE_IDS.safety,
-      maxzoom: 13.5,
-      layout: hidden,
-      paint: {
-        'heatmap-weight': ['case', ['boolean', ['get', 'fatal'], false], 1.8, 0.8],
-        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 9, 0.6, 13, 1.1],
-        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 9, 10, 13, 24],
-        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.65, 13.5, 0.15],
-        'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(45,91,255,0)', 0.25, 'rgba(45,91,255,0.35)', 0.55, 'rgba(255,149,64,0.55)', 0.8, 'rgba(224,80,55,0.7)', 1, 'rgba(140,24,24,0.82)'],
-      },
-    });
-  }
-
-  if (!map.getLayer('centro-cycleways-line')) {
-    map.addLayer({
-      id: 'centro-cycleways-line',
-      type: 'line',
-      source: SOURCE_IDS.cycling,
-      layout: { ...hidden, 'line-cap': 'round', 'line-join': 'round' },
-      paint: {
-        'line-color': '#168a62',
-        'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2, 15, 5],
-        'line-opacity': 0.9,
-      },
-    });
-  }
-
-  if (!map.getLayer('centro-transit-stops')) {
-    map.addLayer({
-      id: 'centro-transit-stops',
-      type: 'circle',
-      source: SOURCE_IDS.transit,
-      minzoom: 11.2,
-      filter: ['==', ['get', 'kind'], 'transit-stop'],
-      layout: hidden,
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 11.2, 2.2, 15, 4.2],
-        'circle-color': '#436f91',
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11.2, 0.42, 14, 0.72],
-        'circle-stroke-color': '#ffffff',
-        'circle-stroke-width': 0.7,
-      },
-    });
-  }
-
-  if (!map.getLayer('centro-safety-points')) {
-    map.addLayer({
-      id: 'centro-safety-points',
-      type: 'circle',
-      source: SOURCE_IDS.safety,
-      minzoom: 11.5,
-      layout: hidden,
-      paint: {
-        'circle-radius': ['case', ['boolean', ['get', 'fatal'], false], 5, 3],
-        'circle-color': ['case', ['boolean', ['get', 'fatal'], false], '#a3261f', '#e56f2d'],
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11.5, 0.38, 14, 0.8],
-        'circle-stroke-color': '#ffffff',
-        'circle-stroke-width': 0.8,
-      },
-    });
-  }
-
-  if (!map.getLayer('centro-transit-terminals')) {
-    map.addLayer({
-      id: 'centro-transit-terminals',
-      type: 'circle',
-      source: SOURCE_IDS.transit,
-      minzoom: 9,
-      filter: ['==', ['get', 'kind'], 'transit-terminal'],
-      layout: hidden,
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 5, 15, 8],
-        'circle-color': '#244c70',
-        'circle-opacity': 0.96,
-        'circle-stroke-color': '#ffffff',
-        'circle-stroke-width': 1.5,
-      },
-    });
-  }
-
-  if (!map.getLayer('centro-linha-verde-stations')) {
-    map.addLayer({
-      id: 'centro-linha-verde-stations',
-      type: 'circle',
-      source: SOURCE_IDS.transit,
-      minzoom: 9,
-      filter: ['==', ['get', 'kind'], 'linha-verde-station'],
-      layout: hidden,
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 6, 14, 9],
-        'circle-color': '#0f8a63',
-        'circle-opacity': 1,
-        'circle-stroke-color': '#ffffff',
-        'circle-stroke-width': 2,
-      },
-    });
-  }
+  return transitSnapshot;
 }
 
 function overlayRegistryReady(map: Map) {
-  return (Object.values(SOURCE_IDS).every((sourceId) => Boolean(map.getSource(sourceId)))
-    && Object.values(LAYERS).flat().every((layerId) => Boolean(map.getLayer(layerId))));
+  return Object.values(SOURCE_IDS).every((sourceId) => Boolean(map.getSource(sourceId)))
+    && Object.values(LAYERS).flat().every((layerId) => Boolean(map.getLayer(layerId)));
+}
+
+function enableOverlayControls(runtime: OverlayRuntime) {
+  if (runtime.ready) return;
+  runtime.ready = true;
+  for (const button of Object.values(runtime.buttons)) {
+    button.disabled = false;
+    button.setAttribute('aria-disabled', 'false');
+  }
 }
 
 function setLayersVisible(map: Map, overlay: OverlayId, visible: boolean) {
-  if (!overlayRegistryReady(map)) throw new Error('As camadas do mapa ainda não terminaram de iniciar.');
   for (const layerId of LAYERS[overlay]) {
+    if (!map.getLayer(layerId)) throw new Error(`Camada ${layerId} não existe no mapa.`);
     map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
   }
 }
@@ -398,7 +399,8 @@ function syncOverlayButton(runtime: OverlayRuntime, overlay: OverlayId) {
   const button = runtime.buttons[overlay];
   button.setAttribute('aria-pressed', runtime.enabled[overlay] ? 'true' : 'false');
   button.setAttribute('aria-busy', runtime.loading[overlay] ? 'true' : 'false');
-  button.disabled = runtime.loading[overlay];
+  button.disabled = !runtime.ready || runtime.loading[overlay];
+  button.setAttribute('aria-disabled', button.disabled ? 'true' : 'false');
 }
 
 function getGeoJsonSource(map: Map, overlay: OverlayId) {
@@ -407,62 +409,36 @@ function getGeoJsonSource(map: Map, overlay: OverlayId) {
   return source as GeoJSONSource;
 }
 
-async function waitForOverlayCycle(map: Map, overlay: OverlayId) {
-  const sourceId = SOURCE_IDS[overlay];
-  await new Promise<void>((resolve, reject) => {
-    let settled = false;
-    const timeout = window.setTimeout(() => {
-      cleanup();
-      reject(new Error('A camada recebeu os dados, mas o mapa não confirmou a renderização.'));
-    }, OVERLAY_RENDER_TIMEOUT_MS);
-
-    const cleanup = () => {
-      if (settled) return;
-      settled = true;
-      window.clearTimeout(timeout);
-      map.off('idle', onIdle);
-      map.off('error', onError);
-    };
-
-    const onIdle = () => {
-      try {
-        if (!map.isSourceLoaded(sourceId)) return;
-        cleanup();
-        resolve();
-      } catch {
-        // Source is still being replaced in the worker.
-      }
-    };
-
-    const onError = (event: unknown) => {
-      const candidate = event as { sourceId?: string; error?: Error };
-      if (candidate.sourceId && candidate.sourceId !== sourceId) return;
-      if (!candidate.sourceId) return;
-      cleanup();
-      reject(candidate.error ?? new Error('O MapLibre rejeitou os dados desta camada.'));
-    };
-
-    map.on('idle', onIdle);
-    map.on('error', onError);
-    map.triggerRepaint();
-  });
+function overlayFromSourceId(sourceId?: string): OverlayId | null {
+  if (!sourceId) return null;
+  for (const [overlay, id] of Object.entries(SOURCE_IDS) as Array<[OverlayId, string]>) {
+    if (id === sourceId) return overlay;
+  }
+  return null;
 }
 
-async function materializeOverlay(map: Map, overlay: OverlayId) {
+async function commitOverlayToMap(map: Map, overlay: OverlayId, data: FeatureCollection) {
   const source = getGeoJsonSource(map, overlay);
-  if (overlay === 'cycling') source.setData((await cycleData()).data as never);
-  else if (overlay === 'safety') source.setData((await safetyData()).data as never);
-  else source.setData((await transitData()).data as never);
-
-  // Visibility is enabled before the render witness so the idle cycle must include
-  // actual style evaluation for this overlay rather than only worker ingestion.
+  source.setData(data as never);
   setLayersVisible(map, overlay, true);
-  await waitForOverlayCycle(map, overlay);
+  map.triggerRepaint();
+
+  // setData() schedules GeoJSON processing in the MapLibre worker. `isSourceLoaded()`
+  // is intentionally NOT an acknowledgement contract here: for client-side GeoJSON
+  // it can remain false or oscillate even though the layer is valid/renderable.
+  // Give the browser/map two paint opportunities and let actual source errors fail
+  // closed through the persistent `error` listener below.
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
 }
 
 function overlayStatus(overlay: OverlayId) {
   if (overlay === 'cycling') {
-    return `Ciclovias visíveis${snapshotLabel(cycleManifest)}. Toque em um trecho para identificar o local.`;
+    const suffix = cycleManifest?.retrievedAt
+      ? ` · atualizado em ${new Date(cycleManifest.retrievedAt).toLocaleDateString('pt-BR')}`
+      : '';
+    return `Ciclovias visíveis${suffix}. Toque em um trecho para identificar o local.`;
   }
   if (overlay === 'safety') {
     const range = safetyManifest?.range
@@ -474,11 +450,7 @@ function overlayStatus(overlay: OverlayId) {
 }
 
 async function toggleOverlay(map: Map, runtime: OverlayRuntime, overlay: OverlayId, live: HTMLElement) {
-  if (!map.isStyleLoaded() || !overlayRegistryReady(map)) {
-    status(live, 'Aguarde o mapa terminar de iniciar antes de abrir uma camada.', true);
-    return;
-  }
-  if (runtime.loading[overlay]) return;
+  if (!runtime.ready || runtime.loading[overlay]) return;
 
   if (runtime.enabled[overlay]) {
     runtime.enabled[overlay] = false;
@@ -490,27 +462,34 @@ async function toggleOverlay(map: Map, runtime: OverlayRuntime, overlay: Overlay
   }
 
   runtime.loading[overlay] = true;
+  runtime.lastError[overlay] = null;
   syncOverlayButton(runtime, overlay);
-  status(live, overlay === 'cycling'
-    ? 'Abrindo ciclovias de São José…'
-    : overlay === 'safety'
-      ? 'Abrindo registros de sinistros de trânsito…'
-      : 'Abrindo Linha Verde e transporte coletivo…');
+  status(
+    live,
+    overlay === 'cycling'
+      ? 'Abrindo ciclovias de São José…'
+      : overlay === 'safety'
+        ? 'Abrindo registros de sinistros de trânsito…'
+        : 'Abrindo Linha Verde e transporte coletivo…',
+  );
 
   try {
     if (!runtime.loaded[overlay]) {
-      await materializeOverlay(map, overlay);
+      const data = await overlayData(overlay);
+      await commitOverlayToMap(map, overlay, data);
+      if (runtime.lastError[overlay]) throw new Error(runtime.lastError[overlay] as string);
       runtime.loaded[overlay] = true;
     } else {
       setLayersVisible(map, overlay, true);
-      await waitForOverlayCycle(map, overlay);
+      map.triggerRepaint();
     }
+
     runtime.enabled[overlay] = true;
     status(live, overlayStatus(overlay));
   } catch (error) {
     runtime.enabled[overlay] = false;
     runtime.loaded[overlay] = false;
-    try { setLayersVisible(map, overlay, false); } catch { /* registry may be unavailable */ }
+    try { setLayersVisible(map, overlay, false); } catch { /* map may be closing */ }
     status(live, error instanceof Error ? error.message : 'Não foi possível renderizar esta camada.', true);
   } finally {
     runtime.loading[overlay] = false;
@@ -522,15 +501,19 @@ function safetyPopup(feature: MapGeoJSONFeature) {
   const props = feature.properties ?? {};
   const root = document.createElement('div');
   root.className = 'centro-safety-popup';
+
   const title = document.createElement('strong');
   title.textContent = compact(String(props.type || 'Sinistro de trânsito'));
   const place = document.createElement('span');
   place.textContent = compact(String(props.street || props.roadType || 'Local informado pelo Infosiga'));
   const when = document.createElement('span');
   when.textContent = [compact(String(props.date || '')), compact(String(props.hour || '')), compact(String(props.turn || ''))]
-    .filter(Boolean).join(' · ');
+    .filter(Boolean)
+    .join(' · ');
+
   root.append(title, place);
   if (when.textContent) root.append(when);
+
   const fatalVictims = Number(props.fatalVictims || 0);
   const seriousVictims = Number(props.seriousVictims || 0);
   if (fatalVictims > 0 || seriousVictims > 0) {
@@ -541,6 +524,7 @@ function safetyPopup(feature: MapGeoJSONFeature) {
     ].filter(Boolean).join(' · ');
     root.append(severity);
   }
+
   const source = document.createElement('small');
   source.textContent = 'Detran-SP · Infosiga';
   root.append(source);
@@ -552,10 +536,12 @@ function transitPopup(feature: MapGeoJSONFeature) {
   const kind = String(props.kind || '');
   const root = document.createElement('div');
   root.className = 'centro-safety-popup';
+
   const title = document.createElement('strong');
   const name = compact(String(props.name || 'Ponto de transporte'));
   title.textContent = kind === 'linha-verde-station' && props.sequence ? `${props.sequence} · ${name}` : name;
   root.append(title);
+
   if (kind === 'linha-verde-station') {
     const detail = document.createElement('span');
     detail.textContent = 'Linha Verde · estação oficial';
@@ -593,12 +579,15 @@ function bindMapInteractions(map: Map) {
     if (!layers.length) return;
     const feature = map.queryRenderedFeatures(event.point, { layers })[0];
     if (!feature) return;
-    const layerId = feature.layer.id;
-    const popup = new Popup({ offset: 8, maxWidth: '320px' }).setLngLat(event.lngLat);
-    if (layerId === 'centro-safety-points') popup.setDOMContent(safetyPopup(feature));
-    else if (layerId === 'centro-cycleways-line') {
+
+    const popup = new Popup({ offset: 8, maxWidth: '320px', focusAfterOpen: false }).setLngLat(event.lngLat);
+    if (feature.layer.id === 'centro-safety-points') {
+      popup.setDOMContent(safetyPopup(feature));
+    } else if (feature.layer.id === 'centro-cycleways-line') {
       popup.setText(`${compact(String(feature.properties?.name || 'Trecho cicloviário mapeado'))} · OpenStreetMap`);
-    } else popup.setDOMContent(transitPopup(feature));
+    } else {
+      popup.setDOMContent(transitPopup(feature));
+    }
     popup.addTo(map);
   });
 
@@ -611,6 +600,7 @@ function bindMapInteractions(map: Map) {
 function mount(anchor: Element) {
   const section = sectionMarkup();
   anchor.append(section);
+
   const canvas = section.querySelector<HTMLElement>('.home-map-canvas');
   const form = section.querySelector<HTMLFormElement>('.home-map-search');
   const input = section.querySelector<HTMLInputElement>('#centro-map-search');
@@ -624,9 +614,11 @@ function mount(anchor: Element) {
   if (!canvas || !form || !input || !results || !live || !locate || !cycling || !safety || !transit || !school) return null;
 
   const runtime: OverlayRuntime = {
+    ready: false,
     enabled: { cycling: false, safety: false, transit: false },
     loading: { cycling: false, safety: false, transit: false },
     loaded: { cycling: false, safety: false, transit: false },
+    lastError: { cycling: null, safety: null, transit: null },
     buttons: { cycling, safety, transit },
   };
 
@@ -638,36 +630,48 @@ function mount(anchor: Element) {
     minZoom: 9,
     maxZoom: 18,
   });
+
   let baseMapReady = false;
   let watchdog: number | null = null;
+  let schoolMarker: Marker | null = null;
 
-  const verifyBaseMap = () => {
-    if (baseMapReady || !map.isStyleLoaded()) return;
-    try { if (!map.isSourceLoaded(BASE_SOURCE_ID)) return; } catch { return; }
-    baseMapReady = true;
-    section.dataset.mapState = 'ready';
-    if (watchdog !== null) window.clearTimeout(watchdog);
-    watchdog = null;
-    status(live, 'Mapa pronto. Busque um lugar ou combine as camadas.');
+  const reconcileReadiness = () => {
+    if (!runtime.ready && overlayRegistryReady(map)) {
+      enableOverlayControls(runtime);
+    }
+    if (!baseMapReady && map.getLayer(BASE_LAYER_ID)) {
+      baseMapReady = true;
+      section.dataset.mapState = 'ready';
+      if (watchdog !== null) window.clearTimeout(watchdog);
+      watchdog = null;
+      status(live, runtime.ready
+        ? 'Mapa pronto. Busque um lugar ou combine as camadas.'
+        : 'Mapa visível. Preparando as camadas de informação…');
+    } else if (runtime.ready && live.textContent?.includes('Preparando as camadas')) {
+      status(live, 'Mapa pronto. Busque um lugar ou combine as camadas.');
+    }
   };
 
-  map.on('load', () => {
-    try {
-      installOverlayRegistry(map);
-      verifyBaseMap();
-    } catch (error) {
-      section.dataset.mapState = 'degraded';
-      status(live, error instanceof Error ? error.message : 'As camadas do mapa não iniciaram corretamente.', true);
-    }
-  });
-  map.on('sourcedata', verifyBaseMap);
-  map.on('render', verifyBaseMap);
+  map.on('styledata', reconcileReadiness);
+  map.on('render', reconcileReadiness);
+  map.on('load', reconcileReadiness);
   map.on('error', (event) => {
-    if (!baseMapReady) section.dataset.mapState = 'degraded';
     const candidate = event as unknown as { sourceId?: string; error?: Error };
-    if (candidate.sourceId && Object.values(SOURCE_IDS).includes(candidate.sourceId)) {
-      status(live, candidate.error?.message || 'Uma camada do mapa encontrou um erro de renderização.', true);
+    if (candidate.sourceId === BASE_SOURCE_ID && !baseMapReady) {
+      section.dataset.mapState = 'degraded';
     }
+
+    const overlay = overlayFromSourceId(candidate.sourceId);
+    if (!overlay) return;
+
+    const message = candidate.error?.message || 'O mapa rejeitou os dados desta camada.';
+    runtime.lastError[overlay] = message;
+    runtime.enabled[overlay] = false;
+    runtime.loaded[overlay] = false;
+    runtime.loading[overlay] = false;
+    try { setLayersVisible(map, overlay, false); } catch { /* style may be closing */ }
+    syncOverlayButton(runtime, overlay);
+    status(live, message, true);
   });
 
   watchdog = window.setTimeout(() => {
@@ -689,19 +693,39 @@ function mount(anchor: Element) {
   geolocate.on('error', () => status(live, 'Não consegui acessar sua localização. Confira a permissão do navegador.', true));
   bindMapInteractions(map);
 
-  locate.onclick = () => { status(live, 'Pedindo sua localização ao navegador…'); geolocate.trigger(); };
+  locate.onclick = () => {
+    status(live, 'Pedindo sua localização ao navegador…');
+    geolocate.trigger();
+  };
   cycling.onclick = () => void toggleOverlay(map, runtime, 'cycling', live);
   safety.onclick = () => void toggleOverlay(map, runtime, 'safety', live);
   transit.onclick = () => void toggleOverlay(map, runtime, 'transit', live);
 
-  school.onclick = async () => {
+  school.onclick = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const scrollY = window.scrollY;
     school.disabled = true;
     status(live, 'Localizando a Auto Escola Centro…');
+
     try {
       const first = (await searchPlace(SCHOOL_QUERY))[0];
-      if (!first) throw new Error('Não encontrei o endereço no mapa agora.');
-      showPlace(map, first, 'Auto Escola Centro · Avenida São José, 1009');
-      status(live, 'Auto Escola Centro localizada no mapa.');
+      const coordinate = first ? placeCoordinates(first) : null;
+      if (!coordinate) throw new Error('Não encontrei o endereço no mapa agora.');
+
+      schoolMarker?.remove();
+      schoolMarker = new Marker({ color: '#2d5bff' })
+        .setLngLat(coordinate)
+        .setPopup(new Popup({ offset: 22, focusAfterOpen: false }).setText('Auto Escola Centro · Avenida São José, 1009'))
+        .addTo(map);
+      map.flyTo({ center: coordinate, zoom: 15.7, duration: 900 });
+      status(live, 'Auto Escola Centro localizada no mapa. Toque no marcador azul para ver o endereço.');
+
+      const restoreScroll = () => {
+        if (Math.abs(window.scrollY - scrollY) > 2) window.scrollTo(0, scrollY);
+      };
+      requestAnimationFrame(restoreScroll);
+      window.setTimeout(restoreScroll, 950);
     } catch (error) {
       status(live, error instanceof Error ? error.message : 'Não foi possível localizar a Auto Escola Centro.', true);
     } finally {
@@ -716,13 +740,15 @@ function mount(anchor: Element) {
       status(live, 'Digite pelo menos 3 caracteres para buscar.', true);
       return;
     }
+
     const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
     if (submit) submit.disabled = true;
     status(live, `Buscando “${query}”…`);
+
     try {
       const found = await searchPlace(query);
       searchResults(results, found, map);
-      if (found[0]) showPlace(map, found[0]);
+      if (found[0]) showSearchPlace(map, found[0]);
       status(live, found.length
         ? `${found.length} resultado${found.length === 1 ? '' : 's'} encontrado${found.length === 1 ? '' : 's'}.`
         : 'Nenhum resultado encontrado.');
@@ -733,12 +759,19 @@ function mount(anchor: Element) {
     }
   };
 
-  return { anchor, section, map, watchdog };
+  return {
+    anchor,
+    section,
+    map,
+    watchdog,
+    getSchoolMarker: () => schoolMarker,
+  };
 }
 
 function cleanup() {
   if (!active) return;
   if (active.watchdog !== null) window.clearTimeout(active.watchdog);
+  active.getSchoolMarker()?.remove();
   try { active.map.remove(); } catch { /* already detached */ }
   active.section.remove();
   active = null;
@@ -749,9 +782,11 @@ function scan() {
     cleanup();
     return;
   }
+
   const anchor = document.querySelector('.city-home-section');
   if (!anchor) return;
   if (active?.anchor === anchor && document.contains(active.section)) return;
+
   cleanup();
   active = mount(anchor);
 }
