@@ -1,13 +1,7 @@
 import { useMemo, useState } from 'react';
 import { business, businessAddress } from './business';
-
-type JourneyId =
-  | 'not-started'
-  | 'in-process'
-  | 'theory-done'
-  | 'practical-only'
-  | 'addition'
-  | 'licensed';
+import { buildWhatsappUrl, commercialProfile, type JourneyId } from './commercial';
+import { officialGuidance } from './official-guidance';
 
 type JourneyOption = {
   id: JourneyId;
@@ -22,68 +16,85 @@ const journeyOptions: JourneyOption[] = [
     id: 'not-started',
     label: 'Quero minha primeira CNH',
     detail: 'Ainda não comecei e quero entender o caminho.',
-    next: 'Organizar sua primeira habilitação',
-    recommendation: 'A Auto Escola Centro te orienta sobre o processo e ajuda a transformar a primeira CNH em um caminho claro.',
+    next: 'Entender por onde começar',
+    recommendation: 'Veja o fluxo oficial atual e confirme com a Auto Escola Centro as condições para categorias A e B.',
   },
   {
     id: 'in-process',
     label: 'Já iniciei minha CNH',
     detail: 'Já concluí algumas etapas e preciso saber o que vem agora.',
     next: 'Identificar sua próxima etapa',
-    recommendation: 'Partimos do ponto em que você está para evitar informação e etapas que não servem mais para você.',
+    recommendation: 'Partimos do ponto em que você está para evitar repetir etapas ou pedir informações que não servem mais para você.',
   },
   {
     id: 'theory-done',
     label: 'Já passei na prova teórica',
     detail: 'Estou pronto para organizar as aulas práticas.',
-    next: 'Começar seu treino prático',
-    recommendation: 'Organize sua prática com instrutores credenciados e treinamento no trânsito real de São José dos Campos.',
+    next: 'Consultar prática e disponibilidade',
+    recommendation: 'Após aprovação teórica e emissão da LADV, você pode iniciar a prática. Confirme condições e disponibilidade com a Auto Escola Centro.',
   },
   {
     id: 'practical-only',
     label: 'Quero mais aulas práticas',
-    detail: 'Preciso ganhar confiança, treinar ou me preparar melhor.',
-    next: 'Definir seu treino',
-    recommendation: 'A Auto Escola Centro atende alunos em formação e também quem precisa reforçar habilidades específicas ao volante.',
+    detail: 'Preciso treinar, ganhar confiança ou me preparar melhor.',
+    next: 'Consultar treinamento prático',
+    recommendation: 'Explique seu objetivo no WhatsApp para receber uma resposta já contextualizada sobre o atendimento disponível hoje.',
   },
   {
     id: 'addition',
     label: 'Quero adicionar categoria',
     detail: 'Já sou habilitado e quero ampliar minha CNH.',
-    next: 'Escolher a categoria desejada',
-    recommendation: 'A Auto Escola Centro trabalha com adição de categorias A, B e D conforme a situação do condutor.',
+    next: 'Escolher entre A, B ou D',
+    recommendation: 'A Auto Escola Centro trabalha com categorias A, B e D. Informe sua categoria atual e a desejada para receber orientação objetiva.',
   },
   {
     id: 'licensed',
     label: 'Já tenho CNH, mas quero confiança',
-    detail: 'Tenho habilitação, porém sinto insegurança ou medo de dirigir.',
-    next: 'Começar um treinamento para habilitados',
-    recommendation: 'Treine no seu ritmo com profissionais acostumados a trabalhar insegurança, retomada e aperfeiçoamento.',
+    detail: 'Tenho habilitação, porém quero voltar a dirigir com mais segurança.',
+    next: 'Consultar treinamento para habilitados',
+    recommendation: 'Conte sua situação e objetivo antes da conversa começar para reduzir idas e vindas no atendimento.',
   },
 ];
 
-const services = [
+const serviceIntents: Array<{
+  code: string;
+  title: string;
+  copy: string;
+  tag: string;
+  journey: JourneyId;
+}> = [
   {
-    code: '01',
-    title: 'Primeira habilitação',
-    copy: 'Para quem vai conquistar a primeira CNH de carro, moto ou combinação das categorias permitidas.',
-    tag: 'Começar',
+    code: 'A',
+    title: 'Categoria A',
+    copy: 'Primeira habilitação ou adição de categoria para moto, conforme sua situação atual.',
+    tag: 'Moto',
+    journey: 'not-started',
   },
   {
-    code: '02',
-    title: 'Adição de categoria',
-    copy: 'Para condutores habilitados que querem ampliar a categoria da carteira, incluindo A, B e D.',
-    tag: 'Evoluir',
+    code: 'B',
+    title: 'Categoria B',
+    copy: 'Primeira habilitação ou adição de categoria para carro, com atendimento contextual ao seu processo.',
+    tag: 'Carro',
+    journey: 'theory-done',
   },
   {
-    code: '03',
-    title: 'Treinamento para habilitados',
-    copy: 'Aulas práticas para quem tem CNH, mas quer recuperar confiança, perder o medo ou aperfeiçoar a condução.',
-    tag: 'Confiança',
+    code: 'D',
+    title: 'Categoria D',
+    copy: 'Atendimento para condutores que buscam categoria D e precisam confirmar os requisitos e condições atuais.',
+    tag: 'Ônibus',
+    journey: 'addition',
   },
 ];
 
-const stages = ['Entrada', 'Orientação', 'Treino', 'Exame', 'CNH'];
+const stages = ['Início', 'Teoria', 'Prática', 'Exame', 'CNH'];
+
+const commercialUnknowns = [
+  ['Preços', commercialProfile.pricing],
+  ['Frota', commercialProfile.fleet],
+  ['Horários', commercialProfile.openingHours],
+  ['Disponibilidade', commercialProfile.lessonAvailability],
+  ['Pagamento', commercialProfile.paymentMethods],
+] as const;
 
 export default function App() {
   const [journey, setJourney] = useState<JourneyId>('theory-done');
@@ -93,15 +104,14 @@ export default function App() {
   );
 
   const configuredWhatsapp = import.meta.env.VITE_WHATSAPP_URL as string | undefined;
-  const contactHref = configuredWhatsapp || business.whatsappUrl;
+  const whatsappBase = configuredWhatsapp || business.whatsappUrl;
+  const contactHref = buildWhatsappUrl(whatsappBase, journey);
 
   return (
     <main className="site-shell">
       <header className="topbar shell-width">
         <a className="brand" href="#top" aria-label={`${business.name} — início`}>
-          <span className="brand-mark" aria-hidden="true">
-            <span />
-          </span>
+          <span className="brand-mark" aria-hidden="true"><span /></span>
           <span className="brand-copy">
             <strong>CENTRO</strong>
             <small>Auto Escola · São José dos Campos</small>
@@ -110,8 +120,9 @@ export default function App() {
 
         <nav className="desktop-nav" aria-label="Navegação principal">
           <a href="#caminho">Seu caminho</a>
-          <a href="#servicos">Serviços</a>
-          <a href="#cidade">Onde estamos</a>
+          <a href="#categorias">Categorias</a>
+          <a href="#guia">CNH atual</a>
+          <a href="#cidade">Localização</a>
         </nav>
 
         <a className="quiet-action" href={contactHref} target="_blank" rel="noreferrer">
@@ -125,26 +136,24 @@ export default function App() {
           <h1>
             Sua CNH,
             <br />
-            <em>com caminho claro.</em>
+            <em>sem começar do zero.</em>
           </h1>
           <p className="hero-lead">
-            {business.yearsLabel}, a Auto Escola Centro ajuda pessoas de São José dos Campos a conquistar a primeira habilitação, adicionar categoria e voltar a dirigir com confiança.
+            Diga em que ponto você está. O site separa regra oficial do Detran-SP das condições comerciais da Auto Escola Centro e prepara seu atendimento com contexto.
           </p>
           <div className="hero-actions">
             <a className="primary-action" href="#caminho">
               Descobrir meu próximo passo <span aria-hidden="true">→</span>
             </a>
-            <a className="text-action" href={contactHref} target="_blank" rel="noreferrer">
-              Falar no WhatsApp
-            </a>
+            <a className="text-action" href="#guia">Ver processo atual</a>
           </div>
         </div>
 
-        <aside className="hero-system" aria-label="Resumo da jornada na Auto Escola Centro">
+        <aside className="hero-system" aria-label="Resumo da jornada de habilitação">
           <div className="system-head">
             <span className="status-dot" />
-            <span>Seu caminho até dirigir</span>
-            <small>Centro / SJC</small>
+            <span>Processo atual de habilitação</span>
+            <small>Detran-SP / 2026</small>
           </div>
           <div className="route-stack" aria-label="Etapas da jornada">
             {stages.map((stage, index) => (
@@ -152,14 +161,14 @@ export default function App() {
                 <span className="route-mark">{index < 2 ? '✓' : index + 1}</span>
                 <div>
                   <strong>{stage}</strong>
-                  <small>{index === 2 ? 'Próxima ação' : index < 2 ? 'Organizado' : 'Depois'}</small>
+                  <small>{index === 2 ? 'Treino + LADV' : index < 2 ? 'Etapa anterior' : 'Depois'}</small>
                 </div>
               </div>
             ))}
           </div>
           <div className="system-note">
-            <span>Centro</span>
-            <p>Formação e treinamento prático com experiência no trânsito real da cidade.</p>
+            <span>REGRA ≠ OFERTA</span>
+            <p>Taxas e requisitos públicos vêm do Detran-SP. Preço, frota, horário e agenda vêm da operação da Auto Escola Centro.</p>
           </div>
         </aside>
       </section>
@@ -167,12 +176,10 @@ export default function App() {
       <section className="journey-section shell-width" id="caminho">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">01 · SEU CAMINHO</p>
+            <p className="eyebrow">01 · SEU ESTADO</p>
             <h2>O que você precisa agora?</h2>
           </div>
-          <p>
-            Em vez de jogar uma lista de serviços em você, a Auto Escola Centro começa pela sua situação e aponta a próxima ação.
-          </p>
+          <p>Escolha sua situação real. A recomendação e a mensagem enviada ao WhatsApp mudam junto com você.</p>
         </div>
 
         <div className="journey-surface">
@@ -187,9 +194,7 @@ export default function App() {
                   type="button"
                   aria-pressed={active}
                 >
-                  <span className="option-radio" aria-hidden="true">
-                    <span />
-                  </span>
+                  <span className="option-radio" aria-hidden="true"><span /></span>
                   <span>
                     <strong>{option.label}</strong>
                     <small>{option.detail}</small>
@@ -209,97 +214,119 @@ export default function App() {
                 <strong>{selected.label}</strong>
               </span>
               <span>
-                <small>Atendimento</small>
-                <strong>Com contexto</strong>
+                <small>WhatsApp</small>
+                <strong>Mensagem contextual</strong>
               </span>
             </div>
             <a className="primary-action primary-action--full" href={contactHref} target="_blank" rel="noreferrer">
-              Conversar com a Auto Escola Centro <span aria-hidden="true">→</span>
+              Continuar no WhatsApp <span aria-hidden="true">→</span>
             </a>
           </aside>
         </div>
       </section>
 
-      <section className="training-section shell-width" id="servicos">
+      <section className="training-section shell-width" id="categorias">
         <div className="section-heading section-heading--compact">
           <div>
-            <p className="eyebrow">02 · SERVIÇOS</p>
-            <h2>Da primeira CNH à confiança de dirigir sozinho.</h2>
+            <p className="eyebrow">02 · CATEGORIAS CONFIRMADAS</p>
+            <h2>A, B e D. Sem catálogo inventado.</h2>
           </div>
-          <p>
-            A oferta real da Auto Escola Centro organizada pelo objetivo do aluno — sem repetir dezenas de palavras-chave para explicar a mesma coisa.
-          </p>
+          <p>A Auto Escola Centro trabalha com categorias A, B e D. Preços e condições permanecem sob consulta até serem reconciliados com a operação.</p>
         </div>
 
         <div className="package-grid">
-          {services.map((item, index) => (
-            <article className={`package-card ${index === 0 ? 'is-featured' : ''}`} key={item.code}>
+          {serviceIntents.map((item) => (
+            <article className="package-card" key={item.code}>
               <div className="package-topline">
                 <span>{item.tag}</span>
-                <small>{item.code}</small>
+                <small>VERIFICADO</small>
               </div>
               <strong className="package-hours">{item.code}</strong>
               <h3>{item.title}</h3>
               <p>{item.copy}</p>
               <div className="package-footer">
-                <span>São José dos Campos</span>
-                <a href={contactHref} target="_blank" rel="noreferrer">Consultar <span aria-hidden="true">↗</span></a>
+                <span>Condições atuais sob consulta</span>
+                <button
+                  className="inline-link"
+                  type="button"
+                  onClick={() => setJourney(item.journey)}
+                >
+                  Preparar atendimento →
+                </button>
               </div>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="capacity-section shell-width">
-        <div className="capacity-card">
-          <div className="capacity-copy">
-            <p className="eyebrow">03 · ATENDIMENTO</p>
-            <h2>Fale direto com quem pode organizar seu próximo passo.</h2>
-            <p>
-              Valores, documentação, disponibilidade e detalhes da sua categoria são confirmados no atendimento da Auto Escola Centro.
-            </p>
+      <section className="guidance-section shell-width" id="guia">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">03 · ORIENTAÇÃO OFICIAL</p>
+            <h2>O que é regra pública fica separado do que a escola vende.</h2>
           </div>
-          <div className="capacity-slots" aria-label="Canais de atendimento">
-            <a href={contactHref} target="_blank" rel="noreferrer" className="capacity-slot">
-              <span className="slot-index">01</span>
-              <div>
-                <strong>WhatsApp</strong>
-                <small>{business.phoneDisplay}</small>
-              </div>
-              <span className="slot-arrow" aria-hidden="true">→</span>
-            </a>
-            <a href={`tel:${business.phoneE164}`} className="capacity-slot">
-              <span className="slot-index">02</span>
-              <div>
-                <strong>Telefone</strong>
-                <small>{business.phoneDisplay}</small>
-              </div>
-              <span className="slot-arrow" aria-hidden="true">→</span>
-            </a>
-            <a href={business.mapsUrl} target="_blank" rel="noreferrer" className="capacity-slot">
-              <span className="slot-index">03</span>
-              <div>
-                <strong>Visitar</strong>
-                <small>Avenida São José, 1.009 · Centro</small>
-              </div>
-              <span className="slot-arrow" aria-hidden="true">→</span>
-            </a>
+          <p>Snapshot conferido em {officialGuidance.checkedAt.split('-').reverse().join('/')} com base no Detran-SP. Use como orientação geral; o portal oficial continua sendo a fonte normativa.</p>
+        </div>
+
+        <div className="guidance-grid">
+          <article className="guidance-flow">
+            <span className="knowledge-badge knowledge-badge--verified">DET​​RAN-SP · VERIFICADO</span>
+            <h3>{officialGuidance.firstLicense.title}</h3>
+            <p>{officialGuidance.firstLicense.summary}</p>
+            <ol>
+              {officialGuidance.firstLicense.steps.map((step) => <li key={step}>{step}</li>)}
+            </ol>
+            <a href={officialGuidance.sourceUrl} target="_blank" rel="noreferrer">Abrir fonte oficial ↗</a>
+          </article>
+
+          <div className="fact-grid">
+            {officialGuidance.publicFacts.map((fact) => (
+              <article className="fact-card" key={fact.label}>
+                <span>{fact.label}</span>
+                <strong>{fact.value}</strong>
+                <small>{fact.detail}</small>
+              </article>
+            ))}
           </div>
+        </div>
+
+        <div className="official-alerts">
+          {officialGuidance.alerts.map((alert) => <p key={alert}>{alert}</p>)}
+        </div>
+      </section>
+
+      <section className="commercial-section shell-width" id="atendimento">
+        <div className="commercial-card">
+          <div className="commercial-copy">
+            <p className="eyebrow">04 · CONDIÇÕES COMERCIAIS</p>
+            <h2>O que ainda não sabemos não vira promessa.</h2>
+            <p>Esses campos já existem no estado comercial, mas continuam `unknown` até a Auto Escola Centro confirmar a operação atual.</p>
+          </div>
+          <div className="commercial-state-list">
+            {commercialUnknowns.map(([label, field]) => (
+              <div className="commercial-state-row" key={label}>
+                <span>{label}</span>
+                <strong>Consultar</strong>
+                <small>{field.note}</small>
+              </div>
+            ))}
+          </div>
+          <a className="primary-action" href={contactHref} target="_blank" rel="noreferrer">
+            Perguntar com meu contexto <span aria-hidden="true">→</span>
+          </a>
         </div>
       </section>
 
       <section className="city-section shell-width" id="cidade">
         <div className="city-copy">
-          <p className="eyebrow">04 · SÃO JOSÉ DOS CAMPOS</p>
-          <h2>Aprenda no trânsito que você vai dirigir de verdade.</h2>
-          <p>
-            A Auto Escola Centro prepara seus alunos com prática no trânsito do dia a dia, trabalhando leitura de fluxo, conversões, estacionamento e tomada de decisão em ambiente urbano real.
-          </p>
+          <p className="eyebrow">05 · SÃO JOSÉ DOS CAMPOS</p>
+          <h2>Auto Escola Centro, no Centro.</h2>
+          <p>{businessAddress}. O endereço e o telefone agora vêm de uma única fonte canônica no produto.</p>
           <div className="city-points">
-            <span>Primeira CNH</span>
             <span>Categoria A</span>
             <span>Categoria B</span>
             <span>Categoria D</span>
+            <span>Primeira CNH</span>
             <span>Habilitados</span>
           </div>
         </div>
@@ -309,8 +336,8 @@ export default function App() {
           <div className="route-line route-line--one" />
           <div className="route-line route-line--two" />
           <span className="map-node map-node--start"><i />Centro</span>
-          <span className="map-node map-node--mid"><i />Treino</span>
-          <span className="map-node map-node--end"><i />Centro</span>
+          <span className="map-node map-node--mid"><i />1.009</span>
+          <span className="map-node map-node--end"><i />SJC</span>
           <div className="map-caption">
             <span>ENDEREÇO</span>
             <strong>Avenida São José, 1.009</strong>
@@ -321,7 +348,7 @@ export default function App() {
       <section className="contact-section shell-width" id="contato">
         <div>
           <p className="eyebrow">AUTO ESCOLA CENTRO</p>
-          <h2>Primeira CNH, nova categoria ou confiança para voltar a dirigir.</h2>
+          <h2>Chegue no atendimento já dizendo o que você precisa.</h2>
           <p>{businessAddress}</p>
         </div>
         <a className="contact-action" href={contactHref} target="_blank" rel="noreferrer">
@@ -332,7 +359,7 @@ export default function App() {
 
       <footer className="footer shell-width">
         <span>{business.name} · {business.city}</span>
-        <span>{business.address.street} · {business.phoneDisplay}</span>
+        <span>CENTRO-R3A · COMMERCIAL FOUNDATION</span>
       </footer>
     </main>
   );
