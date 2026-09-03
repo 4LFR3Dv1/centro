@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "data:ingest": "node scripts/ingest-detran.mjs",
+    "data:ingest": "node scripts/ingest-detran-v2.mjs",
     "build:app": "tsc --noEmit && vite build",
     "build": "npm run data:ingest && npm run build:app",
     "preview": "vite preview",
