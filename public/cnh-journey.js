@@ -84,17 +84,24 @@ const categories = [
 
 function readState() {
   try {
-    return { situation: 'not-started', category: 'B', inspected: 0, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') };
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const situation = situations.find((item) => item.id === parsed.situation) || situations[0];
+    return {
+      situation: situation.id,
+      category: parsed.category || 'B',
+      currentStep: Number.isInteger(parsed.currentStep) ? parsed.currentStep : situation.step,
+      inspected: Number.isInteger(parsed.inspected) ? parsed.inspected : situation.step,
+    };
   } catch {
-    return { situation: 'not-started', category: 'B', inspected: 0 };
+    return { situation: 'not-started', category: 'B', currentStep: 0, inspected: 0 };
   }
 }
 
 function saveState(state) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
-  const situation = situations.find((item) => item.id === state.situation) || situations[0];
-  const stage = situation.step >= 5 ? 'exam' : situation.step >= 4 ? 'practical' : situation.step >= 3 ? 'theory' : situation.step >= 2 ? 'medical' : 'not-started';
+  const currentStep = Number.isInteger(state.currentStep) ? state.currentStep : 0;
+  const stage = currentStep >= 5 ? 'exam' : currentStep >= 4 ? 'practical' : currentStep >= 3 ? 'theory' : currentStep >= 2 ? 'medical' : 'not-started';
   if (state.category === 'A' || state.category === 'B') {
     try {
       const existing = JSON.parse(localStorage.getItem(PUBLIC_JOURNEY_KEY) || '{}');
@@ -188,15 +195,15 @@ function enhanceTimeline(timeline) {
   let trafficData = null;
 
   const render = () => {
-    const current = situations.find((item) => item.id === state.situation) || situations[0];
-    const inspected = steps[state.inspected] || steps[current.step];
+    const currentStep = Math.max(0, Math.min(steps.length - 1, Number(state.currentStep) || 0));
+    const inspected = steps[state.inspected] || steps[currentStep];
     const inspectedIndex = steps.indexOf(inspected);
 
     controls.innerHTML = `
       <div class="cnh-control-group">
         <span>Onde você está agora?</span>
         <div class="cnh-choice-row" role="group" aria-label="Sua situação atual">
-          ${situations.map((item) => `<button type="button" class="cnh-choice ${item.id === state.situation ? 'is-active' : ''}" data-situation="${item.id}">${item.label}</button>`).join('')}
+          ${situations.map((item) => `<button type="button" class="cnh-choice ${item.id === state.situation && item.step === currentStep ? 'is-active' : ''}" data-situation="${item.id}">${item.label}</button>`).join('')}
         </div>
       </div>
       <div class="cnh-control-group cnh-control-group--category">
@@ -208,7 +215,7 @@ function enhanceTimeline(timeline) {
 
     timeline.classList.add('cnh-explorer-track');
     timeline.innerHTML = steps.map((step, index) => {
-      const stateClass = index < current.step ? 'is-complete' : index === current.step ? 'is-current' : 'is-future';
+      const stateClass = index < currentStep ? 'is-complete' : index === currentStep ? 'is-current' : 'is-future';
       const inspectedClass = index === inspectedIndex ? 'is-inspected' : '';
       return `
         <button type="button" class="cnh-step ${stateClass} ${inspectedClass}" data-step="${index}" aria-label="${index + 1}. ${step.title}">
@@ -218,7 +225,7 @@ function enhanceTimeline(timeline) {
         </button>`;
     }).join('');
 
-    const relation = inspectedIndex < current.step ? 'Você já passou por esta etapa' : inspectedIndex === current.step ? 'Você está aqui' : 'Vem depois';
+    const relation = inspectedIndex < currentStep ? 'Você já passou por esta etapa' : inspectedIndex === currentStep ? 'Você está aqui' : 'Vem depois';
     const practiceExtra = inspected.id === 'practice' ? `<div class="cnh-detail-note"><strong>Sobre a prática</strong><p>${practiceNote(state.category)}</p></div>` : '';
     const cityData = inspected.id === 'exam' ? cityExamMarkup(trafficData, state.category) : '';
     const schoolHelp = inspected.id === 'practice' || inspected.id === 'exam'
@@ -237,7 +244,7 @@ function enhanceTimeline(timeline) {
         </div>
         ${practiceExtra}
         <div class="cnh-detail-actions">
-          ${inspectedIndex !== current.step ? `<button type="button" class="cnh-mark-current" data-mark-current="${inspectedIndex}">Estou nesta etapa</button>` : ''}
+          ${inspectedIndex !== currentStep ? `<button type="button" class="cnh-mark-current" data-mark-current="${inspectedIndex}">Estou nesta etapa</button>` : ''}
           <a href="/ferramentas/minha-jornada">Ver meu próximo passo completo →</a>
         </div>
         <small class="cnh-source-note">${checkedText}</small>
@@ -251,7 +258,7 @@ function enhanceTimeline(timeline) {
       button.addEventListener('click', () => {
         const next = situations.find((item) => item.id === button.dataset.situation);
         if (!next) return;
-        state = { ...state, situation: next.id, inspected: next.step };
+        state = { ...state, situation: next.id, currentStep: next.step, inspected: next.step };
         saveState(state);
         render();
       });
@@ -275,8 +282,7 @@ function enhanceTimeline(timeline) {
 
     detail.querySelector('[data-mark-current]')?.addEventListener('click', (event) => {
       const targetStep = Number(event.currentTarget.dataset.markCurrent);
-      const closestSituation = [...situations].reverse().find((item) => item.step <= targetStep) || situations[0];
-      state = { ...state, situation: closestSituation.id, inspected: targetStep };
+      state = { ...state, situation: 'custom', currentStep: targetStep, inspected: targetStep };
       saveState(state);
       render();
     });
