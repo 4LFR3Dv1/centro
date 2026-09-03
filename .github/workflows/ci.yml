@@ -23,3 +23,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Build deployment image
+        run: docker build -t centro:r3b .
