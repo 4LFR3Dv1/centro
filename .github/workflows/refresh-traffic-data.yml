@@ -1,0 +1,45 @@
+name: Refresh traffic data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 10 * * *'
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'src/generated/traffic-intelligence.json'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: npm install
+
+      - name: Ingest official Detran-SP data
+        run: npm run data:ingest -- --strict
+
+      - name: Persist new snapshot when source changed
+        run: |
+          if git diff --quiet -- src/generated/traffic-intelligence.json; then
+            echo "No source change detected."
+            exit 0
+          fi
+          git config user.name "centro-data"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/generated/traffic-intelligence.json
+          git commit -m "data: refresh São José dos Campos traffic snapshot"
+          git push
