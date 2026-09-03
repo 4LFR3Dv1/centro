@@ -21,8 +21,11 @@ jobs:
       - name: Install
         run: npm install
 
+      - name: Ingest official Detran-SP data
+        run: npm run data:ingest -- --strict
+
       - name: Build
-        run: npm run build
+        run: npm run build:app
 
       - name: Build deployment image
-        run: docker build -t centro:r3b .
+        run: docker build -t centro:r3c .
