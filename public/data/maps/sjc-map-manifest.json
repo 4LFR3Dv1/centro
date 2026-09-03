@@ -13,8 +13,9 @@
     "endpoint": "https://overpass-api.de/api/interpreter",
     "license": "ODbL 1.0"
   },
-  "retrievedAt": "2026-09-03T14:25:43.035Z",
-  "featureCount": 418,
-  "sha256": "39015acdc8db04c3d33113c0033e673aab3bed492a197e0fb5fb609ee09c6bbc",
+  "selection": "highway=cycleway or positive cycleway/cycleway:left/cycleway:right/cycleway:both; excludes no, none and separate",
+  "retrievedAt": "2026-09-03T14:29:47.794Z",
+  "featureCount": 288,
+  "sha256": "74c7aa2f1465c23cf5987ddbfc9a520e1acc4dc79e74327fa1f55c79c6ecbb14",
   "artifact": "/data/maps/sjc-cycleways.geojson"
 }
