@@ -1,0 +1,287 @@
+:root {
+  --student-bg: #f4f1eb;
+  --student-panel: #fffdf9;
+  --student-line: #d8d3ca;
+  --student-text: #171a1d;
+  --student-muted: #626b73;
+  --student-accent: #244cff;
+}
+
+.student-shell,
+.student-login-page,
+.student-loading {
+  min-height: 100vh;
+  background: var(--student-bg);
+  color: var(--student-text);
+}
+
+.student-wordmark {
+  color: var(--student-text);
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-decoration: none;
+}
+
+.student-login-page {
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+}
+
+.student-login-card,
+.student-focus-card,
+.student-hero-card,
+.student-panel {
+  background: var(--student-panel);
+  border: 1px solid var(--student-line);
+}
+
+.student-login-card {
+  width: min(100%, 540px);
+  padding: clamp(28px, 5vw, 52px);
+}
+
+.student-eyebrow {
+  margin: 28px 0 10px;
+  color: var(--student-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.student-login-card h1,
+.student-focus-card h1,
+.student-hero-card h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 5vw, 4.2rem);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.student-login-card h1 {
+  font-size: clamp(2.2rem, 5vw, 3.7rem);
+}
+
+.student-lead,
+.student-focus-card > p,
+.student-hero-card > p,
+.student-next-action > p {
+  color: var(--student-muted);
+  line-height: 1.6;
+}
+
+.student-form {
+  display: grid;
+  gap: 18px;
+  margin-top: 32px;
+}
+
+.student-form label {
+  display: grid;
+  gap: 8px;
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.student-form input {
+  min-height: 48px;
+  border: 1px solid var(--student-line);
+  background: #fff;
+  padding: 0 14px;
+  color: var(--student-text);
+  font: inherit;
+  outline: none;
+}
+
+.student-form input:focus {
+  border-color: var(--student-accent);
+  box-shadow: 0 0 0 2px rgb(36 76 255 / 12%);
+}
+
+.student-primary {
+  min-height: 48px;
+  border: 0;
+  background: var(--student-accent);
+  color: white;
+  padding: 0 20px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.student-primary:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.student-error {
+  margin: 0;
+  border-left: 3px solid #ba2525;
+  background: #fff4f2;
+  color: #851c1c;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+}
+
+.student-topbar {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid var(--student-line);
+  background: var(--student-panel);
+  padding: 0 clamp(20px, 4vw, 56px);
+}
+
+.student-topbar > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.student-topbar span {
+  color: var(--student-muted);
+  font-size: 0.83rem;
+}
+
+.student-topbar button {
+  border: 0;
+  background: transparent;
+  color: var(--student-text);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.student-main {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: clamp(32px, 5vw, 72px) 0;
+}
+
+.student-home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+  gap: 20px;
+}
+
+.student-hero-card,
+.student-panel,
+.student-focus-card {
+  padding: clamp(24px, 4vw, 42px);
+}
+
+.student-hero-card {
+  min-height: 310px;
+}
+
+.student-hero-card .student-eyebrow,
+.student-panel .student-eyebrow,
+.student-focus-card .student-eyebrow {
+  margin-top: 0;
+}
+
+.student-id {
+  display: inline-block;
+  margin: 24px 0 4px !important;
+  border: 1px solid var(--student-line);
+  background: #fff;
+  padding: 10px 13px;
+  color: var(--student-text) !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.student-panel-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.student-panel h2 {
+  margin: 0;
+  font-size: 1.55rem;
+  letter-spacing: -0.035em;
+}
+
+.student-panel-head > span {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--student-text);
+  color: white;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.student-enrollment-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.student-enrollment-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-top: 1px solid var(--student-line);
+  padding: 18px 0 8px;
+}
+
+.student-enrollment-list article > div {
+  display: grid;
+  gap: 6px;
+}
+
+.student-enrollment-list article span {
+  color: var(--student-muted);
+  font-size: 0.84rem;
+}
+
+.student-enrollment-list .student-status {
+  color: #24653b;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+}
+
+.student-next-action {
+  grid-column: 1 / -1;
+}
+
+.student-focus-card {
+  width: min(720px, 100%);
+  margin: 0 auto;
+}
+
+.student-password-form {
+  max-width: 520px;
+}
+
+.student-loading {
+  display: grid;
+  place-items: center;
+  color: var(--student-muted);
+  font-weight: 700;
+}
+
+@media (max-width: 820px) {
+  .student-home-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .student-next-action {
+    grid-column: auto;
+  }
+
+  .student-topbar span {
+    display: none;
+  }
+}
