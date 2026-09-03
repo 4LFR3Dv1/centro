@@ -8,6 +8,7 @@ const GEOJSON_PATH = resolve('public/data/maps/sjc-cycleways.geojson');
 const MANIFEST_PATH = resolve('public/data/maps/sjc-map-manifest.json');
 const strict = process.argv.includes('--strict');
 const checkOnly = process.argv.includes('--check');
+const validateExisting = process.argv.includes('--validate-existing');
 
 function digest(value) {
   return createHash('sha256').update(value).digest('hex');
@@ -84,7 +85,43 @@ async function existingManifest() {
   }
 }
 
+function assertSnapshot(geojson, manifest, rawGeoJson) {
+  if (geojson?.type !== 'FeatureCollection' || !Array.isArray(geojson.features)) {
+    throw new Error('Invalid cycleway GeoJSON snapshot');
+  }
+  if (geojson.features.length < 10) {
+    throw new Error(`Unexpectedly small cycleway snapshot: ${geojson.features.length} features`);
+  }
+  if (manifest?.schemaVersion !== 1 || manifest?.artifact !== '/data/maps/sjc-cycleways.geojson') {
+    throw new Error('Invalid map manifest contract');
+  }
+  if (manifest.featureCount !== geojson.features.length) {
+    throw new Error(`Manifest featureCount mismatch: ${manifest.featureCount} != ${geojson.features.length}`);
+  }
+  const sha256 = digest(rawGeoJson);
+  if (manifest.sha256 !== sha256) {
+    throw new Error(`Map snapshot digest mismatch: ${manifest.sha256} != ${sha256}`);
+  }
+  return { featureCount: geojson.features.length, sha256 };
+}
+
+async function validatePersistedSnapshot() {
+  const [rawGeoJson, rawManifest] = await Promise.all([
+    readFile(GEOJSON_PATH, 'utf8'),
+    readFile(MANIFEST_PATH, 'utf8'),
+  ]);
+  const geojson = JSON.parse(rawGeoJson);
+  const manifest = JSON.parse(rawManifest);
+  const result = assertSnapshot(geojson, manifest, rawGeoJson);
+  console.log(`Validated ${result.featureCount} persisted cycleway features (${result.sha256.slice(0, 12)})`);
+}
+
 async function main() {
+  if (validateExisting) {
+    await validatePersistedSnapshot();
+    return;
+  }
+
   const payload = await fetchSnapshot();
   const geojson = normalize(payload);
   if (geojson.features.length === 0) throw new Error('No cycleway geometry returned for São José dos Campos');
