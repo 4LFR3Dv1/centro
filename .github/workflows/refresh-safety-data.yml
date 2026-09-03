@@ -1,0 +1,52 @@
+name: Refresh safety data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '13 11 * * *'
+  push:
+    branches:
+      - main
+      - feat/traffic-safety-layer
+    paths:
+      - 'scripts/refresh-safety-data.mjs'
+      - '.github/workflows/refresh-safety-data.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: npm install
+
+      - name: Materialize São José safety snapshot
+        run: node scripts/refresh-safety-data.mjs --strict
+
+      - name: Validate snapshot
+        run: node scripts/refresh-safety-data.mjs --validate-existing
+
+      - name: Persist snapshot when source changed
+        run: |
+          FILES="public/data/maps/sjc-sinistros.geojson public/data/maps/sjc-sinistros-manifest.json src/generated/safety-intelligence.json"
+          if [ -z "$(git status --porcelain -- $FILES)" ]; then
+            echo "No safety source change detected."
+            exit 0
+          fi
+          git config user.name "centro-safety-data"
+          git config user.email "actions@users.noreply.github.com"
+          git add $FILES
+          git commit -m "data: refresh São José safety snapshot"
+          git push origin HEAD:${{ github.ref_name }}
