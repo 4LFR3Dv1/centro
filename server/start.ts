@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { createAdminApiHandler } from './http/admin-api.js';
+import { createStudentApiHandler } from './http/student-api.js';
 import { createDatabasePool } from './db/pool.js';
 import { runMigrations } from './db/migrate.js';
 import { bootstrapFirstAdmin } from './staff/auth.js';
@@ -120,6 +121,10 @@ export async function startCentroRuntime(): Promise<void> {
     publicOrigin: publicOrigin || undefined,
     secureCookies: process.env.NODE_ENV === 'production',
   });
+  const studentApi = createStudentApiHandler(pool, {
+    publicOrigin: publicOrigin || undefined,
+    secureCookies: process.env.NODE_ENV === 'production',
+  });
 
   const server = createServer((req, res) => {
     void (async () => {
@@ -137,6 +142,7 @@ export async function startCentroRuntime(): Promise<void> {
       }
 
       if (await adminApi(req, res)) return;
+      if (await studentApi(req, res)) return;
 
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         sendText(res, 405, 'Method not allowed.');
@@ -163,7 +169,7 @@ export async function startCentroRuntime(): Promise<void> {
         return;
       }
 
-      // Vite/React routes such as /cnh, /guias/* and /admin/* resolve through the SPA.
+      // Vite/React routes such as /cnh, /guias/*, /admin/* and /aluno/* resolve through the SPA.
       if (!extname(pathname)) {
         await serveFile(req, res, indexPath);
         return;
