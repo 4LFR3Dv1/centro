@@ -23,7 +23,7 @@ const journeyOptions: JourneyOption[] = [
     label: 'Quero minha primeira CNH',
     detail: 'Ainda não comecei e quero entender o caminho.',
     next: 'Organizar sua primeira habilitação',
-    recommendation: 'A Centro te orienta sobre o processo e ajuda a transformar a primeira CNH em um caminho claro.',
+    recommendation: 'A Auto Escola Centro te orienta sobre o processo e ajuda a transformar a primeira CNH em um caminho claro.',
   },
   {
     id: 'in-process',
@@ -44,14 +44,14 @@ const journeyOptions: JourneyOption[] = [
     label: 'Quero mais aulas práticas',
     detail: 'Preciso ganhar confiança, treinar ou me preparar melhor.',
     next: 'Definir seu treino',
-    recommendation: 'A Centro atende alunos em formação e também quem precisa reforçar habilidades específicas ao volante.',
+    recommendation: 'A Auto Escola Centro atende alunos em formação e também quem precisa reforçar habilidades específicas ao volante.',
   },
   {
     id: 'addition',
     label: 'Quero adicionar categoria',
     detail: 'Já sou habilitado e quero ampliar minha CNH.',
     next: 'Escolher a categoria desejada',
-    recommendation: 'A Centro trabalha com adição de categorias A, B e D conforme a situação do condutor.',
+    recommendation: 'A Auto Escola Centro trabalha com adição de categorias A, B e D conforme a situação do condutor.',
   },
   {
     id: 'licensed',
@@ -171,7 +171,7 @@ export default function App() {
             <h2>O que você precisa agora?</h2>
           </div>
           <p>
-            Em vez de jogar uma lista de serviços em você, a Centro começa pela sua situação e aponta a próxima ação.
+            Em vez de jogar uma lista de serviços em você, a Auto Escola Centro começa pela sua situação e aponta a próxima ação.
           </p>
         </div>
 
@@ -214,7 +214,7 @@ export default function App() {
               </span>
             </div>
             <a className="primary-action primary-action--full" href={contactHref} target="_blank" rel="noreferrer">
-              Conversar com a Centro <span aria-hidden="true">→</span>
+              Conversar com a Auto Escola Centro <span aria-hidden="true">→</span>
             </a>
           </aside>
         </div>
@@ -227,7 +227,7 @@ export default function App() {
             <h2>Da primeira CNH à confiança de dirigir sozinho.</h2>
           </div>
           <p>
-            A oferta real da Centro organizada pelo objetivo do aluno — sem repetir dezenas de palavras-chave para explicar a mesma coisa.
+            A oferta real da Auto Escola Centro organizada pelo objetivo do aluno — sem repetir dezenas de palavras-chave para explicar a mesma coisa.
           </p>
         </div>
 
@@ -256,7 +256,7 @@ export default function App() {
             <p className="eyebrow">03 · ATENDIMENTO</p>
             <h2>Fale direto com quem pode organizar seu próximo passo.</h2>
             <p>
-              Valores, documentação, disponibilidade e detalhes da sua categoria são confirmados no atendimento da Centro.
+              Valores, documentação, disponibilidade e detalhes da sua categoria são confirmados no atendimento da Auto Escola Centro.
             </p>
           </div>
           <div className="capacity-slots" aria-label="Canais de atendimento">
@@ -293,7 +293,7 @@ export default function App() {
           <p className="eyebrow">04 · SÃO JOSÉ DOS CAMPOS</p>
           <h2>Aprenda no trânsito que você vai dirigir de verdade.</h2>
           <p>
-            A Centro prepara seus alunos com prática no trânsito do dia a dia, trabalhando leitura de fluxo, conversões, estacionamento e tomada de decisão em ambiente urbano real.
+            A Auto Escola Centro prepara seus alunos com prática no trânsito do dia a dia, trabalhando leitura de fluxo, conversões, estacionamento e tomada de decisão em ambiente urbano real.
           </p>
           <div className="city-points">
             <span>Primeira CNH</span>
