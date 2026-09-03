@@ -27,6 +27,8 @@ type EnrollmentReceipt = {
   };
 };
 
+const RECEIPT_PATH = '/admin/matriculas/receipt';
+
 const serviceLabels: Record<ServiceType, string> = {
   FIRST_LICENSE: 'Primeira habilitação',
   CATEGORY_ADDITION: 'Adição de categoria',
@@ -143,7 +145,7 @@ function Receipt({ receipt, onNew }: { receipt: EnrollmentReceipt; onNew: () => 
       </div>
 
       {receipt.credential.created && (
-        <p className="admin-receipt-warning">Entregue esta senha ao aluno agora. Ela não será armazenada em texto e desaparece desta tela ao recarregar ou sair.</p>
+        <p className="admin-receipt-warning">Entregue esta senha ao aluno agora. Ela não será armazenada em texto e desaparece ao sair desta tela, recarregar ou encerrar a sessão.</p>
       )}
 
       <div className="admin-receipt-actions">
@@ -288,12 +290,29 @@ export default function AdminApp() {
     if (session && location.pathname === '/admin/login') navigate('/admin', { replace: true });
   }, [checking, session, location.pathname, navigate]);
 
+  useEffect(() => {
+    if (location.pathname !== RECEIPT_PATH && receipt) setReceipt(null);
+    if (!checking && session && location.pathname === RECEIPT_PATH && !receipt) {
+      navigate('/admin/matriculas/nova', { replace: true });
+    }
+  }, [checking, session, location.pathname, receipt, navigate]);
+
   async function logout() {
     try { await api<void>('/api/admin/auth/logout', { method: 'POST' }); } finally {
       setReceipt(null);
       setSession(null);
       navigate('/admin/login', { replace: true });
     }
+  }
+
+  function acceptReceipt(value: EnrollmentReceipt) {
+    setReceipt(value);
+    navigate(RECEIPT_PATH);
+  }
+
+  function startNewEnrollment() {
+    setReceipt(null);
+    navigate('/admin/matriculas/nova');
   }
 
   if (checking) return <main className="admin-loading">Abrindo operação da escola…</main>;
@@ -315,20 +334,20 @@ export default function AdminApp() {
       <main className="admin-main">
         <aside className="admin-rail" aria-label="Administração">
           <p>OPERAÇÃO</p>
-          <button type="button" className="is-active" onClick={() => { setReceipt(null); navigate('/admin/matriculas/nova'); }}>Matrículas</button>
+          <button type="button" className="is-active" onClick={startNewEnrollment}>Matrículas</button>
         </aside>
 
         <div className="admin-workspace">
-          {receipt ? (
-            <Receipt receipt={receipt} onNew={() => { setReceipt(null); navigate('/admin/matriculas/nova'); }} />
+          {location.pathname === RECEIPT_PATH && receipt ? (
+            <Receipt receipt={receipt} onNew={startNewEnrollment} />
           ) : location.pathname === '/admin/matriculas/nova' ? (
-            <EnrollmentForm onCreated={setReceipt} />
+            <EnrollmentForm onCreated={acceptReceipt} />
           ) : (
             <section className="admin-home">
               <p className="admin-eyebrow">AUTO ESCOLA CENTRO</p>
               <h1>Operação da escola.</h1>
               <p>O primeiro fluxo operacional disponível é a matrícula. Alunos, aulas, agenda e materiais entram nos próximos checkpoints do programa.</p>
-              <button className="admin-primary" type="button" onClick={() => navigate('/admin/matriculas/nova')}>Nova matrícula</button>
+              <button className="admin-primary" type="button" onClick={startNewEnrollment}>Nova matrícula</button>
             </section>
           )}
         </div>
