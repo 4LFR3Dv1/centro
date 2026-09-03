@@ -1,57 +1,43 @@
-import {
-  GeolocateControl,
-  Map,
-  Marker,
-  NavigationControl,
-  Popup,
-  type MapMouseEvent,
-} from 'maplibre-gl';
+import { GeolocateControl, Map, Marker, NavigationControl, Popup } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './home-map.css';
 
-type SearchResult = {
-  display_name: string;
-  lat: string;
-  lon: string;
-  type?: string;
-};
-
+type SearchResult = { display_name: string; lat: string; lon: string };
 type OverpassElement = {
   id: number;
   type: string;
   tags?: Record<string, string>;
   geometry?: Array<{ lat: number; lon: number }>;
 };
+type OverpassResponse = { elements?: OverpassElement[] };
 
-type OverpassResponse = {
-  elements?: OverpassElement[];
-};
+type CycleGeoJson = ReturnType<typeof toCycleGeoJson>;
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 const OVERPASS = 'https://overpass-api.de/api/interpreter';
 const SCHOOL_QUERY = 'Avenida São José, 1009, Centro, São José dos Campos, SP, Brasil';
 const CITY_CENTER: [number, number] = [-45.8872, -23.1896];
-const CITY_BBOX = '-23.35,-46.02,-23.05,-45.75'; // south, west, north, east
-const NOMINATIM_VIEWBOX = '-46.02,-23.05,-45.75,-23.35'; // left, top, right, bottom
+const CITY_BBOX = '-23.35,-46.02,-23.05,-45.75';
+const NOMINATIM_VIEWBOX = '-46.02,-23.05,-45.75,-23.35';
 const CYCLE_CACHE_KEY = 'centro.map.cycleways.v1';
 const SEARCH_CACHE_PREFIX = 'centro.map.search.v1:';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 let mounted: { anchor: Element; section: HTMLElement; map: Map } | null = null;
-let lastNominatimRequestAt = 0;
+let lastSearchAt = 0;
 
 function wait(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
-function escapeText(value: string) {
+function compact(value: string) {
   return value.replace(/\s+/g, ' ').trim();
 }
 
-function setStatus(node: HTMLElement, message: string, tone: 'normal' | 'error' = 'normal') {
+function setStatus(node: HTMLElement, message: string, error = false) {
   node.textContent = message;
-  node.dataset.tone = tone;
+  node.dataset.tone = error ? 'error' : 'normal';
 }
 
 function buildSection() {
@@ -70,7 +56,6 @@ function buildSection() {
         <a href="https://www.sjc.sp.gov.br/servicos/mobilidade-urbana/ciclovias/" target="_blank" rel="noreferrer">Ver mapa oficial ↗</a>
       </div>
     </div>
-
     <div class="home-map-frame">
       <form class="home-map-search" role="search">
         <label for="centro-map-search">Onde você quer ir?</label>
@@ -78,48 +63,45 @@ function buildSection() {
           <input id="centro-map-search" name="q" type="search" autocomplete="off" placeholder="Rua, praça ou lugar em São José" />
           <button type="submit">Buscar</button>
         </div>
-        <small>Busca somente quando você envia — sem autocomplete.</small>
+        <small>A busca acontece somente quando você envia.</small>
       </form>
-
       <div class="home-map-actions" aria-label="Atalhos do mapa">
         <button type="button" data-map-action="locate"><span>◎</span> Minha localização</button>
         <button type="button" data-map-action="bike" aria-pressed="false"><span>⌁</span> Ciclovias</button>
         <button type="button" data-map-action="school"><span>●</span> Auto Escola Centro</button>
       </div>
-
       <div class="home-map-canvas" aria-label="Mapa interativo de São José dos Campos"></div>
       <div class="home-map-results" hidden></div>
       <div class="home-map-status" aria-live="polite">Arraste, aproxime ou escolha um atalho.</div>
-      <div class="home-map-source">Mapa © OpenStreetMap contributors · renderização OpenFreeMap. A camada de ciclovias usa traçados comunitários do OpenStreetMap e pode diferir do mapa oficial.</div>
+      <div class="home-map-source">Mapa © OpenStreetMap contributors · renderização OpenFreeMap. Ciclovias exibidas conforme traçados comunitários do OpenStreetMap e podem diferir do mapa oficial.</div>
     </div>`;
   return section;
 }
 
-function readSearchCache(query: string): SearchResult[] | null {
+function getCachedSearch(query: string) {
   try {
     const raw = sessionStorage.getItem(`${SEARCH_CACHE_PREFIX}${query.toLowerCase()}`);
-    if (!raw) return null;
-    return JSON.parse(raw) as SearchResult[];
+    return raw ? (JSON.parse(raw) as SearchResult[]) : null;
   } catch {
     return null;
   }
 }
 
-function saveSearchCache(query: string, results: SearchResult[]) {
+function cacheSearch(query: string, results: SearchResult[]) {
   try {
     sessionStorage.setItem(`${SEARCH_CACHE_PREFIX}${query.toLowerCase()}`, JSON.stringify(results));
   } catch {
-    // Storage can be unavailable in privacy modes; search still works without cache.
+    // Search remains functional if storage is unavailable.
   }
 }
 
-async function searchPlace(query: string): Promise<SearchResult[]> {
-  const cached = readSearchCache(query);
+async function searchPlace(query: string) {
+  const cached = getCachedSearch(query);
   if (cached) return cached;
 
-  const elapsed = Date.now() - lastNominatimRequestAt;
+  const elapsed = Date.now() - lastSearchAt;
   if (elapsed < 1100) await wait(1100 - elapsed);
-  lastNominatimRequestAt = Date.now();
+  lastSearchAt = Date.now();
 
   const params = new URLSearchParams({
     q: `${query}, São José dos Campos, SP, Brasil`,
@@ -130,96 +112,87 @@ async function searchPlace(query: string): Promise<SearchResult[]> {
     viewbox: NOMINATIM_VIEWBOX,
     bounded: '1',
   });
-
-  const response = await fetch(`${NOMINATIM}?${params.toString()}`, {
-    headers: { Accept: 'application/json' },
-  });
-  if (!response.ok) throw new Error(`Busca indisponível (${response.status})`);
+  const response = await fetch(`${NOMINATIM}?${params.toString()}`, { headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error(`Busca indisponível agora (${response.status}).`);
   const results = (await response.json()) as SearchResult[];
-  saveSearchCache(query, results);
+  cacheSearch(query, results);
   return results;
 }
 
-function pointMap(map: Map, result: SearchResult, label?: string) {
-  const longitude = Number(result.lon);
-  const latitude = Number(result.lat);
-  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
+function markPlace(map: Map, result: SearchResult, label?: string) {
+  const lng = Number(result.lon);
+  const lat = Number(result.lat);
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
 
-  map.flyTo({ center: [longitude, latitude], zoom: 15.5, duration: 900 });
-  const marker = new Marker({ color: '#2d5bff' })
-    .setLngLat([longitude, latitude])
-    .setPopup(new Popup({ offset: 22 }).setText(label ?? escapeText(result.display_name)))
-    .addTo(map);
+  map.flyTo({ center: [lng, lat], zoom: 15.5, duration: 900 });
+  const popup = new Popup({ offset: 22 }).setText(label ?? compact(result.display_name));
+  const marker = new Marker({ color: '#2d5bff' }).setLngLat([lng, lat]).setPopup(popup).addTo(map);
   marker.togglePopup();
 }
 
-function renderResults(node: HTMLElement, results: SearchResult[], map: Map) {
-  node.innerHTML = '';
+function renderSearchResults(node: HTMLElement, results: SearchResult[], map: Map) {
+  node.replaceChildren();
+  node.hidden = false;
+
   if (!results.length) {
-    node.hidden = false;
-    const empty = document.createElement('p');
-    empty.textContent = 'Não encontrei esse lugar dentro de São José dos Campos.';
-    node.append(empty);
+    const message = document.createElement('p');
+    message.textContent = 'Não encontrei esse lugar dentro de São José dos Campos.';
+    node.append(message);
     return;
   }
 
-  results.forEach((result) => {
+  for (const result of results) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'home-map-result';
-    button.textContent = escapeText(result.display_name);
+    button.textContent = compact(result.display_name);
     button.addEventListener('click', () => {
-      pointMap(map, result);
+      markPlace(map, result);
       node.hidden = true;
     });
     node.append(button);
-  });
-  node.hidden = false;
-}
-
-function readCycleCache() {
-  try {
-    const raw = localStorage.getItem(CYCLE_CACHE_KEY);
-    if (!raw) return null;
-    const cached = JSON.parse(raw) as { fetchedAt: number; data: ReturnType<typeof toCycleGeoJson> };
-    if (Date.now() - cached.fetchedAt > CACHE_TTL_MS) return null;
-    return cached.data;
-  } catch {
-    return null;
-  }
-}
-
-function saveCycleCache(data: ReturnType<typeof toCycleGeoJson>) {
-  try {
-    localStorage.setItem(CYCLE_CACHE_KEY, JSON.stringify({ fetchedAt: Date.now(), data }));
-  } catch {
-    // Layer remains usable without persistent cache.
   }
 }
 
 function toCycleGeoJson(payload: OverpassResponse) {
   const seen = new Set<number>();
-  const features = (payload.elements ?? [])
-    .filter((element) => element.type === 'way' && element.geometry?.length && !seen.has(element.id) && seen.add(element.id))
-    .map((element) => ({
+  const features = (payload.elements ?? []).flatMap((element) => {
+    if (element.type !== 'way' || !element.geometry?.length || seen.has(element.id)) return [];
+    seen.add(element.id);
+    return [{
       type: 'Feature' as const,
       id: element.id,
-      properties: {
-        name: element.tags?.name ?? '',
-        highway: element.tags?.highway ?? '',
-        cycleway: element.tags?.cycleway ?? '',
-      },
+      properties: { name: element.tags?.name ?? '' },
       geometry: {
         type: 'LineString' as const,
-        coordinates: (element.geometry ?? []).map((point) => [point.lon, point.lat]),
+        coordinates: element.geometry.map((point) => [point.lon, point.lat]),
       },
-    }));
-
+    }];
+  });
   return { type: 'FeatureCollection' as const, features };
 }
 
+function getCachedCycleways(): CycleGeoJson | null {
+  try {
+    const raw = localStorage.getItem(CYCLE_CACHE_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as { fetchedAt: number; data: CycleGeoJson };
+    return Date.now() - cached.fetchedAt <= CACHE_TTL_MS ? cached.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheCycleways(data: CycleGeoJson) {
+  try {
+    localStorage.setItem(CYCLE_CACHE_KEY, JSON.stringify({ fetchedAt: Date.now(), data }));
+  } catch {
+    // Layer remains functional without local persistence.
+  }
+}
+
 async function loadCycleways() {
-  const cached = readCycleCache();
+  const cached = getCachedCycleways();
   if (cached) return cached;
 
   const query = `[out:json][timeout:25];(
@@ -228,15 +201,14 @@ async function loadCycleways() {
     way["cycleway:left"](${CITY_BBOX});
     way["cycleway:right"](${CITY_BBOX});
   );out geom;`;
-
   const response = await fetch(OVERPASS, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
     body: `data=${encodeURIComponent(query)}`,
   });
-  if (!response.ok) throw new Error(`Camada cicloviária indisponível (${response.status})`);
+  if (!response.ok) throw new Error(`Camada cicloviária indisponível agora (${response.status}).`);
   const data = toCycleGeoJson((await response.json()) as OverpassResponse);
-  saveCycleCache(data);
+  cacheCycleways(data);
   return data;
 }
 
@@ -248,7 +220,7 @@ async function toggleCycleways(map: Map, button: HTMLButtonElement, status: HTML
   if (active) {
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', 'none');
     button.setAttribute('aria-pressed', 'false');
-    setStatus(status, 'Camada cicloviária ocultada.');
+    setStatus(status, 'Ciclovias ocultadas.');
     return;
   }
 
@@ -269,22 +241,20 @@ async function toggleCycleways(map: Map, button: HTMLButtonElement, status: HTML
           'line-opacity': 0.88,
         },
       });
-
-      map.on('click', layerId, (event: MapMouseEvent) => {
+      map.on('click', layerId, (event) => {
         const feature = map.queryRenderedFeatures(event.point, { layers: [layerId] })[0];
-        const name = feature?.properties?.name || 'Trecho cicloviário mapeado';
-        new Popup({ offset: 8 }).setLngLat(event.lngLat).setHTML(`<strong>${escapeText(String(name))}</strong><br><small>OpenStreetMap</small>`).addTo(map);
+        const name = String(feature?.properties?.name || 'Trecho cicloviário mapeado');
+        new Popup({ offset: 8 }).setLngLat(event.lngLat).setText(`${compact(name)} · OpenStreetMap`).addTo(map);
       });
       map.on('mouseenter', layerId, () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', layerId, () => { map.getCanvas().style.cursor = ''; });
     } else if (map.getLayer(layerId)) {
       map.setLayoutProperty(layerId, 'visibility', 'visible');
     }
-
     button.setAttribute('aria-pressed', 'true');
-    setStatus(status, 'Ciclovias e ciclofaixas visíveis. Toque em um trecho para ver mais.');
+    setStatus(status, 'Ciclovias visíveis. Toque em um trecho para identificar o local.');
   } catch (error) {
-    setStatus(status, error instanceof Error ? error.message : 'Não foi possível carregar a camada cicloviária.', 'error');
+    setStatus(status, error instanceof Error ? error.message : 'Não foi possível carregar as ciclovias.', true);
   } finally {
     button.disabled = false;
   }
@@ -317,8 +287,8 @@ function mount(anchor: Element) {
     maxZoom: 18,
     attributionControl: true,
   });
-
   map.addControl(new NavigationControl({ showCompass: false }), 'bottom-right');
+
   const geolocate = new GeolocateControl({
     positionOptions: { enableHighAccuracy: true, timeout: 9000 },
     trackUserLocation: false,
@@ -327,28 +297,25 @@ function mount(anchor: Element) {
     fitBoundsOptions: { maxZoom: 15 },
   });
   map.addControl(geolocate, 'bottom-right');
-
   geolocate.on('geolocate', () => setStatus(status, 'Sua localização foi encontrada.'));
-  geolocate.on('error', () => setStatus(status, 'Não consegui acessar sua localização. Confira a permissão do navegador.', 'error'));
+  geolocate.on('error', () => setStatus(status, 'Não consegui acessar sua localização. Confira a permissão do navegador.', true));
 
   locateButton.addEventListener('click', () => {
     setStatus(status, 'Pedindo sua localização ao navegador…');
     geolocate.trigger();
   });
-
   bikeButton.addEventListener('click', () => void toggleCycleways(map, bikeButton, status));
 
   schoolButton.addEventListener('click', async () => {
     schoolButton.disabled = true;
     setStatus(status, 'Localizando a Auto Escola Centro…');
     try {
-      const schoolResults = await searchPlace(SCHOOL_QUERY);
-      const first = schoolResults[0];
+      const first = (await searchPlace(SCHOOL_QUERY))[0];
       if (!first) throw new Error('Não encontrei o endereço no mapa agora.');
-      pointMap(map, first, 'Auto Escola Centro · Avenida São José, 1009');
+      markPlace(map, first, 'Auto Escola Centro · Avenida São José, 1009');
       setStatus(status, 'Auto Escola Centro localizada no mapa.');
     } catch (error) {
-      setStatus(status, error instanceof Error ? error.message : 'Não foi possível localizar a Auto Escola Centro.', 'error');
+      setStatus(status, error instanceof Error ? error.message : 'Não foi possível localizar a Auto Escola Centro.', true);
     } finally {
       schoolButton.disabled = false;
     }
@@ -358,34 +325,32 @@ function mount(anchor: Element) {
     event.preventDefault();
     const query = input.value.trim();
     if (query.length < 3) {
-      setStatus(status, 'Digite pelo menos 3 caracteres para buscar.', 'error');
+      setStatus(status, 'Digite pelo menos 3 caracteres para buscar.', true);
       return;
     }
-
     const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
     if (submit) submit.disabled = true;
     setStatus(status, `Buscando “${query}”…`);
     try {
       const found = await searchPlace(query);
-      renderResults(results, found, map);
-      if (found[0]) pointMap(map, found[0]);
+      renderSearchResults(results, found, map);
+      if (found[0]) markPlace(map, found[0]);
       setStatus(status, found.length ? `${found.length} resultado${found.length === 1 ? '' : 's'} encontrado${found.length === 1 ? '' : 's'}.` : 'Nenhum resultado encontrado.');
     } catch (error) {
-      setStatus(status, error instanceof Error ? error.message : 'A busca está indisponível agora.', 'error');
+      setStatus(status, error instanceof Error ? error.message : 'A busca está indisponível agora.', true);
     } finally {
       if (submit) submit.disabled = false;
     }
   });
 
   map.on('load', () => setStatus(status, 'Mapa pronto. Busque um lugar ou escolha um atalho.'));
-  map.on('error', () => setStatus(status, 'Algumas partes do mapa podem estar temporariamente indisponíveis.', 'error'));
-
+  map.on('error', () => setStatus(status, 'Algumas partes do mapa podem estar temporariamente indisponíveis.', true));
   return { anchor, section, map };
 }
 
 function cleanup() {
   if (!mounted) return;
-  try { mounted.map.remove(); } catch { /* map may already be detached */ }
+  try { mounted.map.remove(); } catch { /* already detached */ }
   mounted.section.remove();
   mounted = null;
 }
@@ -395,7 +360,6 @@ function scan() {
     cleanup();
     return;
   }
-
   const anchor = document.querySelector('.city-home-section');
   if (!anchor) return;
   if (mounted?.anchor === anchor && document.contains(mounted.section)) return;
