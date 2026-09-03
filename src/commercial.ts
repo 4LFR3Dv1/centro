@@ -18,27 +18,27 @@ export const commercialProfile = {
   pricing: {
     state: 'unknown',
     value: null,
-    note: 'Preços atuais ainda não foram reconciliados com a operação.',
+    note: 'Consulte os valores atuais diretamente com a Auto Escola Centro.',
   },
   fleet: {
     state: 'unknown',
     value: null,
-    note: 'Modelos, transmissão e disponibilidade dos veículos ainda não foram confirmados.',
+    note: 'Consulte quais veículos estão disponíveis para a categoria que você procura.',
   },
   openingHours: {
     state: 'unknown',
     value: null,
-    note: 'Horários comerciais atuais ainda não foram confirmados.',
+    note: 'Consulte os horários atuais de atendimento antes de ir até a unidade.',
   },
   lessonAvailability: {
     state: 'unknown',
     value: null,
-    note: 'Não existe agenda operacional conectada ao site neste momento.',
+    note: 'Consulte os dias e horários disponíveis para aulas.',
   },
   paymentMethods: {
     state: 'unknown',
     value: null,
-    note: 'Meios e condições de pagamento ainda não foram confirmados.',
+    note: 'Consulte as formas e condições de pagamento disponíveis.',
   },
   services: {
     state: 'verified',
@@ -50,7 +50,7 @@ export const commercialProfile = {
       'Adição de categoria',
       'Treinamento para habilitados',
     ],
-    note: 'Catálogo essencial confirmado pela operação: categorias A, B e D, primeira habilitação, adição e treinamento para habilitados.',
+    note: 'Categorias A, B e D, primeira habilitação, adição de categoria e treinamento para habilitados.',
   },
 } satisfies Record<string, CommercialField<unknown>>;
 
