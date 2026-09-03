@@ -17,7 +17,20 @@ async function seedStaff(pool: ReturnType<typeof createDatabasePool>): Promise<s
   return id;
 }
 
-async function cleanupStudents(pool: ReturnType<typeof createDatabasePool>): Promise<void> {
+async function cleanupStudents(pool: ReturnType<typeof createDatabasePool>, staffId?: string): Promise<void> {
+  await pool.query(
+    `DELETE FROM audit_events
+     WHERE ($3::uuid IS NOT NULL AND actor_staff_user_id = $3)
+        OR entity_id IN (
+          SELECT id FROM students WHERE document_normalized IN ($1, $2)
+          UNION
+          SELECT e.id
+          FROM enrollments e
+          JOIN students s ON s.id = e.student_id
+          WHERE s.document_normalized IN ($1, $2)
+        )`,
+    [TEST_DOCUMENT, ROLLBACK_DOCUMENT, staffId ?? null],
+  );
   await pool.query(
     `DELETE FROM enrollments
      WHERE student_id IN (
@@ -99,6 +112,11 @@ test('ADMIN-002 materializes Student + Credential + Enrollment atomically and re
     assert.ok(audit.rows.some((row) => row.action === 'STUDENT_CREDENTIAL_CREATED'));
     assert.equal(audit.rows.filter((row) => row.action === 'ENROLLMENT_CREATED').length, 2);
 
+    await assert.rejects(
+      () => pool.query('DELETE FROM staff_users WHERE id = $1', [staffId]),
+      (error: unknown) => (error as { code?: string }).code === '23503',
+    );
+
     const invalidStaffId = randomUUID();
     await assert.rejects(
       () => materializeEnrollment(pool, {
@@ -118,7 +136,7 @@ test('ADMIN-002 materializes Student + Credential + Enrollment atomically and re
     );
     assert.equal(rolledBack.rows[0]?.count, '0');
   } finally {
-    await cleanupStudents(pool);
+    await cleanupStudents(pool, staffId);
     await pool.query('DELETE FROM staff_users WHERE id = $1', [staffId]);
     await pool.end();
   }
