@@ -5,7 +5,7 @@
   "authority": "Detran-SP · Portal de Dados Abertos do Estado de São Paulo",
   "datasetLicense": "Creative Commons Attribution 4.0",
   "latestPeriod": "2026-08",
-  "snapshotFingerprint": "f46dbb2bb2704cda539b3eae2746c441ee131f4e9799eacd839b6e6fb85b0b9d",
+  "snapshotFingerprint": "e52082c2add2ae92201ba32d5e5218069fd60fe568c8240211585b545c222820",
   "datasets": {
     "practical": {
       "status": "ready",
@@ -1091,27 +1091,27 @@
       "datasetPage": "https://dadosabertos.sp.gov.br/dataset/infracoes-lavradas",
       "authority": "Detran-SP · Dados Abertos SP",
       "license": "Creative Commons Attribution 4.0",
-      "catalogUpdatedAt": "2026-08-03T16:59:24.721648",
+      "catalogUpdatedAt": "2026-09-03T18:49:24.286316",
       "latest": {
-        "period": "2026-07",
-        "rowCount": 225,
+        "period": "2026-08",
+        "rowCount": 218,
         "municipalityField": "NOME_MUNICIPIO",
         "municipalitySelector": "São José dos Campos",
-        "sha256": "f6115f19558aeacfa0269c0e33d5efd18da58a2a2e88e33913c6d3cd269e3f32",
-        "resourceId": "72048630-897b-419e-b86a-ace17c81aa30",
-        "resourceName": "Infrações Lavradas - Julho de 2026",
-        "resourcePage": "https://dadosabertos.sp.gov.br/dataset/infracoes-lavradas/resource/72048630-897b-419e-b86a-ace17c81aa30",
-        "resourceUpdatedAt": "2026-08-03T16:59:24.847898",
+        "sha256": "0c3ce82b1b903af3e55cdb63be02f68fc1b41241747955014796d8ce082a7e7e",
+        "resourceId": "3c181e4c-2a83-473c-894d-89ceb3c96c39",
+        "resourceName": "Infrações Lavradas - Agosto de 2026",
+        "resourcePage": "https://dadosabertos.sp.gov.br/dataset/infracoes-lavradas/resource/3c181e4c-2a83-473c-894d-89ceb3c96c39",
+        "resourceUpdatedAt": "2026-09-03T18:49:24.452608",
         "metrics": {
-          "total": 1300,
+          "total": 1523,
           "topDescriptions": [
             {
               "label": "Deixar o condutor de usar o cinto seguranca",
-              "value": 212
+              "value": 248
             },
             {
               "label": "CONDUZIR O VEICULO REGISTRADO QUE NAO ESTEJA DEVIDAMENTE LICENCIADO",
-              "value": 148
+              "value": 198
             },
             {
               "label": "Dirigir veiculo manuseando telefone celular",
@@ -1119,41 +1119,41 @@
             },
             {
               "label": "Falta de escrituracao livro registro entrada/saida e de uso placa de experiencia",
-              "value": 76
-            },
-            {
-              "label": "DIRIGIR VEICULO SEM POSSUIR CNH/PPD/ACC",
-              "value": 56
-            },
-            {
-              "label": "CONDUZIR O VEICULO SEM EQUIPAMENTO OBRIGATORIO",
-              "value": 52
-            },
-            {
-              "label": "CONDUZIR O VEICULO EM MAU ESTADO DE CONSERVACAO, COMPROMETENDO A SEGURANCA",
-              "value": 46
-            },
-            {
-              "label": "DIRIGIR O VEIC USANDO CALCADO QUE N SE FIRME NOS PES/COMPROMETA UTILIZ PEDAIS",
-              "value": 43
-            },
-            {
-              "label": "AVAN O SIN VERM DO SEMAF EXC SE HOUVER SINALIZ PERM LIVRE CONV A DIR",
-              "value": 42
+              "value": 74
             },
             {
               "label": "DIRIGIR VEICULO UTILIZANDO-SE DE TELEFONE CELULAR",
-              "value": 37
+              "value": 69
+            },
+            {
+              "label": "DIRIGIR O VEIC USANDO CALCADO QUE N SE FIRME NOS PES/COMPROMETA UTILIZ PEDAIS",
+              "value": 69
+            },
+            {
+              "label": "DIRIGIR VEICULO SEM POSSUIR CNH/PPD/ACC",
+              "value": 67
+            },
+            {
+              "label": "CONDUZIR O VEICULO SEM EQUIPAMENTO OBRIGATORIO",
+              "value": 54
+            },
+            {
+              "label": "Dirigir sem atencao ou sem os cuidados indispensaveis a seguranca",
+              "value": 44
+            },
+            {
+              "label": "AVAN O SIN VERM DO SEMAF EXC SE HOUVER SINALIZ PERM LIVRE CONV A DIR",
+              "value": 41
             }
           ],
           "topCodes": [
             {
               "label": "5185-1",
-              "value": 212
+              "value": 248
             },
             {
               "label": "6599-2",
-              "value": 148
+              "value": 198
             },
             {
               "label": "7633-2",
@@ -1161,31 +1161,31 @@
             },
             {
               "label": "7544-1",
-              "value": 76
-            },
-            {
-              "label": "5010-0",
-              "value": 56
-            },
-            {
-              "label": "6637-1",
-              "value": 52
-            },
-            {
-              "label": "6726-1",
-              "value": 46
-            },
-            {
-              "label": "7340-0",
-              "value": 43
-            },
-            {
-              "label": "6050-1",
-              "value": 42
+              "value": 74
             },
             {
               "label": "7366-2",
-              "value": 37
+              "value": 69
+            },
+            {
+              "label": "7340-0",
+              "value": 69
+            },
+            {
+              "label": "5010-0",
+              "value": 67
+            },
+            {
+              "label": "6637-1",
+              "value": 54
+            },
+            {
+              "label": "5207-0",
+              "value": 44
+            },
+            {
+              "label": "6050-1",
+              "value": 41
             }
           ],
           "schema": {
@@ -1197,25 +1197,25 @@
       },
       "history": [
         {
-          "period": "2026-07",
-          "rowCount": 225,
+          "period": "2026-08",
+          "rowCount": 218,
           "municipalityField": "NOME_MUNICIPIO",
           "municipalitySelector": "São José dos Campos",
-          "sha256": "f6115f19558aeacfa0269c0e33d5efd18da58a2a2e88e33913c6d3cd269e3f32",
-          "resourceId": "72048630-897b-419e-b86a-ace17c81aa30",
-          "resourceName": "Infrações Lavradas - Julho de 2026",
-          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/infracoes-lavradas/resource/72048630-897b-419e-b86a-ace17c81aa30",
-          "resourceUpdatedAt": "2026-08-03T16:59:24.847898",
+          "sha256": "0c3ce82b1b903af3e55cdb63be02f68fc1b41241747955014796d8ce082a7e7e",
+          "resourceId": "3c181e4c-2a83-473c-894d-89ceb3c96c39",
+          "resourceName": "Infrações Lavradas - Agosto de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/infracoes-lavradas/resource/3c181e4c-2a83-473c-894d-89ceb3c96c39",
+          "resourceUpdatedAt": "2026-09-03T18:49:24.452608",
           "metrics": {
-            "total": 1300,
+            "total": 1523,
             "topDescriptions": [
               {
                 "label": "Deixar o condutor de usar o cinto seguranca",
-                "value": 212
+                "value": 248
               },
               {
                 "label": "CONDUZIR O VEICULO REGISTRADO QUE NAO ESTEJA DEVIDAMENTE LICENCIADO",
-                "value": 148
+                "value": 198
               },
               {
                 "label": "Dirigir veiculo manuseando telefone celular",
@@ -1223,41 +1223,41 @@
               },
               {
                 "label": "Falta de escrituracao livro registro entrada/saida e de uso placa de experiencia",
-                "value": 76
-              },
-              {
-                "label": "DIRIGIR VEICULO SEM POSSUIR CNH/PPD/ACC",
-                "value": 56
-              },
-              {
-                "label": "CONDUZIR O VEICULO SEM EQUIPAMENTO OBRIGATORIO",
-                "value": 52
-              },
-              {
-                "label": "CONDUZIR O VEICULO EM MAU ESTADO DE CONSERVACAO, COMPROMETENDO A SEGURANCA",
-                "value": 46
-              },
-              {
-                "label": "DIRIGIR O VEIC USANDO CALCADO QUE N SE FIRME NOS PES/COMPROMETA UTILIZ PEDAIS",
-                "value": 43
-              },
-              {
-                "label": "AVAN O SIN VERM DO SEMAF EXC SE HOUVER SINALIZ PERM LIVRE CONV A DIR",
-                "value": 42
+                "value": 74
               },
               {
                 "label": "DIRIGIR VEICULO UTILIZANDO-SE DE TELEFONE CELULAR",
-                "value": 37
+                "value": 69
+              },
+              {
+                "label": "DIRIGIR O VEIC USANDO CALCADO QUE N SE FIRME NOS PES/COMPROMETA UTILIZ PEDAIS",
+                "value": 69
+              },
+              {
+                "label": "DIRIGIR VEICULO SEM POSSUIR CNH/PPD/ACC",
+                "value": 67
+              },
+              {
+                "label": "CONDUZIR O VEICULO SEM EQUIPAMENTO OBRIGATORIO",
+                "value": 54
+              },
+              {
+                "label": "Dirigir sem atencao ou sem os cuidados indispensaveis a seguranca",
+                "value": 44
+              },
+              {
+                "label": "AVAN O SIN VERM DO SEMAF EXC SE HOUVER SINALIZ PERM LIVRE CONV A DIR",
+                "value": 41
               }
             ],
             "topCodes": [
               {
                 "label": "5185-1",
-                "value": 212
+                "value": 248
               },
               {
                 "label": "6599-2",
-                "value": 148
+                "value": 198
               },
               {
                 "label": "7633-2",
@@ -1265,31 +1265,31 @@
               },
               {
                 "label": "7544-1",
-                "value": 76
-              },
-              {
-                "label": "5010-0",
-                "value": 56
-              },
-              {
-                "label": "6637-1",
-                "value": 52
-              },
-              {
-                "label": "6726-1",
-                "value": 46
-              },
-              {
-                "label": "7340-0",
-                "value": 43
-              },
-              {
-                "label": "6050-1",
-                "value": 42
+                "value": 74
               },
               {
                 "label": "7366-2",
-                "value": 37
+                "value": 69
+              },
+              {
+                "label": "7340-0",
+                "value": 69
+              },
+              {
+                "label": "5010-0",
+                "value": 67
+              },
+              {
+                "label": "6637-1",
+                "value": 54
+              },
+              {
+                "label": "5207-0",
+                "value": 44
+              },
+              {
+                "label": "6050-1",
+                "value": 41
               }
             ],
             "schema": {
