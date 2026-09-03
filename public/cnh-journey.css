@@ -9,8 +9,8 @@
 .cnh-resolver-section .platform-section-head > p {
   max-width: 58ch;
   color: var(--ink-secondary);
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: 11px;
+  line-height: 1.72;
 }
 
 .cnh-resolver {
@@ -33,7 +33,7 @@
 .cnh-resolver-context span,
 .cnh-resolver-eyebrow {
   color: var(--signal-ink);
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: .075em;
   text-transform: uppercase;
@@ -41,13 +41,13 @@
 
 .cnh-resolver-context strong {
   color: var(--ink);
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.25;
 }
 
 .cnh-resolver-context small {
   color: var(--ink-secondary);
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .cnh-resolver-progress {
@@ -89,23 +89,23 @@
   max-width: 820px;
   margin: 15px 0 0;
   color: var(--ink);
-  font-size: clamp(40px, 5vw, 66px);
-  font-weight: 550;
-  letter-spacing: -.052em;
-  line-height: .98;
+  font-size: clamp(34px, 4.5vw, 60px);
+  font-weight: 500;
+  letter-spacing: -.055em;
+  line-height: 1.02;
 }
 
 .cnh-resolver-lead {
   max-width: 760px;
-  margin: 22px 0 0;
-  color: var(--ink);
-  font-size: 18px;
-  line-height: 1.62;
+  margin: 18px 0 0;
+  color: var(--ink-secondary);
+  font-size: 14px;
+  line-height: 1.65;
 }
 
 .cnh-resolver-self {
-  margin-top: 34px;
-  padding: 24px;
+  margin-top: 30px;
+  padding: 22px;
   border: 1px solid var(--line-strong);
   border-radius: 17px;
   background: var(--surface);
@@ -115,7 +115,7 @@
   max-width: 660px;
   margin: 8px 0 0;
   color: var(--ink);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
   letter-spacing: -.025em;
   line-height: 1.25;
@@ -123,10 +123,10 @@
 
 .cnh-resolver-self > p:not(.cnh-resolver-eyebrow) {
   max-width: 720px;
-  margin: 11px 0 0;
+  margin: 10px 0 0;
   color: var(--ink-secondary);
-  font-size: 15px;
-  line-height: 1.65;
+  font-size: 11px;
+  line-height: 1.72;
 }
 
 .cnh-resolver-primary,
@@ -137,13 +137,13 @@
   align-items: center;
   justify-content: center;
   border-radius: 11px;
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 700;
   text-decoration: none;
 }
 
 .cnh-resolver-primary {
-  margin-top: 20px;
+  margin-top: 18px;
   padding: 0 17px;
   background: var(--graphite);
   color: #fff;
@@ -166,7 +166,7 @@
 
 .cnh-resolver-confirm span {
   color: var(--ink);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 750;
 }
 
@@ -174,8 +174,8 @@
   max-width: 630px;
   margin: 5px 0 0;
   color: var(--ink-secondary);
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 10px;
+  line-height: 1.6;
 }
 
 .cnh-resolver-confirm button,
@@ -188,7 +188,7 @@
   color: #fff;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -199,15 +199,15 @@
 
 .cnh-resolver-source {
   display: block;
-  margin-top: 28px;
+  margin-top: 24px;
   color: var(--ink-muted);
-  font-size: 11px;
-  line-height: 1.5;
+  font-size: 9px;
+  line-height: 1.55;
 }
 
 .cnh-resolver-help {
   align-self: start;
-  padding: 26px;
+  padding: 24px;
   background: var(--graphite);
   color: white;
 }
@@ -217,23 +217,23 @@
 }
 
 .cnh-resolver-help h3 {
-  margin: 13px 0 0;
-  font-size: 25px;
+  margin: 12px 0 0;
+  font-size: 21px;
   font-weight: 550;
   letter-spacing: -.03em;
   line-height: 1.12;
 }
 
 .cnh-resolver-help > p:not(.cnh-resolver-eyebrow) {
-  margin: 15px 0 0;
-  color: rgba(255,255,255,.8);
-  font-size: 14px;
-  line-height: 1.62;
+  margin: 12px 0 0;
+  color: rgba(255,255,255,.72);
+  font-size: 10px;
+  line-height: 1.65;
 }
 
 .cnh-resolver-help a {
   width: 100%;
-  margin-top: 22px;
+  margin-top: 20px;
   padding: 0 14px;
   background: #fff;
   color: #17191d;
@@ -241,15 +241,15 @@
 
 .cnh-resolver-help small {
   display: block;
-  margin-top: 14px;
+  margin-top: 12px;
   color: rgba(255,255,255,.58);
-  font-size: 11px;
-  line-height: 1.5;
+  font-size: 9px;
+  line-height: 1.55;
 }
 
 .cnh-resolver-category {
-  margin-top: 34px;
-  padding: 24px;
+  margin-top: 30px;
+  padding: 22px;
   border: 1px solid var(--signal-line);
   border-radius: 17px;
   background: var(--signal-soft);
@@ -258,15 +258,15 @@
 .cnh-resolver-category h3 {
   margin: 8px 0 0;
   color: var(--ink);
-  font-size: 25px;
-  letter-spacing: -.03em;
+  font-size: 21px;
+  letter-spacing: -.035em;
 }
 
 .cnh-resolver-category > p:not(.cnh-resolver-eyebrow) {
   margin: 8px 0 0;
   color: var(--ink-secondary);
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: 10px;
+  line-height: 1.6;
 }
 
 .cnh-resolver-category > div {
@@ -277,7 +277,7 @@
 }
 
 .cnh-resolver-category button {
-  min-height: 70px;
+  min-height: 68px;
   display: grid;
   place-items: center;
   gap: 2px;
@@ -288,12 +288,12 @@
 }
 
 .cnh-resolver-category button strong {
-  font-size: 18px;
+  font-size: 17px;
 }
 
 .cnh-resolver-category button span {
   color: var(--ink-secondary);
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .cnh-resolver-path,
@@ -311,7 +311,7 @@
   width: fit-content;
   color: var(--ink-secondary);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -342,7 +342,7 @@
 
 .cnh-resolver-path li > span {
   color: var(--ink-muted);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
 }
 
@@ -355,13 +355,13 @@
 .cnh-resolver-path li strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 11px;
   text-overflow: ellipsis;
 }
 
 .cnh-resolver-path li small {
   color: var(--ink-muted);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .cnh-resolver-path li.is-done {
@@ -408,7 +408,7 @@
 
 .cnh-resolver-correction label span {
   color: var(--ink);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0;
   text-transform: none;
@@ -423,7 +423,7 @@
   background: var(--surface-raised);
   color: var(--ink);
   font: inherit;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .cnh-resolver-correction button {
@@ -437,9 +437,9 @@
 
 .cnh-resolver-action--complete > p:not(.cnh-resolver-eyebrow) {
   max-width: 740px;
-  margin: 20px 0 0;
+  margin: 18px 0 0;
   color: var(--ink-secondary);
-  font-size: 17px;
+  font-size: 14px;
   line-height: 1.65;
 }
 
@@ -454,7 +454,7 @@
   display: block;
   margin-top: 24px;
   color: var(--ink-muted);
-  font-size: 11px;
+  font-size: 9px;
 }
 
 .cnh-resolver a:focus-visible,
@@ -499,11 +499,11 @@
   }
 
   .cnh-resolver-action > h3 {
-    font-size: clamp(38px, 11vw, 52px);
+    font-size: clamp(32px, 9vw, 44px);
   }
 
   .cnh-resolver-lead {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .cnh-resolver-self,
