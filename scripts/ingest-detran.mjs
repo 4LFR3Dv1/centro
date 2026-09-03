@@ -54,20 +54,32 @@ function decodeCsv(buffer) {
   const utf8 = new TextDecoder('utf-8').decode(buffer);
   const replacements = (utf8.match(/�/g) ?? []).length;
   if (replacements <= 2) return utf8;
-  return Buffer.from(buffer).toString('latin1');
+  try {
+    return new TextDecoder('windows-1252').decode(buffer);
+  } catch {
+    return Buffer.from(buffer).toString('latin1');
+  }
 }
 
 function parseCsv(buffer) {
   const text = decodeCsv(buffer).replace(/^\uFEFF/, '');
-  return parse(text, {
+  const delimiter = chooseDelimiter(text);
+  const baseOptions = {
     columns: true,
     skip_empty_lines: true,
     relax_column_count: true,
-    relax_quotes: true,
-    delimiter: chooseDelimiter(text),
+    delimiter,
     trim: true,
     bom: true,
-  });
+  };
+
+  try {
+    return parse(text, { ...baseOptions, relax_quotes: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`CSV parser fallback without quote semantics: ${message}`);
+    return parse(text, { ...baseOptions, quote: false });
+  }
 }
 
 function getKeys(rows) {
@@ -109,15 +121,31 @@ function weightOf(row, quantityField) {
   return quantityField ? parseCount(row[quantityField]) : 1;
 }
 
+function looksLikeTargetCity(value) {
+  const normalized = normalize(value);
+  if (!normalized) return false;
+  if (normalized.includes(CITY_KEY)) return true;
+  return ['SAO', 'JOSE', 'CAMPOS'].every((token) => normalized.includes(token));
+}
+
 function filterCity(rows) {
-  const municipalityField = findField(rows, ['MUNICIPIO']);
-  if (!municipalityField) throw new Error('municipality column not found');
-  const filtered = rows.filter((row) => {
-    const value = normalize(row[municipalityField]);
-    return value === CITY_KEY || value.endsWith(`_${CITY_KEY}`) || value.includes(CITY_KEY);
+  const keys = getKeys(rows);
+  const likelyFields = keys.filter((key) => {
+    const normalized = normalize(key);
+    return normalized.includes('MUNICIPIO') || normalized.includes('CIDADE') || normalized.includes('LOCAL_DE_REALIZACAO') || normalized.includes('LOCAL_REALIZACAO');
   });
-  if (!filtered.length) throw new Error(`no rows found for ${CITY}`);
-  return { rows: filtered, municipalityField };
+
+  for (const field of likelyFields) {
+    const filtered = rows.filter((row) => looksLikeTargetCity(row[field]));
+    if (filtered.length) return { rows: filtered, municipalityField: field };
+  }
+
+  const diagnostic = likelyFields.map((field) => {
+    const samples = [...new Set(rows.slice(0, 500).map((row) => String(row[field] ?? '').trim()).filter(Boolean))].slice(0, 4);
+    return `${field}=[${samples.join(' | ')}]`;
+  }).join('; ');
+
+  throw new Error(`no rows found for ${CITY}; candidate fields: ${diagnostic || 'none'}`);
 }
 
 function sumRows(rows, quantityField) {
@@ -186,11 +214,7 @@ function aggregateExam(cityRows) {
     cancelled,
     approvalRate: decided > 0 ? Number(((approved / decided) * 100).toFixed(1)) : null,
     categories: groupTop(cityRows, categoryField, quantityField, 8),
-    schema: {
-      quantityField,
-      resultField,
-      categoryField,
-    },
+    schema: { quantityField, resultField, categoryField },
   };
 }
 
@@ -306,12 +330,7 @@ async function loadPrevious() {
   try {
     return JSON.parse(await readFile(OUTPUT, 'utf8'));
   } catch {
-    return {
-      version: 1,
-      city: CITY,
-      cityKey: CITY_KEY,
-      datasets: {},
-    };
+    return { version: 1, city: CITY, cityKey: CITY_KEY, datasets: {} };
   }
 }
 
@@ -328,7 +347,9 @@ for (const definition of definitions) {
   process.stdout.write(`Centro data: ${definition.title}... `);
   try {
     output.datasets[definition.key] = await ingestDataset(definition);
-    console.log(`${output.datasets[definition.key].latest.period} ✓`);
+    const latest = output.datasets[definition.key].latest;
+    console.log(`${latest.period} · ${latest.rowCount} rows · total ${latest.metrics.total} ✓`);
+    console.log(`  city field: ${latest.municipalityField}; schema: ${JSON.stringify(latest.metrics.schema)}`);
   } catch (error) {
     failures.push({ key: definition.key, error: error instanceof Error ? error.message : String(error) });
     console.log(`FAILED: ${failures.at(-1).error}`);
