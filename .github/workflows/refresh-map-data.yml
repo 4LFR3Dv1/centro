@@ -5,9 +5,7 @@ on:
   schedule:
     - cron: '43 10 * * *'
   push:
-    branches:
-      - main
-      - feat/map-server-snapshot
+    branches: [main]
     paths:
       - 'scripts/refresh-map-data.mjs'
       - '.github/workflows/refresh-map-data.yml'
@@ -22,7 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: main
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -45,4 +43,4 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add public/data/maps/sjc-cycleways.geojson public/data/maps/sjc-map-manifest.json
           git commit -m "data: refresh São José map snapshot"
-          git push origin HEAD:${{ github.ref_name }}
+          git push
