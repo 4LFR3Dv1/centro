@@ -6,6 +6,7 @@ COPY . .
 # Traffic data is refreshed and versioned by the dedicated data workflow.
 # Production builds publish the last accepted snapshot instead of depending on
 # the external Detran portal being reachable at deploy time.
+RUN mkdir -p public/data && cp src/generated/traffic-intelligence.json public/data/traffic-intelligence.json
 RUN npm run build:app
 
 FROM nginx:1.27-alpine
