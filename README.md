@@ -9,9 +9,43 @@ Digital acquisition and operating surface for **Auto Escola Centro**, São José
 - **Address:** Avenida São José, 1.009 — Centro — São José dos Campos, SP
 - **Phone / WhatsApp:** (12) 9 8177-9745
 - **Operating history:** more than 20 years, according to the business's supplied institutional copy
-- **Core services:** first CNH, category addition (A, B and D), practical training and improvement for licensed drivers
+- **Confirmed categories:** A, B and D
+- **Confirmed service intents:** first CNH, category addition and training for licensed drivers
 
-The canonical public identity now lives in `src/business.ts`. Public surfaces should consume that state rather than duplicating business information across components.
+The canonical public identity lives in `src/business.ts`. Commercial knowledge lives in `src/commercial.ts` and must carry an explicit state instead of being inferred from missing data.
+
+## Commercial knowledge model
+
+Each commercial field is classified as:
+
+- `verified` — confirmed by the operation and safe to state publicly;
+- `unknown` — not currently known and must not be invented;
+- `needs_review` — recovered from a legacy/public source but still requires reconciliation.
+
+Current state:
+
+| Field | State |
+| --- | --- |
+| Categories A / B / D | `verified` |
+| First CNH / category addition / licensed-driver training | `verified` |
+| Pricing | `unknown` |
+| Fleet | `unknown` |
+| Opening hours | `unknown` |
+| Lesson availability | `unknown` |
+| Payment methods | `unknown` |
+
+Public UI renders unknown commercial data as **consult current conditions**, never as fabricated placeholders.
+
+## R3A — Commercial Foundation
+
+R3A establishes four contracts:
+
+1. **Canonical commercial state** — known and unknown facts are represented explicitly.
+2. **Contextual WhatsApp** — the selected CNH journey determines the message handed to the real WhatsApp channel.
+3. **Service reconciliation** — A, B and D are verified; unconfirmed pricing/fleet/scheduling data remain unknown.
+4. **Official guidance boundary** — Detran-SP rules, fees and process guidance live separately from Auto Escola Centro commercial conditions.
+
+Official guidance is represented in `src/official-guidance.ts` as a dated snapshot, with the Detran-SP source retained. It is not treated as Auto Escola Centro policy.
 
 ## Product thesis
 
@@ -21,15 +55,11 @@ The product focuses on:
 
 - diagnosing where the student is in the CNH journey;
 - recommending the next practical action;
-- organizing the real service catalog by user intent;
-- handing a qualified lead to WhatsApp;
+- handing a qualified lead to WhatsApp with context;
+- separating public regulation from private commercial offer;
 - making location and contact information first-class product objects;
-- establishing a canonical business profile that can later reconcile the website, Google Business Profile and other public surfaces;
+- establishing canonical state that can later reconcile the website, Google Business Profile and other public surfaces;
 - preparing for scheduling, Detran-SP intelligence, ViaCEP, weather and mobility adapters without making those integrations runtime dependencies.
-
-## SEO direction
-
-The previous institutional copy contained strong local-search intent but repeated variants of the same keyword heavily. Centro preserves the relevant intents semantically — first CNH, categories A/B/D, training for licensed drivers, CFC and São José dos Campos — while avoiding keyword stuffing.
 
 ## Interface direction
 
@@ -39,4 +69,4 @@ Centro translates that language into a driving system: route/progress primitives
 
 ## Status
 
-`CENTRO-R2 / BUSINESS-RECONCILIATION` — current business identity materialized; operational catalog and presence reconciliation are next.
+`CENTRO-R3A / COMMERCIAL-FOUNDATION` — canonical commercial state, contextual WhatsApp, verified A/B/D catalog and official-guidance boundary materialized.
