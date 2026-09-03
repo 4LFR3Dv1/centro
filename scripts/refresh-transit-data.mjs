@@ -31,6 +31,14 @@ const STATIONS = [
   { name: 'Estação Osvaldo Cruz', aliases: ['osvaldo cruz', 'oswaldo cruz'], queries: ['Avenida Deputado Benedito Matarazzo, 9403, Jardim Oswaldo Cruz', 'Avenida Deputado Benedito Matarazzo, Jardim Oswaldo Cruz'] },
 ];
 
+// Operational adjacency, not a fictional 01→13 polyline. The network branches after Vila Sanches.
+const LINE_GREEN_EDGES = [
+  [1, 2], [2, 3], [3, 4], [4, 5], [5, 6],
+  [6, 8], [8, 9],
+  [9, 10], [10, 11],
+  [9, 12], [12, 13], [13, 7], [7, 6],
+];
+
 const compact = (value = '') => String(value ?? '').replace(/\s+/g, ' ').trim();
 const normalize = (value = '') => compact(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const digest = (value) => createHash('sha256').update(value).digest('hex');
@@ -130,17 +138,27 @@ async function resolveStations(stopFeatures) {
 }
 
 function validateStationGeometry(stations) {
-  const ordered = [...stations].sort((a, b) => a.properties.sequence - b.properties.sequence);
-  let routeChordLength = 0;
-  for (let index = 1; index < ordered.length; index += 1) {
-    const previous = ordered[index - 1]; const current = ordered[index];
-    const distance = distanceMeters(previous.geometry.coordinates, current.geometry.coordinates);
-    routeChordLength += distance;
-    if (distance < 50) throw new Error(`Linha Verde stations collapse to the same point: ${previous.properties.name} / ${current.properties.name} (${Math.round(distance)}m)`);
-    if (distance > 5500) throw new Error(`Implausible Linha Verde station jump: ${previous.properties.name} -> ${current.properties.name} (${Math.round(distance)}m)`);
+  const bySequence = new Map(stations.map((station) => [Number(station.properties.sequence), station]));
+  for (let a = 0; a < stations.length; a += 1) {
+    for (let b = a + 1; b < stations.length; b += 1) {
+      const distance = distanceMeters(stations[a].geometry.coordinates, stations[b].geometry.coordinates);
+      if (distance < 50) throw new Error(`Linha Verde stations collapse to the same point: ${stations[a].properties.name} / ${stations[b].properties.name} (${Math.round(distance)}m)`);
+    }
   }
-  if (routeChordLength < 7000 || routeChordLength > 25000) throw new Error(`Implausible Linha Verde station-chain length: ${Math.round(routeChordLength)}m`);
-  return Math.round(routeChordLength);
+
+  const edgeDistances = [];
+  for (const [from, to] of LINE_GREEN_EDGES) {
+    const source = bySequence.get(from); const target = bySequence.get(to);
+    if (!source || !target) throw new Error(`Missing Linha Verde topology endpoint ${from}->${to}`);
+    const distance = distanceMeters(source.geometry.coordinates, target.geometry.coordinates);
+    if (distance < 50 || distance > 5500) throw new Error(`Implausible Linha Verde topology edge: ${source.properties.name} -> ${target.properties.name} (${Math.round(distance)}m)`);
+    edgeDistances.push(distance);
+  }
+  return {
+    edgeCount: edgeDistances.length,
+    shortestEdgeMeters: Math.round(Math.min(...edgeDistances)),
+    longestEdgeMeters: Math.round(Math.max(...edgeDistances)),
+  };
 }
 
 function decodeHtml(value) {
@@ -163,7 +181,7 @@ function assertSnapshot(geojson, manifest, summary, raw) {
   const transitPoints = geojson.features.filter((feature) => ['transit-stop', 'transit-terminal'].includes(feature.properties?.kind));
   if (stations.length !== 13) throw new Error(`Expected 13 Linha Verde stations, got ${stations.length}`);
   if (transitPoints.length < 100) throw new Error(`Transit point snapshot unexpectedly small: ${transitPoints.length}`);
-  const stationChainMeters = validateStationGeometry(stations);
+  const topology = validateStationGeometry(stations);
   if (manifest?.featureCount !== geojson.features.length) throw new Error('Transit featureCount mismatch');
   if (manifest?.sha256 !== digest(raw)) throw new Error('Transit digest mismatch');
   if (summary?.officialRouteDirectoryCount < 50) throw new Error('Official route directory count unexpectedly small');
@@ -171,39 +189,39 @@ function assertSnapshot(geojson, manifest, summary, raw) {
     const [lon, lat] = feature.geometry?.coordinates ?? [];
     if (!Number.isFinite(lon) || !Number.isFinite(lat) || !inBounds(lon, lat)) throw new Error('Transit point outside São José dos Campos bounds');
   }
-  return { stations: stations.length, transitPoints: transitPoints.length, routes: summary.officialRouteDirectoryCount, stationChainMeters };
+  return { stations: stations.length, transitPoints: transitPoints.length, routes: summary.officialRouteDirectoryCount, topology };
 }
 
 async function validatePersisted() {
   const [rawGeo, rawManifest, rawSummary] = await Promise.all([readFile(GEOJSON_PATH, 'utf8'), readFile(MANIFEST_PATH, 'utf8'), readFile(SUMMARY_PATH, 'utf8')]);
   const result = assertSnapshot(JSON.parse(rawGeo), JSON.parse(rawManifest), JSON.parse(rawSummary), rawGeo);
-  console.log(`Validated transit snapshot: ${result.stations} Linha Verde stations · ${result.transitPoints} mapped stops/terminals · ${result.routes} official directory entries · station chain ${result.stationChainMeters}m`);
+  console.log(`Validated transit snapshot: ${result.stations} Linha Verde stations · ${result.transitPoints} mapped stops/terminals · ${result.routes} official directory entries · ${result.topology.edgeCount} topology edges`);
 }
 
 async function main() {
   if (validateExisting) return validatePersisted();
   const stopFeatures = await osmStops();
   const [stationFeatures, routes] = await Promise.all([resolveStations(stopFeatures), officialRoutes()]);
-  const stationChainMeters = validateStationGeometry(stationFeatures);
+  const topology = validateStationGeometry(stationFeatures);
   const geojson = { type: 'FeatureCollection', features: [...stopFeatures, ...stationFeatures] };
   const raw = `${JSON.stringify(geojson)}\n`;
   const summary = {
-    version: 2, city: 'São José dos Campos', officialAuthority: 'Prefeitura de São José dos Campos · Mobilidade Urbana',
+    version: 3, city: 'São José dos Campos', officialAuthority: 'Prefeitura de São José dos Campos · Mobilidade Urbana',
     officialTransportPage: OFFICIAL_TRANSPORT, officialLinhaVerdePage: OFFICIAL_LINE_GREEN,
-    linhaVerde: { stationCount: 13, geometryStatus: 'stations-only', stationChainMeters, coordinateRevision: COORDINATE_REVISION },
+    linhaVerde: { stationCount: 13, geometryStatus: 'stations-only', topologyStatus: 'validated-station-graph', topology, coordinateRevision: COORDINATE_REVISION },
     mappedStopsAndTerminals: stopFeatures.length, officialRouteDirectoryCount: routes.length, officialRouteDirectory: routes,
-    note: 'Os nomes e a ordem das estações da Linha Verde vêm da Prefeitura. As coordenadas são resolvidas dentro de São José dos Campos e passam por validação geométrica. O Centro não desenha um traçado viário exato da Linha Verde sem geometria validada.',
+    note: 'Os nomes e a ordem identificadora das estações vêm da Prefeitura. A validação espacial respeita os ramais operacionais e não trata 01→13 como uma única linha. O Centro não desenha um traçado viário exato sem geometria validada.',
   };
   const manifest = {
-    schemaVersion: 2, area: 'São José dos Campos, SP, Brasil',
+    schemaVersion: 3, area: 'São José dos Campos, SP, Brasil',
     source: { official: 'Prefeitura de São José dos Campos', mappedStops: 'OpenStreetMap via Overpass', stationCoordinates: 'bounded address geocoding / explicit Linha Verde OSM point / persisted coordinates', licenseOSM: 'ODbL 1.0' },
-    featureCount: geojson.features.length, linhaVerdeStations: stationFeatures.length, stationChainMeters,
+    featureCount: geojson.features.length, linhaVerdeStations: stationFeatures.length, topology,
     mappedStopsAndTerminals: stopFeatures.length, sha256: digest(raw), artifact: '/data/maps/sjc-transit.geojson',
   };
   assertSnapshot(geojson, manifest, summary, raw);
   await Promise.all([mkdir(dirname(GEOJSON_PATH), { recursive: true }), mkdir(dirname(SUMMARY_PATH), { recursive: true })]);
   await Promise.all([writeFile(GEOJSON_PATH, raw), writeFile(MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`), writeFile(SUMMARY_PATH, `${JSON.stringify(summary, null, 2)}\n`)]);
-  console.log(`Materialized ${stationFeatures.length} Linha Verde stations + ${stopFeatures.length} mapped public-transport points; route directory=${routes.length}; station chain=${stationChainMeters}m`);
+  console.log(`Materialized ${stationFeatures.length} Linha Verde stations + ${stopFeatures.length} mapped public-transport points; route directory=${routes.length}; topology edges=${topology.edgeCount}`);
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
