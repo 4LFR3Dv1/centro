@@ -4,44 +4,1302 @@
   "cityKey": "SAO_JOSE_DOS_CAMPOS",
   "authority": "Detran-SP · Portal de Dados Abertos do Estado de São Paulo",
   "datasetLicense": "Creative Commons Attribution 4.0",
-  "latestPeriod": null,
-  "snapshotFingerprint": null,
+  "latestPeriod": "2026-07",
+  "snapshotFingerprint": "79e51f95f2c9f4afcbc1d6f7629298fea7a4d703eb94ba57641e7b6c50c85087",
   "datasets": {
     "practical": {
-      "status": "unavailable",
+      "status": "ready",
       "title": "Exames práticos",
       "dataset": "exames-praticos-realizados",
       "datasetPage": "https://dadosabertos.sp.gov.br/dataset/exames-praticos-realizados",
       "authority": "Detran-SP · Dados Abertos SP",
-      "latest": null,
-      "history": []
+      "license": "Creative Commons Attribution 4.0",
+      "catalogUpdatedAt": "2026-08-03T18:39:49.650945",
+      "latest": {
+        "period": "2026-07",
+        "rowCount": 113,
+        "municipalityField": "NOME_MUNICIPIO",
+        "municipalitySelector": "São José dos Campos",
+        "sha256": "2a58e8553e0ee9ff98b9a01d72c897d8ff74af51096ab0d2192bea378948c3ca",
+        "resourceId": "8126b848-1c99-4551-a05a-928cd54402c4",
+        "resourceName": "Exames Práticos Realizados - Julho de 2026",
+        "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-praticos-realizados/resource/8126b848-1c99-4551-a05a-928cd54402c4",
+        "resourceUpdatedAt": "2026-08-03T18:39:49.791666",
+        "metrics": {
+          "total": 16844,
+          "approved": 12110,
+          "rejected": 1842,
+          "absent": 831,
+          "cancelled": 780,
+          "approvalRate": 86.8,
+          "categories": [
+            {
+              "label": "B",
+              "value": 10991
+            },
+            {
+              "label": "A",
+              "value": 4881
+            },
+            {
+              "label": "D",
+              "value": 703
+            },
+            {
+              "label": "E",
+              "value": 254
+            },
+            {
+              "label": "C",
+              "value": 15
+            }
+          ],
+          "schema": {
+            "quantityField": "QTDE",
+            "resultField": "RESULTADO",
+            "categoryField": "CATEGORIA"
+          }
+        }
+      },
+      "history": [
+        {
+          "period": "2026-01",
+          "rowCount": 36,
+          "municipalityField": "NOME_MUNICIPIO",
+          "municipalitySelector": "São José dos Campos",
+          "sha256": "c8cf30c4ba01447ad3be248c901f779ed87f33ae934e0dbabde7058c91ae7b69",
+          "resourceId": "c91f2f29-257a-4dd2-ad4a-d4602b200e48",
+          "resourceName": "Exames Práticos Realizados - Janeiro de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-praticos-realizados/resource/c91f2f29-257a-4dd2-ad4a-d4602b200e48",
+          "resourceUpdatedAt": "2026-03-09T13:54:34.644291",
+          "metrics": {
+            "total": 1943,
+            "approved": 1022,
+            "rejected": 707,
+            "absent": 111,
+            "cancelled": 103,
+            "approvalRate": 59.1,
+            "categories": [
+              {
+                "label": "B",
+                "value": 1228
+              },
+              {
+                "label": "A",
+                "value": 606
+              },
+              {
+                "label": "D",
+                "value": 66
+              },
+              {
+                "label": "E",
+                "value": 41
+              },
+              {
+                "label": "C",
+                "value": 2
+              }
+            ],
+            "schema": {
+              "quantityField": "QTDE",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        },
+        {
+          "period": "2026-02",
+          "rowCount": 72,
+          "municipalityField": "NOME_MUNICIPIO",
+          "municipalitySelector": "São José dos Campos",
+          "sha256": "a242be8680150d82c49167bfaadfc78ba2c251035a57e6fe7616f14bfad9c1aa",
+          "resourceId": "3f8f6d6c-832f-4993-a48e-2a8769669f68",
+          "resourceName": "Exames Práticos Realizados - Fevereiro de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-praticos-realizados/resource/3f8f6d6c-832f-4993-a48e-2a8769669f68",
+          "resourceUpdatedAt": "2026-03-09T13:55:01.293486",
+          "metrics": {
+            "total": 3900,
+            "approved": 2266,
+            "rejected": 1255,
+            "absent": 212,
+            "cancelled": 167,
+            "approvalRate": 64.4,
+            "categories": [
+              {
+                "label": "B",
+                "value": 2508
+              },
+              {
+                "label": "A",
+                "value": 1173
+              },
+              {
+                "label": "D",
+                "value": 150
+              },
+              {
+                "label": "E",
+                "value": 65
+              },
+              {
+                "label": "C",
+                "value": 4
+              }
+            ],
+            "schema": {
+              "quantityField": "QTDE",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        },
+        {
+          "period": "2026-03",
+          "rowCount": 89,
+          "municipalityField": "NOME_MUNICIPIO",
+          "municipalitySelector": "São José dos Campos",
+          "sha256": "01c4b50a72f4fe629fcf3343dbfa9bc636369061d17891009103b5b3ba9f7a64",
+          "resourceId": "5c7c5003-04f5-4eed-baa9-82f24e0c743d",
+          "resourceName": "Exames Práticos Realizados - Março de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-praticos-realizados/resource/5c7c5003-04f5-4eed-baa9-82f24e0c743d",
+          "resourceUpdatedAt": "2026-04-01T12:55:05.607104",
+          "metrics": {
+            "total": 6537,
+            "approved": 4361,
+            "rejected": 1373,
+            "absent": 333,
+            "cancelled": 308,
+            "approvalRate": 76.1,
+            "categories": [
+              {
+                "label": "B",
+                "value": 4222
+              },
+              {
+                "label": "A",
+                "value": 1975
+              },
+              {
+                "label": "D",
+                "value": 234
+              },
+              {
+                "label": "E",
+                "value": 100
+              },
+              {
+                "label": "C",
+                "value": 6
+              }
+            ],
+            "schema": {
+              "quantityField": "QTDE",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        },
+        {
+          "period": "2026-04",
+          "rowCount": 94,
+          "municipalityField": "NOME_MUNICIPIO",
+          "municipalitySelector": "São José dos Campos",
+          "sha256": "c31664e216eb98868a93138516645c9ff7c7aaf0b436bec5062f3a1188e17926",
+          "resourceId": "a08f74bc-7a21-4758-8782-e82caba46cb3",
+          "resourceName": "Exames Práticos Realizados - Abril de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-praticos-realizados/resource/a08f74bc-7a21-4758-8782-e82caba46cb3",
+          "resourceUpdatedAt": "2026-05-05T15:01:34.882808",
+          "metrics": {
+            "total": 9068,
+            "approved": 6288,
+            "rejected": 1485,
+            "absent": 458,
+            "cancelled": 432,
+            "approvalRate": 80.9,
+            "categories": [
+              {
+                "label": "B",
+                "value": 5915
+              },
+              {
+                "label": "A",
+                "value": 2657
+              },
+              {
+                "label": "D",
+                "value": 340
+              },
+              {
+                "label": "E",
+                "value": 148
+              },
+              {
+                "label": "C",
+                "value": 8
+              }
+            ],
+            "schema": {
+              "quantityField": "QTDE",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        },
+        {
+          "period": "2026-05",
+          "rowCount": 103,
+          "municipalityField": "NOME_MUNICIPIO",
+          "municipalitySelector": "São José dos Campos",
+          "sha256": "ad77c5404b19dbc50d9bd8bbd426208ef0a2d8a325c0aa7db4262f1959988812",
+          "resourceId": "c584a7b7-fb7f-43d3-a271-ece330a71bc4",
+          "resourceName": "Exames Práticos Realizados - Maio de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-praticos-realizados/resource/c584a7b7-fb7f-43d3-a271-ece330a71bc4",
+          "resourceUpdatedAt": "2026-06-09T16:49:04.902970",
+          "metrics": {
+            "total": 11956,
+            "approved": 8463,
+            "rejected": 1613,
+            "absent": 576,
+            "cancelled": 583,
+            "approvalRate": 84,
+            "categories": [
+              {
+                "label": "B",
+                "value": 7764
+              },
+              {
+                "label": "A",
+                "value": 3556
+              },
+              {
+                "label": "D",
+                "value": 450
+              },
+              {
+                "label": "E",
+                "value": 178
+              },
+              {
+                "label": "C",
+                "value": 8
+              }
+            ],
+            "schema": {
+              "quantityField": "QTDE",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        },
+        {
+          "period": "2026-06",
+          "rowCount": 109,
+          "municipalityField": "NOME_MUNICIPIO",
+          "municipalitySelector": "São José dos Campos",
+          "sha256": "c5438bc4f64d9c65c2dca5ffe9e40d90b59932983bf589ba970ab27ad2802595",
+          "resourceId": "9916fa89-7e75-42c5-941b-948b9376497c",
+          "resourceName": "Exames Práticos Realizados - Junho de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-praticos-realizados/resource/9916fa89-7e75-42c5-941b-948b9376497c",
+          "resourceUpdatedAt": "2026-06-18T18:11:08.853915",
+          "metrics": {
+            "total": 14526,
+            "approved": 10352,
+            "rejected": 1752,
+            "absent": 719,
+            "cancelled": 694,
+            "approvalRate": 85.5,
+            "categories": [
+              {
+                "label": "B",
+                "value": 9471
+              },
+              {
+                "label": "A",
+                "value": 4218
+              },
+              {
+                "label": "D",
+                "value": 598
+              },
+              {
+                "label": "E",
+                "value": 229
+              },
+              {
+                "label": "C",
+                "value": 10
+              }
+            ],
+            "schema": {
+              "quantityField": "QTDE",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        },
+        {
+          "period": "2026-07",
+          "rowCount": 113,
+          "municipalityField": "NOME_MUNICIPIO",
+          "municipalitySelector": "São José dos Campos",
+          "sha256": "2a58e8553e0ee9ff98b9a01d72c897d8ff74af51096ab0d2192bea378948c3ca",
+          "resourceId": "8126b848-1c99-4551-a05a-928cd54402c4",
+          "resourceName": "Exames Práticos Realizados - Julho de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-praticos-realizados/resource/8126b848-1c99-4551-a05a-928cd54402c4",
+          "resourceUpdatedAt": "2026-08-03T18:39:49.791666",
+          "metrics": {
+            "total": 16844,
+            "approved": 12110,
+            "rejected": 1842,
+            "absent": 831,
+            "cancelled": 780,
+            "approvalRate": 86.8,
+            "categories": [
+              {
+                "label": "B",
+                "value": 10991
+              },
+              {
+                "label": "A",
+                "value": 4881
+              },
+              {
+                "label": "D",
+                "value": 703
+              },
+              {
+                "label": "E",
+                "value": 254
+              },
+              {
+                "label": "C",
+                "value": 15
+              }
+            ],
+            "schema": {
+              "quantityField": "QTDE",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        }
+      ]
     },
     "theory": {
-      "status": "unavailable",
+      "status": "ready",
       "title": "Exames teóricos",
       "dataset": "exames-teoricos-realizados",
       "datasetPage": "https://dadosabertos.sp.gov.br/dataset/exames-teoricos-realizados",
       "authority": "Detran-SP · Dados Abertos SP",
-      "latest": null,
-      "history": []
+      "license": "Creative Commons Attribution 4.0",
+      "catalogUpdatedAt": "2026-08-03T18:37:39.215163",
+      "latest": {
+        "period": "2026-07",
+        "rowCount": 303,
+        "municipalityField": "ID_MUNICIPIO",
+        "municipalitySelector": "7099",
+        "sha256": "0d5894717be6c83a2c834d146c3315cabac93e788df312f85a14ceff2579935f",
+        "resourceId": "e5661d21-4042-43cc-bc28-c7484207860f",
+        "resourceName": "Exames Teóricos Realizados - Julho de 2026",
+        "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-teoricos-realizados/resource/e5661d21-4042-43cc-bc28-c7484207860f",
+        "resourceUpdatedAt": "2026-08-03T18:37:39.351373",
+        "metrics": {
+          "total": 11029,
+          "approved": 8399,
+          "rejected": 625,
+          "absent": 1394,
+          "cancelled": 611,
+          "approvalRate": 93.1,
+          "categories": [
+            {
+              "label": "B",
+              "value": 5290
+            },
+            {
+              "label": "AB",
+              "value": 4587
+            },
+            {
+              "label": "D",
+              "value": 470
+            },
+            {
+              "label": "AD",
+              "value": 294
+            },
+            {
+              "label": "A",
+              "value": 197
+            },
+            {
+              "label": "E",
+              "value": 110
+            },
+            {
+              "label": "AE",
+              "value": 64
+            },
+            {
+              "label": "AC",
+              "value": 13
+            }
+          ],
+          "schema": {
+            "quantityField": "QTD_PROVAS",
+            "resultField": "RESULTADO",
+            "categoryField": "CATEGORIA"
+          }
+        }
+      },
+      "history": [
+        {
+          "period": "2026-01",
+          "rowCount": 120,
+          "municipalityField": "ID_MUNICIPIO",
+          "municipalitySelector": "7099",
+          "sha256": "0a9f1e7f70014ba323f978ee3e3a2f60a9e9cd3162b13fbefe6524371fb33a6c",
+          "resourceId": "5b1c5590-3e98-41a7-bf86-e34af04553c4",
+          "resourceName": "Exames Teóricos Realizados - Janeiro de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-teoricos-realizados/resource/5b1c5590-3e98-41a7-bf86-e34af04553c4",
+          "resourceUpdatedAt": "2026-03-09T03:10:29.711825",
+          "metrics": {
+            "total": 1448,
+            "approved": 1058,
+            "rejected": 151,
+            "absent": 209,
+            "cancelled": 30,
+            "approvalRate": 87.5,
+            "categories": [
+              {
+                "label": "B",
+                "value": 724
+              },
+              {
+                "label": "AB",
+                "value": 578
+              },
+              {
+                "label": "D",
+                "value": 72
+              },
+              {
+                "label": "AD",
+                "value": 24
+              },
+              {
+                "label": "A",
+                "value": 23
+              },
+              {
+                "label": "E",
+                "value": 14
+              },
+              {
+                "label": "AE",
+                "value": 8
+              },
+              {
+                "label": "AC",
+                "value": 5
+              }
+            ],
+            "schema": {
+              "quantityField": "QTD_PROVAS",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        },
+        {
+          "period": "2026-02",
+          "rowCount": 121,
+          "municipalityField": "ID_MUNICIPIO",
+          "municipalitySelector": "7099",
+          "sha256": "7d4f1272a539f75e06501768ac1d5fd6780866405d27ba2bf98721b6ecf295a7",
+          "resourceId": "434abfe8-22b9-406f-9d1a-00b8de50d61a",
+          "resourceName": "Exames Teóricos Realizados - Fevereiro de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-teoricos-realizados/resource/434abfe8-22b9-406f-9d1a-00b8de50d61a",
+          "resourceUpdatedAt": "2026-03-10T13:37:07.313232",
+          "metrics": {
+            "total": 1757,
+            "approved": 1217,
+            "rejected": 223,
+            "absent": 234,
+            "cancelled": 83,
+            "approvalRate": 84.5,
+            "categories": [
+              {
+                "label": "B",
+                "value": 808
+              },
+              {
+                "label": "AB",
+                "value": 779
+              },
+              {
+                "label": "D",
+                "value": 83
+              },
+              {
+                "label": "AD",
+                "value": 39
+              },
+              {
+                "label": "A",
+                "value": 28
+              },
+              {
+                "label": "E",
+                "value": 13
+              },
+              {
+                "label": "AE",
+                "value": 6
+              },
+              {
+                "label": "C",
+                "value": 1
+              }
+            ],
+            "schema": {
+              "quantityField": "QTD_PROVAS",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        },
+        {
+          "period": "2026-03",
+          "rowCount": 173,
+          "municipalityField": "ID_MUNICIPIO",
+          "municipalitySelector": "7099",
+          "sha256": "2c41230b088fa5a6c5f05f96a38022b4c87cb1c4b053eab0cf3a4631bb775448",
+          "resourceId": "d17c3e55-c2c9-4a13-bc62-00deec0d5a3e",
+          "resourceName": "Exames Teóricos Realizados - Março de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-teoricos-realizados/resource/d17c3e55-c2c9-4a13-bc62-00deec0d5a3e",
+          "resourceUpdatedAt": "2026-04-01T12:52:19.227646",
+          "metrics": {
+            "total": 3818,
+            "approved": 2750,
+            "rejected": 374,
+            "absent": 474,
+            "cancelled": 220,
+            "approvalRate": 88,
+            "categories": [
+              {
+                "label": "B",
+                "value": 1790
+              },
+              {
+                "label": "AB",
+                "value": 1675
+              },
+              {
+                "label": "D",
+                "value": 153
+              },
+              {
+                "label": "AD",
+                "value": 84
+              },
+              {
+                "label": "A",
+                "value": 75
+              },
+              {
+                "label": "E",
+                "value": 23
+              },
+              {
+                "label": "AE",
+                "value": 15
+              },
+              {
+                "label": "C",
+                "value": 2
+              }
+            ],
+            "schema": {
+              "quantityField": "QTD_PROVAS",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        },
+        {
+          "period": "2026-04",
+          "rowCount": 219,
+          "municipalityField": "ID_MUNICIPIO",
+          "municipalitySelector": "7099",
+          "sha256": "ddf99d37655e8a037fb027fc1f3a6387074b82e7a2baa95917f7188a0e5ceb27",
+          "resourceId": "d908c8cb-3c37-4378-b17e-23f5e713f398",
+          "resourceName": "Exames Teóricos Realizados - Abril de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-teoricos-realizados/resource/d908c8cb-3c37-4378-b17e-23f5e713f398",
+          "resourceUpdatedAt": "2026-05-05T15:32:04.635870",
+          "metrics": {
+            "total": 5582,
+            "approved": 4178,
+            "rejected": 439,
+            "absent": 701,
+            "cancelled": 264,
+            "approvalRate": 90.5,
+            "categories": [
+              {
+                "label": "B",
+                "value": 2600
+              },
+              {
+                "label": "AB",
+                "value": 2435
+              },
+              {
+                "label": "D",
+                "value": 238
+              },
+              {
+                "label": "AD",
+                "value": 127
+              },
+              {
+                "label": "A",
+                "value": 95
+              },
+              {
+                "label": "E",
+                "value": 52
+              },
+              {
+                "label": "AE",
+                "value": 28
+              },
+              {
+                "label": "AC",
+                "value": 5
+              }
+            ],
+            "schema": {
+              "quantityField": "QTD_PROVAS",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        },
+        {
+          "period": "2026-05",
+          "rowCount": 267,
+          "municipalityField": "ID_MUNICIPIO",
+          "municipalitySelector": "7099",
+          "sha256": "3d6aff5ae8770692254dc5ed63d8e7aef5099d351cb23ae44917b4935ba7ff21",
+          "resourceId": "14b51414-d5a5-433c-928c-6c46f69d6018",
+          "resourceName": "Exames Teóricos Realizados - Maio de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-teoricos-realizados/resource/14b51414-d5a5-433c-928c-6c46f69d6018",
+          "resourceUpdatedAt": "2026-06-09T16:52:40.049697",
+          "metrics": {
+            "total": 7495,
+            "approved": 5737,
+            "rejected": 513,
+            "absent": 946,
+            "cancelled": 299,
+            "approvalRate": 91.8,
+            "categories": [
+              {
+                "label": "B",
+                "value": 3528
+              },
+              {
+                "label": "AB",
+                "value": 3188
+              },
+              {
+                "label": "D",
+                "value": 341
+              },
+              {
+                "label": "AD",
+                "value": 176
+              },
+              {
+                "label": "A",
+                "value": 135
+              },
+              {
+                "label": "E",
+                "value": 66
+              },
+              {
+                "label": "AE",
+                "value": 48
+              },
+              {
+                "label": "AC",
+                "value": 10
+              }
+            ],
+            "schema": {
+              "quantityField": "QTD_PROVAS",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        },
+        {
+          "period": "2026-06",
+          "rowCount": 291,
+          "municipalityField": "ID_MUNICIPIO",
+          "municipalitySelector": "7099",
+          "sha256": "22d1ac5fe8201d7ee39ec491f56ebda4ab9318ac5adb5d11773852d47a761f1a",
+          "resourceId": "1bcd4a55-8698-414b-a02b-7de035dd7aeb",
+          "resourceName": "Exames Teóricos Realizados - Junho de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-teoricos-realizados/resource/1bcd4a55-8698-414b-a02b-7de035dd7aeb",
+          "resourceUpdatedAt": "2026-06-18T18:12:42.613384",
+          "metrics": {
+            "total": 9360,
+            "approved": 7114,
+            "rejected": 563,
+            "absent": 1185,
+            "cancelled": 498,
+            "approvalRate": 92.7,
+            "categories": [
+              {
+                "label": "B",
+                "value": 4435
+              },
+              {
+                "label": "AB",
+                "value": 3936
+              },
+              {
+                "label": "D",
+                "value": 407
+              },
+              {
+                "label": "AD",
+                "value": 235
+              },
+              {
+                "label": "A",
+                "value": 171
+              },
+              {
+                "label": "E",
+                "value": 94
+              },
+              {
+                "label": "AE",
+                "value": 61
+              },
+              {
+                "label": "AC",
+                "value": 16
+              }
+            ],
+            "schema": {
+              "quantityField": "QTD_PROVAS",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        },
+        {
+          "period": "2026-07",
+          "rowCount": 303,
+          "municipalityField": "ID_MUNICIPIO",
+          "municipalitySelector": "7099",
+          "sha256": "0d5894717be6c83a2c834d146c3315cabac93e788df312f85a14ceff2579935f",
+          "resourceId": "e5661d21-4042-43cc-bc28-c7484207860f",
+          "resourceName": "Exames Teóricos Realizados - Julho de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/exames-teoricos-realizados/resource/e5661d21-4042-43cc-bc28-c7484207860f",
+          "resourceUpdatedAt": "2026-08-03T18:37:39.351373",
+          "metrics": {
+            "total": 11029,
+            "approved": 8399,
+            "rejected": 625,
+            "absent": 1394,
+            "cancelled": 611,
+            "approvalRate": 93.1,
+            "categories": [
+              {
+                "label": "B",
+                "value": 5290
+              },
+              {
+                "label": "AB",
+                "value": 4587
+              },
+              {
+                "label": "D",
+                "value": 470
+              },
+              {
+                "label": "AD",
+                "value": 294
+              },
+              {
+                "label": "A",
+                "value": 197
+              },
+              {
+                "label": "E",
+                "value": 110
+              },
+              {
+                "label": "AE",
+                "value": 64
+              },
+              {
+                "label": "AC",
+                "value": 13
+              }
+            ],
+            "schema": {
+              "quantityField": "QTD_PROVAS",
+              "resultField": "RESULTADO",
+              "categoryField": "CATEGORIA"
+            }
+          }
+        }
+      ]
     },
     "fleet": {
-      "status": "unavailable",
+      "status": "ready",
       "title": "Frota ativa",
       "dataset": "frota-ativa",
       "datasetPage": "https://dadosabertos.sp.gov.br/dataset/frota-ativa",
       "authority": "Detran-SP · Dados Abertos SP",
-      "latest": null,
-      "history": []
+      "license": "Creative Commons Attribution 4.0",
+      "catalogUpdatedAt": "2026-08-03T16:09:57.389677",
+      "latest": {
+        "period": "2026-07",
+        "rowCount": 27229,
+        "municipalityField": "NOME_MUNICIPIO",
+        "municipalitySelector": "São José dos Campos",
+        "sha256": "15aa04749bc8efd189fa029d4e91ce69910f2d988c32ac9d518496b550062aba",
+        "resourceId": "5d481e8d-f2e2-4300-93cc-fa55100cbf24",
+        "resourceName": "Frota Ativa - Julho de 2026",
+        "resourcePage": "https://dadosabertos.sp.gov.br/dataset/frota-ativa/resource/5d481e8d-f2e2-4300-93cc-fa55100cbf24",
+        "resourceUpdatedAt": "2026-08-03T16:09:57.530124",
+        "metrics": {
+          "total": 420853,
+          "topTypes": [
+            {
+              "label": "AUTOMOVEL",
+              "value": 267218
+            },
+            {
+              "label": "MOTOCICLO",
+              "value": 57633
+            },
+            {
+              "label": "CAMINHONET",
+              "value": 30126
+            },
+            {
+              "label": "CAMIONETA",
+              "value": 23902
+            },
+            {
+              "label": "UTILITARIO",
+              "value": 11947
+            },
+            {
+              "label": "MOTONETA",
+              "value": 7549
+            },
+            {
+              "label": "CAMINHAO",
+              "value": 6718
+            },
+            {
+              "label": "REBOQUE",
+              "value": 6700
+            }
+          ],
+          "topFuels": [
+            {
+              "label": "ALCOOL/GASOLINA",
+              "value": 228717
+            },
+            {
+              "label": "GASOLINA",
+              "value": 138849
+            },
+            {
+              "label": "DIESEL",
+              "value": 23344
+            },
+            {
+              "label": "ALCOOL",
+              "value": 10828
+            },
+            {
+              "label": "NAO SE APLICA",
+              "value": 9849
+            },
+            {
+              "label": "GASOLINA/GAS NATURAL VEICULAR",
+              "value": 3055
+            }
+          ],
+          "topSpecies": [
+            {
+              "label": "PASSAGEIRO",
+              "value": 334127
+            },
+            {
+              "label": "CARGA",
+              "value": 37954
+            },
+            {
+              "label": "MISTO",
+              "value": 34694
+            },
+            {
+              "label": "ESPECIAL",
+              "value": 10885
+            },
+            {
+              "label": "TRACAO",
+              "value": 2227
+            },
+            {
+              "label": "COLECAO",
+              "value": 963
+            }
+          ],
+          "schema": {
+            "quantityField": "QTD_VEICULOS",
+            "typeField": "TIPO_VEICULO",
+            "fuelField": "COMBUSTIVEL",
+            "speciesField": "ESPECIE"
+          }
+        }
+      },
+      "history": [
+        {
+          "period": "2026-07",
+          "rowCount": 27229,
+          "municipalityField": "NOME_MUNICIPIO",
+          "municipalitySelector": "São José dos Campos",
+          "sha256": "15aa04749bc8efd189fa029d4e91ce69910f2d988c32ac9d518496b550062aba",
+          "resourceId": "5d481e8d-f2e2-4300-93cc-fa55100cbf24",
+          "resourceName": "Frota Ativa - Julho de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/frota-ativa/resource/5d481e8d-f2e2-4300-93cc-fa55100cbf24",
+          "resourceUpdatedAt": "2026-08-03T16:09:57.530124",
+          "metrics": {
+            "total": 420853,
+            "topTypes": [
+              {
+                "label": "AUTOMOVEL",
+                "value": 267218
+              },
+              {
+                "label": "MOTOCICLO",
+                "value": 57633
+              },
+              {
+                "label": "CAMINHONET",
+                "value": 30126
+              },
+              {
+                "label": "CAMIONETA",
+                "value": 23902
+              },
+              {
+                "label": "UTILITARIO",
+                "value": 11947
+              },
+              {
+                "label": "MOTONETA",
+                "value": 7549
+              },
+              {
+                "label": "CAMINHAO",
+                "value": 6718
+              },
+              {
+                "label": "REBOQUE",
+                "value": 6700
+              }
+            ],
+            "topFuels": [
+              {
+                "label": "ALCOOL/GASOLINA",
+                "value": 228717
+              },
+              {
+                "label": "GASOLINA",
+                "value": 138849
+              },
+              {
+                "label": "DIESEL",
+                "value": 23344
+              },
+              {
+                "label": "ALCOOL",
+                "value": 10828
+              },
+              {
+                "label": "NAO SE APLICA",
+                "value": 9849
+              },
+              {
+                "label": "GASOLINA/GAS NATURAL VEICULAR",
+                "value": 3055
+              }
+            ],
+            "topSpecies": [
+              {
+                "label": "PASSAGEIRO",
+                "value": 334127
+              },
+              {
+                "label": "CARGA",
+                "value": 37954
+              },
+              {
+                "label": "MISTO",
+                "value": 34694
+              },
+              {
+                "label": "ESPECIAL",
+                "value": 10885
+              },
+              {
+                "label": "TRACAO",
+                "value": 2227
+              },
+              {
+                "label": "COLECAO",
+                "value": 963
+              }
+            ],
+            "schema": {
+              "quantityField": "QTD_VEICULOS",
+              "typeField": "TIPO_VEICULO",
+              "fuelField": "COMBUSTIVEL",
+              "speciesField": "ESPECIE"
+            }
+          }
+        }
+      ]
     },
     "infractions": {
-      "status": "unavailable",
+      "status": "ready",
       "title": "Infrações lavradas pelo Detran-SP",
       "dataset": "infracoes-lavradas",
       "datasetPage": "https://dadosabertos.sp.gov.br/dataset/infracoes-lavradas",
       "authority": "Detran-SP · Dados Abertos SP",
-      "latest": null,
-      "history": []
+      "license": "Creative Commons Attribution 4.0",
+      "catalogUpdatedAt": "2026-08-03T16:59:24.721648",
+      "latest": {
+        "period": "2026-07",
+        "rowCount": 225,
+        "municipalityField": "NOME_MUNICIPIO",
+        "municipalitySelector": "São José dos Campos",
+        "sha256": "f6115f19558aeacfa0269c0e33d5efd18da58a2a2e88e33913c6d3cd269e3f32",
+        "resourceId": "72048630-897b-419e-b86a-ace17c81aa30",
+        "resourceName": "Infrações Lavradas - Julho de 2026",
+        "resourcePage": "https://dadosabertos.sp.gov.br/dataset/infracoes-lavradas/resource/72048630-897b-419e-b86a-ace17c81aa30",
+        "resourceUpdatedAt": "2026-08-03T16:59:24.847898",
+        "metrics": {
+          "total": 1300,
+          "topDescriptions": [
+            {
+              "label": "Deixar o condutor de usar o cinto seguranca",
+              "value": 212
+            },
+            {
+              "label": "CONDUZIR O VEICULO REGISTRADO QUE NAO ESTEJA DEVIDAMENTE LICENCIADO",
+              "value": 148
+            },
+            {
+              "label": "Dirigir veiculo manuseando telefone celular",
+              "value": 121
+            },
+            {
+              "label": "Falta de escrituracao livro registro entrada/saida e de uso placa de experiencia",
+              "value": 76
+            },
+            {
+              "label": "DIRIGIR VEICULO SEM POSSUIR CNH/PPD/ACC",
+              "value": 56
+            },
+            {
+              "label": "CONDUZIR O VEICULO SEM EQUIPAMENTO OBRIGATORIO",
+              "value": 52
+            },
+            {
+              "label": "CONDUZIR O VEICULO EM MAU ESTADO DE CONSERVACAO, COMPROMETENDO A SEGURANCA",
+              "value": 46
+            },
+            {
+              "label": "DIRIGIR O VEIC USANDO CALCADO QUE N SE FIRME NOS PES/COMPROMETA UTILIZ PEDAIS",
+              "value": 43
+            },
+            {
+              "label": "AVAN O SIN VERM DO SEMAF EXC SE HOUVER SINALIZ PERM LIVRE CONV A DIR",
+              "value": 42
+            },
+            {
+              "label": "DIRIGIR VEICULO UTILIZANDO-SE DE TELEFONE CELULAR",
+              "value": 37
+            }
+          ],
+          "topCodes": [
+            {
+              "label": "5185-1",
+              "value": 212
+            },
+            {
+              "label": "6599-2",
+              "value": 148
+            },
+            {
+              "label": "7633-2",
+              "value": 121
+            },
+            {
+              "label": "7544-1",
+              "value": 76
+            },
+            {
+              "label": "5010-0",
+              "value": 56
+            },
+            {
+              "label": "6637-1",
+              "value": 52
+            },
+            {
+              "label": "6726-1",
+              "value": 46
+            },
+            {
+              "label": "7340-0",
+              "value": 43
+            },
+            {
+              "label": "6050-1",
+              "value": 42
+            },
+            {
+              "label": "7366-2",
+              "value": 37
+            }
+          ],
+          "schema": {
+            "quantityField": "QTDE",
+            "descriptionField": "DESCRICAO_INFRACAO",
+            "codeField": "CODIGO_INFRACAO"
+          }
+        }
+      },
+      "history": [
+        {
+          "period": "2026-07",
+          "rowCount": 225,
+          "municipalityField": "NOME_MUNICIPIO",
+          "municipalitySelector": "São José dos Campos",
+          "sha256": "f6115f19558aeacfa0269c0e33d5efd18da58a2a2e88e33913c6d3cd269e3f32",
+          "resourceId": "72048630-897b-419e-b86a-ace17c81aa30",
+          "resourceName": "Infrações Lavradas - Julho de 2026",
+          "resourcePage": "https://dadosabertos.sp.gov.br/dataset/infracoes-lavradas/resource/72048630-897b-419e-b86a-ace17c81aa30",
+          "resourceUpdatedAt": "2026-08-03T16:59:24.847898",
+          "metrics": {
+            "total": 1300,
+            "topDescriptions": [
+              {
+                "label": "Deixar o condutor de usar o cinto seguranca",
+                "value": 212
+              },
+              {
+                "label": "CONDUZIR O VEICULO REGISTRADO QUE NAO ESTEJA DEVIDAMENTE LICENCIADO",
+                "value": 148
+              },
+              {
+                "label": "Dirigir veiculo manuseando telefone celular",
+                "value": 121
+              },
+              {
+                "label": "Falta de escrituracao livro registro entrada/saida e de uso placa de experiencia",
+                "value": 76
+              },
+              {
+                "label": "DIRIGIR VEICULO SEM POSSUIR CNH/PPD/ACC",
+                "value": 56
+              },
+              {
+                "label": "CONDUZIR O VEICULO SEM EQUIPAMENTO OBRIGATORIO",
+                "value": 52
+              },
+              {
+                "label": "CONDUZIR O VEICULO EM MAU ESTADO DE CONSERVACAO, COMPROMETENDO A SEGURANCA",
+                "value": 46
+              },
+              {
+                "label": "DIRIGIR O VEIC USANDO CALCADO QUE N SE FIRME NOS PES/COMPROMETA UTILIZ PEDAIS",
+                "value": 43
+              },
+              {
+                "label": "AVAN O SIN VERM DO SEMAF EXC SE HOUVER SINALIZ PERM LIVRE CONV A DIR",
+                "value": 42
+              },
+              {
+                "label": "DIRIGIR VEICULO UTILIZANDO-SE DE TELEFONE CELULAR",
+                "value": 37
+              }
+            ],
+            "topCodes": [
+              {
+                "label": "5185-1",
+                "value": 212
+              },
+              {
+                "label": "6599-2",
+                "value": 148
+              },
+              {
+                "label": "7633-2",
+                "value": 121
+              },
+              {
+                "label": "7544-1",
+                "value": 76
+              },
+              {
+                "label": "5010-0",
+                "value": 56
+              },
+              {
+                "label": "6637-1",
+                "value": 52
+              },
+              {
+                "label": "6726-1",
+                "value": 46
+              },
+              {
+                "label": "7340-0",
+                "value": 43
+              },
+              {
+                "label": "6050-1",
+                "value": 42
+              },
+              {
+                "label": "7366-2",
+                "value": 37
+              }
+            ],
+            "schema": {
+              "quantityField": "QTDE",
+              "descriptionField": "DESCRICAO_INFRACAO",
+              "codeField": "CODIGO_INFRACAO"
+            }
+          }
+        }
+      ]
     }
   }
 }
