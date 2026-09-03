@@ -7,6 +7,7 @@ const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 const OFFICIAL_TRANSPORT = 'https://www.sjc.sp.gov.br/servicos/mobilidade-urbana/transporte-coletivo/';
 const OFFICIAL_LINE_GREEN = 'https://www.sjc.sp.gov.br/noticias/2022/agosto/31/sao-jose-retoma-chamamento-para-naming-rights-da-linha-verde/';
 const BBOX = { south: -23.35, west: -46.02, north: -23.05, east: -45.75 };
+const VIEWBOX = `${BBOX.west},${BBOX.north},${BBOX.east},${BBOX.south}`;
 const GEOJSON_PATH = resolve('public/data/maps/sjc-transit.geojson');
 const MANIFEST_PATH = resolve('public/data/maps/sjc-transit-manifest.json');
 const SUMMARY_PATH = resolve('src/generated/transit-intelligence.json');
@@ -14,22 +15,23 @@ const strict = process.argv.includes('--strict');
 const validateExisting = process.argv.includes('--validate-existing');
 
 const stations = [
-  ['Estação Terminal Sul', 'Estrada do Imperador, Campo dos Alemães, São José dos Campos, SP'],
-  ['Estação Eldorado', 'Estrada Velha Rio São Paulo, Eldorado, São José dos Campos, SP'],
-  ['Estação Vale do Sol', 'Rua Abaré, Vale do Sol, São José dos Campos, SP'],
-  ['Estação Jardim Morumbi', 'Rua Francisco de Assis Dias, Jardim Morumbi, São José dos Campos, SP'],
-  ['Estação Jardim Oriente', 'Rua Sumatra, Jardim Oriente, São José dos Campos, SP'],
-  ['Estação Jardim América', 'Rua Arequipa, Jardim América, São José dos Campos, SP'],
-  ['Estação Jardim Satélite', 'Rua Andaraí, Jardim Satélite, São José dos Campos, SP'],
-  ['Estação Dutra', 'Avenida Andrômeda, Jardim Satélite, São José dos Campos, SP'],
-  ['Estação Vila Sanches', 'Avenida Doutor Nelson D Avila, Vila Sanches, São José dos Campos, SP'],
-  ["Estação Nelson D'Ávila", "Praça Kennedy, Avenida Doutor Nelson D Avila, São José dos Campos, SP"],
-  ['Estação Maurício Cury', 'Praça Maurício Cury, Centro, São José dos Campos, SP'],
-  ['Estação Vila Bandeirantes', 'Terminal Rodoviário Frederico Ozanam, Jardim Paulista, São José dos Campos, SP'],
-  ['Estação Jardim Oswaldo Cruz', 'Avenida Deputado Benedito Matarazzo, Jardim Oswaldo Cruz, São José dos Campos, SP'],
+  ['Estação Terminal Sul', 'Estrada do Imperador, Campo dos Alemães', ['terminal sul', 'estacao sul']],
+  ['Estação Eldorado', 'Estrada Velha Rio São Paulo, Eldorado', ['eldorado']],
+  ['Estação Vale do Sol', 'Rua Abaré, Vale do Sol', ['vale do sol']],
+  ['Estação Jardim Morumbi', 'Rua Francisco de Assis Dias, Jardim Morumbi', ['jardim morumbi', 'morumbi']],
+  ['Estação Jardim Oriente', 'Rua Sumatra, Jardim Oriente', ['jardim oriente', 'oriente']],
+  ['Estação Jardim América', 'Rua Arequipa, Jardim América', ['jardim america']],
+  ['Estação Jardim Satélite', 'Rua Andaraí, Jardim Satélite', ['jardim satelite', 'satelite']],
+  ['Estação Dutra', 'Avenida Andrômeda, Jardim Satélite', ['estacao dutra', 'dutra']],
+  ['Estação Vila Sanches', 'Avenida Doutor Nelson D Avila, Vila Sanches', ['vila sanches']],
+  ["Estação Nelson D'Ávila", "Praça Kennedy, Avenida Doutor Nelson D Avila", ['nelson d avila', 'nelson davila']],
+  ['Estação Maurício Cury', 'Praça Maurício Cury, Centro', ['mauricio cury']],
+  ['Estação Vila Bandeirantes', 'Terminal Rodoviário Frederico Ozanam, Jardim Paulista', ['vila bandeirantes', 'frederico ozanam', 'rodoviaria']],
+  ['Estação Jardim Oswaldo Cruz', 'Avenida Deputado Benedito Matarazzo, Jardim Oswaldo Cruz', ['jardim oswaldo cruz', 'oswaldo cruz']],
 ];
 
 const compact = (value = '') => String(value ?? '').replace(/\s+/g, ' ').trim();
+const normalize = (value = '') => compact(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 function inBounds(lon, lat) { return lon >= BBOX.west && lon <= BBOX.east && lat >= BBOX.south && lat <= BBOX.north; }
@@ -47,36 +49,9 @@ async function previousStations() {
   } catch { return new Map(); }
 }
 
-async function geocodeStations() {
-  const previous = await previousStations();
-  const features = [];
-  for (let index = 0; index < stations.length; index += 1) {
-    const [name, query] = stations[index];
-    let coordinates = previous.get(name) ?? null;
-    let coordinateSource = coordinates ? 'persisted-geocode' : 'nominatim';
-    if (!coordinates) {
-      const params = new URLSearchParams({ q: query, format: 'jsonv2', limit: '1', countrycodes: 'br', 'accept-language': 'pt-BR' });
-      const results = await fetchJson(`${NOMINATIM}?${params.toString()}`);
-      const first = results[0];
-      if (first) {
-        const lon = Number(first.lon); const lat = Number(first.lat);
-        if (Number.isFinite(lon) && Number.isFinite(lat) && inBounds(lon, lat)) coordinates = [lon, lat];
-      }
-      await sleep(1150);
-    }
-    if (!coordinates) throw new Error(`Could not geocode official Linha Verde station: ${name}`);
-    features.push({
-      type: 'Feature',
-      properties: { kind: 'linha-verde-station', name, sequence: index + 1, officialNameSource: OFFICIAL_LINE_GREEN, coordinateSource },
-      geometry: { type: 'Point', coordinates },
-    });
-  }
-  return features;
-}
-
 async function osmStops() {
   const bbox = `${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east}`;
-  const query = `[out:json][timeout:60];(node[highway=bus_stop](${bbox});node[public_transport=platform](${bbox});node[amenity=bus_station](${bbox});way[public_transport=platform](${bbox});way[amenity=bus_station](${bbox});relation[amenity=bus_station](${bbox}););out tags center;`;
+  const query = `[out:json][timeout:60];(node[highway=bus_stop](${bbox});node[public_transport=platform](${bbox});node[public_transport=station](${bbox});node[amenity=bus_station](${bbox});way[public_transport=platform](${bbox});way[public_transport=station](${bbox});way[amenity=bus_station](${bbox});relation[public_transport=station](${bbox});relation[amenity=bus_station](${bbox}););out tags center;`;
   const payload = await fetchJson(OVERPASS, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ data: query }) });
   const seen = new Set();
   const features = [];
@@ -92,6 +67,53 @@ async function osmStops() {
       id: `osm-${element.type}-${element.id}`,
       properties: { kind: terminal ? 'transit-terminal' : 'transit-stop', name: compact(element.tags?.name || element.tags?.ref || (terminal ? 'Terminal de transporte' : 'Parada de ônibus')), ref: compact(element.tags?.ref || ''), osmId: element.id },
       geometry: { type: 'Point', coordinates: [lon, lat] },
+    });
+  }
+  return features;
+}
+
+function findMappedStation(stopFeatures, aliases) {
+  const normalizedAliases = aliases.map(normalize).filter(Boolean);
+  return stopFeatures.find((feature) => {
+    const candidate = normalize(feature.properties?.name || '');
+    return candidate && normalizedAliases.some((alias) => candidate.includes(alias) || alias.includes(candidate));
+  }) ?? null;
+}
+
+async function geocodeStation(name, address) {
+  const queries = [`${name}, São José dos Campos, SP, Brasil`, `${address}, São José dos Campos, SP, Brasil`];
+  for (const q of queries) {
+    const params = new URLSearchParams({ q, format: 'jsonv2', limit: '3', countrycodes: 'br', 'accept-language': 'pt-BR', viewbox: VIEWBOX, bounded: '1' });
+    const results = await fetchJson(`${NOMINATIM}?${params.toString()}`);
+    for (const result of results) {
+      const lon = Number(result.lon); const lat = Number(result.lat);
+      if (Number.isFinite(lon) && Number.isFinite(lat) && inBounds(lon, lat)) return [lon, lat];
+    }
+    await sleep(1150);
+  }
+  return null;
+}
+
+async function resolveStations(stopFeatures) {
+  const previous = await previousStations();
+  const features = [];
+  for (let index = 0; index < stations.length; index += 1) {
+    const [name, address, aliases] = stations[index];
+    let coordinates = previous.get(name) ?? null;
+    let coordinateSource = coordinates ? 'persisted-geocode' : null;
+    if (!coordinates) {
+      const mapped = findMappedStation(stopFeatures, [name, ...aliases]);
+      if (mapped) { coordinates = mapped.geometry.coordinates; coordinateSource = 'openstreetmap-transit-point'; }
+    }
+    if (!coordinates) {
+      coordinates = await geocodeStation(name, address);
+      if (coordinates) coordinateSource = 'nominatim';
+    }
+    if (!coordinates) throw new Error(`Could not resolve official Linha Verde station: ${name}`);
+    features.push({
+      type: 'Feature',
+      properties: { kind: 'linha-verde-station', name, sequence: index + 1, officialNameSource: OFFICIAL_LINE_GREEN, coordinateSource },
+      geometry: { type: 'Point', coordinates },
     });
   }
   return features;
@@ -137,7 +159,8 @@ async function validatePersisted() {
 
 async function main() {
   if (validateExisting) return validatePersisted();
-  const [stationFeatures, stopFeatures, routes] = await Promise.all([geocodeStations(), osmStops(), officialRoutes()]);
+  const stopFeatures = await osmStops();
+  const [stationFeatures, routes] = await Promise.all([resolveStations(stopFeatures), officialRoutes()]);
   const geojson = { type: 'FeatureCollection', features: [...stopFeatures, ...stationFeatures] };
   const raw = `${JSON.stringify(geojson)}\n`;
   const summary = {
@@ -150,12 +173,12 @@ async function main() {
     mappedStopsAndTerminals: stopFeatures.length,
     officialRouteDirectoryCount: routes.length,
     officialRouteDirectory: routes,
-    note: 'Linha Verde station names come from the Prefeitura. Coordinates are geocoded for visualization; the Centro does not draw an unverified street-level Linha Verde route geometry.',
+    note: 'Linha Verde station names come from the Prefeitura. Coordinates are resolved from mapped transit points or bounded geocoding. The Centro does not draw an unverified street-level Linha Verde route geometry.',
   };
   const manifest = {
     schemaVersion: 1,
     area: 'São José dos Campos, SP, Brasil',
-    source: { official: 'Prefeitura de São José dos Campos', mappedStops: 'OpenStreetMap via Overpass', stationCoordinates: 'Nominatim / persisted geocode', licenseOSM: 'ODbL 1.0' },
+    source: { official: 'Prefeitura de São José dos Campos', mappedStops: 'OpenStreetMap via Overpass', stationCoordinates: 'OSM transit points / Nominatim / persisted geocode', licenseOSM: 'ODbL 1.0' },
     featureCount: geojson.features.length,
     linhaVerdeStations: stationFeatures.length,
     mappedStopsAndTerminals: stopFeatures.length,
