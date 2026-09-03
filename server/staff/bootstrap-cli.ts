@@ -2,12 +2,20 @@ import { createDatabasePool } from '../db/pool.js';
 import { bootstrapFirstAdmin } from './auth.js';
 
 async function run(): Promise<void> {
-  const username = process.env.ADMIN_BOOTSTRAP_USERNAME?.trim();
-  const displayName = process.env.ADMIN_BOOTSTRAP_DISPLAY_NAME?.trim() || 'Administrador';
-  const password = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+  const username = (
+    process.env.CENTRO_BOOTSTRAP_ADMIN_USERNAME
+    ?? process.env.ADMIN_BOOTSTRAP_USERNAME
+    ?? ''
+  ).trim();
+  const displayName = (
+    process.env.CENTRO_BOOTSTRAP_ADMIN_NAME
+    ?? process.env.ADMIN_BOOTSTRAP_DISPLAY_NAME
+    ?? 'Administrador'
+  ).trim();
+  const password = process.env.CENTRO_BOOTSTRAP_ADMIN_PASSWORD ?? process.env.ADMIN_BOOTSTRAP_PASSWORD ?? '';
 
   if (!username || !password) {
-    throw new Error('ADMIN_BOOTSTRAP_USERNAME and ADMIN_BOOTSTRAP_PASSWORD are required.');
+    throw new Error('CENTRO_BOOTSTRAP_ADMIN_USERNAME and CENTRO_BOOTSTRAP_ADMIN_PASSWORD are required.');
   }
 
   const pool = createDatabasePool();
