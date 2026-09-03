@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "area": "São José dos Campos, SP, Brasil",
   "source": {
     "official": "Prefeitura de São José dos Campos",
@@ -9,8 +9,12 @@
   },
   "featureCount": 623,
   "linhaVerdeStations": 13,
-  "stationChainMeters": 16231,
+  "topology": {
+    "edgeCount": 13,
+    "shortestEdgeMeters": 612,
+    "longestEdgeMeters": 4566
+  },
   "mappedStopsAndTerminals": 610,
-  "sha256": "a95219b9a050dc69734e8d2d104c1fc055b62dbff008639713ede4fb31da7ff6",
+  "sha256": "2fb0ed81fdd56ed1990f9518de5748d764858d1af18daab65d45c6fa9ff685a9",
   "artifact": "/data/maps/sjc-transit.geojson"
 }

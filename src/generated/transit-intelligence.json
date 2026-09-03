@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "city": "São José dos Campos",
   "officialAuthority": "Prefeitura de São José dos Campos · Mobilidade Urbana",
   "officialTransportPage": "https://www.sjc.sp.gov.br/servicos/mobilidade-urbana/transporte-coletivo/",
@@ -7,7 +7,12 @@
   "linhaVerde": {
     "stationCount": 13,
     "geometryStatus": "stations-only",
-    "stationChainMeters": 16231,
+    "topologyStatus": "validated-station-graph",
+    "topology": {
+      "edgeCount": 13,
+      "shortestEdgeMeters": 612,
+      "longestEdgeMeters": 4566
+    },
     "coordinateRevision": 2
   },
   "mappedStopsAndTerminals": 610,
@@ -114,5 +119,5 @@
     "350 CORUJÃO COLONIAL",
     "500 AEROPORTO / HOTÉIS"
   ],
-  "note": "Os nomes e a ordem das estações da Linha Verde vêm da Prefeitura. As coordenadas são resolvidas dentro de São José dos Campos e passam por validação geométrica. O Centro não desenha um traçado viário exato da Linha Verde sem geometria validada."
+  "note": "Os nomes e a ordem identificadora das estações vêm da Prefeitura. A validação espacial respeita os ramais operacionais e não trata 01→13 como uma única linha. O Centro não desenha um traçado viário exato sem geometria validada."
 }
