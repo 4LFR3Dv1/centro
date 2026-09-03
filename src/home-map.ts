@@ -13,7 +13,8 @@ type OverpassResponse = { elements?: OverpassElement[] };
 
 type CycleData = ReturnType<typeof toCycleGeoJson>;
 
-const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
+const PRIMARY_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+const FALLBACK_MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 const OVERPASS = 'https://overpass-api.de/api/interpreter';
 const SCHOOL_QUERY = 'Avenida São José, 1009, Centro, São José dos Campos, SP, Brasil';
@@ -67,8 +68,8 @@ function sectionMarkup() {
       </div>
       <div class="home-map-canvas" aria-label="Mapa interativo de São José dos Campos"></div>
       <div class="home-map-results" hidden></div>
-      <div class="home-map-status" aria-live="polite">Arraste, aproxime ou escolha um atalho.</div>
-      <div class="home-map-source">Mapa © OpenStreetMap contributors · renderização OpenFreeMap. Ciclovias exibidas conforme traçados comunitários do OpenStreetMap e podem diferir do mapa oficial.</div>
+      <div class="home-map-status" aria-live="polite">Carregando mapa de São José dos Campos…</div>
+      <div class="home-map-source">Mapa baseado em dados do OpenStreetMap. A camada de ciclovias usa traçados comunitários e pode diferir do mapa oficial da Prefeitura.</div>
     </div>`;
   return section;
 }
@@ -246,7 +247,35 @@ function mount(anchor: Element) {
   const school = section.querySelector<HTMLButtonElement>('[data-action="school"]');
   if (!canvas || !form || !input || !results || !live || !locate || !bike || !school) return null;
 
-  const map = new Map({ container: canvas, style: MAP_STYLE, center: CITY_CENTER, zoom: 11.6, minZoom: 9, maxZoom: 18 });
+  const map = new Map({
+    container: canvas,
+    style: PRIMARY_MAP_STYLE,
+    center: CITY_CENTER,
+    zoom: 11.6,
+    minZoom: 9,
+    maxZoom: 18,
+  });
+
+  let baseMapReady = false;
+  let fallbackUsed = false;
+  map.once('idle', () => {
+    baseMapReady = true;
+    status(live, 'Mapa pronto. Busque um lugar ou escolha um atalho.');
+  });
+  map.on('error', () => {
+    if (!baseMapReady && !fallbackUsed) {
+      fallbackUsed = true;
+      status(live, 'Tentando uma segunda fonte de mapa…');
+      map.setStyle(FALLBACK_MAP_STYLE);
+      map.once('idle', () => {
+        baseMapReady = true;
+        status(live, 'Mapa pronto. Busque um lugar ou escolha um atalho.');
+      });
+      return;
+    }
+    if (!baseMapReady) status(live, 'O mapa-base está indisponível agora. Busca e localização continuam funcionando.', true);
+  });
+
   map.addControl(new NavigationControl({ showCompass: false }), 'bottom-right');
   const geolocate = new GeolocateControl({
     positionOptions: { enableHighAccuracy: true, timeout: 9000 },
@@ -295,8 +324,6 @@ function mount(anchor: Element) {
     }
   };
 
-  map.on('load', () => status(live, 'Mapa pronto. Busque um lugar ou escolha um atalho.'));
-  map.on('error', () => status(live, 'Algumas partes do mapa podem estar temporariamente indisponíveis.', true));
   return { anchor, section, map };
 }
 
