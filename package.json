@@ -1,7 +1,7 @@
 {
   "name": "centro",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,9 +18,11 @@
     "ops:test:db": "tsx --test --test-concurrency=1 server/db/constitution.test.ts server/enrollments/materialize.test.ts server/http/admin-api.test.ts",
     "ops:check": "tsc -p tsconfig.server.json --noEmit && npm run ops:test:unit && npm run ops:test:db",
     "build:app": "tsc --noEmit && vite build",
-    "build": "npm run data:ingest && npm run build:app",
+    "build:server": "tsc -p tsconfig.server.build.json",
+    "build": "npm run data:ingest && npm run build:app && npm run build:server",
+    "start": "node .server-dist/start.js",
     "preview": "vite preview",
-    "check": "npm run ops:check && npm run data:ingest -- --strict && npm run map:data:validate && npm run safety:data:validate && npm run transit:data:validate && npm run build:app"
+    "check": "npm run ops:check && npm run data:ingest -- --strict && npm run map:data:validate && npm run safety:data:validate && npm run transit:data:validate && npm run build:app && npm run build:server"
   },
   "dependencies": {
     "@node-rs/argon2": "latest",
