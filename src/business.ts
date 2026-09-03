@@ -1,6 +1,6 @@
 export const business = {
-  name: 'Auto Escola Central',
-  shortName: 'Central',
+  name: 'Auto Escola Centro',
+  shortName: 'Centro',
   city: 'São José dos Campos',
   state: 'SP',
   address: {
