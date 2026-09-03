@@ -9,7 +9,7 @@ on:
       - main
       - feat/traffic-safety-layer
     paths:
-      - 'scripts/refresh-safety-data.mjs'
+      - 'scripts/refresh-safety-data-v2.mjs'
       - '.github/workflows/refresh-safety-data.yml'
 
 permissions:
@@ -33,10 +33,10 @@ jobs:
         run: npm install
 
       - name: Materialize São José safety snapshot
-        run: node scripts/refresh-safety-data.mjs --strict
+        run: node scripts/refresh-safety-data-v2.mjs --strict
 
       - name: Validate snapshot
-        run: node scripts/refresh-safety-data.mjs --validate-existing
+        run: node scripts/refresh-safety-data-v2.mjs --validate-existing
 
       - name: Persist snapshot when source changed
         run: |
