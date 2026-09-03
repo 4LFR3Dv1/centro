@@ -139,8 +139,12 @@ test('ADMIN-001 PostgreSQL constitution rejects impossible operational states', 
     assert.equal(names.includes('initial_password'), false);
     assert.equal(names.includes('plaintext_password'), false);
 
-    const migrations = await client.query<{ count: string }>('SELECT count(*)::text AS count FROM schema_migrations');
-    assert.equal(migrations.rows[0]?.count, '1');
+    const migrationRows = await client.query<{ version: string }>(
+      'SELECT version FROM schema_migrations ORDER BY version',
+    );
+    const versions = new Set(migrationRows.rows.map((row) => row.version));
+    assert.equal(versions.has('0001_operational_constitution.sql'), true);
+    assert.equal(versions.has('0002_audit_actor_preservation.sql'), true);
   } finally {
     await client.end();
   }
