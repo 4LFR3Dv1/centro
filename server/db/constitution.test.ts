@@ -139,9 +139,22 @@ test('ADMIN-001 PostgreSQL constitution rejects impossible operational states', 
     assert.equal(names.includes('initial_password'), false);
     assert.equal(names.includes('plaintext_password'), false);
 
-    const migrations = await client.query<{ count: string }>('SELECT count(*)::text AS count FROM schema_migrations');
-    assert.equal(migrations.rows[0]?.count, '1');
+    const migrationRows = await client.query<{ version: string }>(
+      'SELECT version FROM schema_migrations ORDER BY version',
+    );
+    const versions = new Set(migrationRows.rows.map((row) => row.version));
+    assert.equal(versions.has('0001_operational_constitution.sql'), true);
+    assert.equal(versions.has('0002_audit_actor_preservation.sql'), true);
   } finally {
+    // This witness shares the CI PostgreSQL instance with later operational tests.
+    // It must leave no institutional actor or student fixture behind.
+    await client.query('DELETE FROM audit_events WHERE actor_staff_user_id = $1 OR actor_student_id = $2 OR entity_id = $3', [staffId, studentId, enrollmentId]);
+    await client.query('DELETE FROM sessions WHERE staff_user_id = $1 OR student_id = $2', [staffId, studentId]);
+    await client.query('DELETE FROM enrollments WHERE id = $1', [enrollmentId]);
+    await client.query('DELETE FROM student_credentials WHERE student_id = $1', [studentId]);
+    await client.query('DELETE FROM staff_credentials WHERE staff_user_id = $1', [staffId]);
+    await client.query('DELETE FROM staff_users WHERE id = $1', [staffId]);
+    await client.query('DELETE FROM students WHERE id = $1', [studentId]);
     await client.end();
   }
 });
