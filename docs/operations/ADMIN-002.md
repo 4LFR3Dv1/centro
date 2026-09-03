@@ -2,7 +2,7 @@
 
 Program ledger: issue #26.
 
-Status: `C4_CANDIDATE — PRODUCTION_DB_PENDING`
+Status: `C4_CANDIDATE — CI_AND_PRODUCTION_ADMISSION_PENDING`
 
 ## Authority
 
@@ -10,7 +10,7 @@ This cut materializes one operational act only: **a Staff user creates an Enroll
 
 It does not authorize student portal, lessons, scheduling, process milestones, student guides, reports, or a general admin cockpit.
 
-## Accepted laws inherited from ADMIN-001
+## Accepted laws
 
 ```text
 PUBLIC VISITOR != STUDENT
@@ -19,7 +19,10 @@ Student != Enrollment
 CPF/document != login
 plaintext password != durable state
 audited actor identity is preserved
+one Student/service/category may have at most one ACTIVE or PAUSED Enrollment
 ```
+
+Historical `COMPLETED` or `CANCELLED` enrollments may repeat the same service/category. Open institutional relationships may not.
 
 ## C1 — transactional materialization
 
@@ -38,6 +41,8 @@ normalized document
 If any write or audit insertion fails, the entire operation rolls back. The initial password is cleared from runtime state on rollback.
 
 A later Enrollment for the same normalized document reuses the Student and `public_id`; it does not create a second credential or reveal/reset the existing password.
+
+Migration `0003_open_enrollment_uniqueness.sql` rejects a second `ACTIVE/PAUSED` Enrollment for the same Student/service/category. The DB witness proves the rejected attempt does not append an `ENROLLMENT_CREATED` audit receipt.
 
 ## C1R — audit actor preservation
 
@@ -69,7 +74,7 @@ Session properties:
 - explicit logout revocation;
 - POST origin validation when `CENTRO_PUBLIC_ORIGIN` is configured (mandatory in production runtime).
 
-First Staff bootstrap is one-time and guarded by a PostgreSQL advisory lock. Existing Staff state prevents reapplying a bootstrap credential.
+First Staff bootstrap is one-time and guarded by a PostgreSQL advisory lock. Existing Staff state prevents reapplying a bootstrap credential. Runtime and CLI use the same canonical `CENTRO_BOOTSTRAP_ADMIN_*` variable family (CLI retains legacy fallback only for compatibility).
 
 ## C3 — minimal admin surface
 
@@ -81,6 +86,7 @@ Available behavior only:
 /admin/login
 /admin
 /admin/matriculas/nova
+/admin/matriculas/receipt   # valid only while receipt exists in memory
 ```
 
 The form accepts student identification/contact data, service and category. `FIRST_LICENSE + D` is omitted by the UI and still rejected by domain/DB laws.
@@ -92,7 +98,9 @@ student public ID
 initial password
 ```
 
-The receipt lives only in React memory. Reload/logout removes it. Existing Students show `Acesso existente`; no password is recovered or exposed.
+The receipt lives only in React memory. Reload, logout, Back, or navigation away from the receipt route removes it. Returning directly to the receipt URL without in-memory material redirects to a new enrollment instead of reconstructing the password.
+
+Existing Students show `Acesso existente`; no password is recovered or exposed.
 
 The print action in this cut prints only the access receipt. Full school/student guide generation remains `DOCS-001` authority.
 
@@ -117,17 +125,32 @@ Production startup fails closed when `CENTRO_PUBLIC_ORIGIN` is absent.
 
 CI builds frontend + server + Docker image and boots the final production image against PostgreSQL 17 before accepting the runtime.
 
-## Production admission still pending
+## Railway durability witness
 
-The Railway project currently has only `centro-web`. A managed/durable PostgreSQL service must be provisioned before this PR can be merged/deployed. A raw PostgreSQL image without a persistent Railway volume is explicitly **not** an acceptable substitute.
+Production now has a dedicated `centro-postgres` service using `postgres:17-alpine` with a Railway volume mounted at `/data` and `PGDATA=/data/pgdata`.
 
-After durable PostgreSQL exists, production admission requires:
+Physical persistence was proven before any real enrollment:
 
-1. `DATABASE_URL` reference attached to `centro-web`;
-2. `CENTRO_PUBLIC_ORIGIN=https://centro-web-production.up.railway.app` (or canonical production domain);
-3. one-time bootstrap admin variables;
-4. merge/deploy;
-5. `/healthz = 200`;
-6. `/admin` serves the operational SPA;
-7. login + real test Enrollment witness;
-8. bootstrap secret variables removed after first Staff creation.
+1. first boot initialized the cluster under `/data/pgdata`;
+2. a controlled service redeploy completed successfully;
+3. second boot logged `PostgreSQL Database directory appears to contain a database; Skipping initialization`;
+4. PostgreSQL returned `ready to accept connections`.
+
+`centro-web` has production variables staged with deploy suppressed:
+
+- `DATABASE_URL` references `centro-postgres.DATABASE_URL` through Railway private networking;
+- `CENTRO_PUBLIC_ORIGIN=https://centro-web-production.up.railway.app`;
+- one-time `CENTRO_BOOTSTRAP_ADMIN_*` variables.
+
+The public runtime is not changed merely by this staging.
+
+## Remaining admission sequence
+
+1. latest PR CI passes migrations, DB/API witnesses, data validations, frontend/server builds, Docker build and final-image runtime smoke;
+2. mark PR ready and merge;
+3. Railway deploy starts against durable `centro-postgres`;
+4. migrations complete before listen;
+5. first Staff bootstrap creates exactly one Staff identity;
+6. `/healthz = 200` and `/admin` serves the operational SPA;
+7. Staff login succeeds and one real Enrollment is created through the admin surface;
+8. bootstrap plaintext variables are emptied/removed after the first Staff creation.
