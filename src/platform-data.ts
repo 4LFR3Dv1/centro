@@ -104,10 +104,10 @@ export const cityFacts = [
 ];
 
 export const guideCards = [
-  { title: 'Primeira habilitação', copy: 'Veja as etapas da primeira CNH e o que fazer em cada uma.', href: '/cnh' },
-  { title: 'Categoria A', copy: 'Moto: como funciona a habilitação e o que você precisa saber antes da prática.', href: '/cnh#categorias' },
-  { title: 'Categoria B', copy: 'Carro: etapas, prática e o que vem antes da prova.', href: '/cnh#categorias' },
-  { title: 'Categoria D', copy: 'Veja quando a categoria D pode ser solicitada e quais requisitos merecem atenção.', href: '/guias#categoria-d' },
-  { title: 'Medo de dirigir', copy: 'Para quem já tem CNH, mas quer recuperar prática e confiança ao volante.', href: '/guias#habilitados' },
-  { title: 'Exame prático', copy: 'Entenda agendamento, taxas e preparação para a prova.', href: '/guias#exame-pratico' },
+  { title: 'Primeira habilitação', copy: 'Entenda o processo completo e o que você consegue resolver por conta própria.', href: '/guias/primeira-habilitacao-2026' },
+  { title: 'Categoria A', copy: 'Moto: prática, processo e o que muda quando sua habilitação envolve categoria A.', href: '/guias/categoria-a' },
+  { title: 'Categoria B', copy: 'Carro: prática, exame e as regras atuais que valem para categoria B.', href: '/guias/categoria-b' },
+  { title: 'Categoria D', copy: 'Por que categoria D exige habilitação anterior e requisitos próprios.', href: '/guias/categoria-d' },
+  { title: 'Medo de dirigir', copy: 'Como retomar prática e confiança gradualmente depois de já estar habilitado.', href: '/guias/medo-de-dirigir' },
+  { title: 'Exame prático', copy: 'Agendamento, taxa, carro automático, baliza e preparação para a prova.', href: '/guias/exame-pratico' },
 ];
