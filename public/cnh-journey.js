@@ -1,350 +1,469 @@
-const STORAGE_KEY = 'centro.cnhExplorer.v1';
+const RESOLVER_KEY = 'centro.cnhResolver.v1';
+const LEGACY_KEY = 'centro.cnhExplorer.v1';
 const PUBLIC_JOURNEY_KEY = 'centro.publicJourney.v1';
+const OFFICIAL_GUIDANCE_URL = 'https://detran.sp.gov.br/cnhpaulista/';
+const WHATSAPP_BASE = 'https://wa.me/5512981779745';
 
 const steps = [
   {
     id: 'start',
-    short: 'Início',
-    title: 'Começar o processo',
-    summary: 'Inicie o requerimento e o curso teórico pelo App CNH do Brasil.',
-    now: 'Abra seu processo e confira as orientações iniciais no App CNH do Brasil.',
-    before: 'Você ainda não precisa ter concluído nenhuma etapa anterior.',
-    after: 'Depois, será necessário abrir o RENACH e fazer o cadastro biométrico no Detran-SP.',
+    short: 'Começar',
+    title: 'Comece seu processo',
+    copy: 'Você pode iniciar sua primeira habilitação pelo App CNH do Brasil e seguir as orientações oficiais do Detran-SP.',
+    selfTitle: 'Faça sozinho',
+    selfCopy: 'Abra a orientação oficial, confira como iniciar o requerimento e siga o fluxo indicado para a primeira habilitação.',
+    officialLabel: 'Abrir orientação oficial',
+    confirmLabel: 'Já iniciei meu processo',
+    help: 'Olá, preciso de ajuda para iniciar minha primeira habilitação.',
   },
   {
     id: 'registration',
     short: 'Cadastro',
-    title: 'RENACH e biometria',
-    summary: 'Abra o RENACH e realize o cadastro biométrico no Detran-SP.',
-    now: 'Confirme a abertura do seu processo e conclua o cadastro biométrico exigido para seguir.',
-    before: 'Tenha iniciado o requerimento da primeira habilitação.',
-    after: 'Com o cadastro aberto, vêm as avaliações psicológica e de aptidão física e mental.',
+    title: 'Faça o RENACH e a biometria',
+    copy: 'Depois de iniciar o processo, o próximo passo é abrir o RENACH e concluir o cadastro biométrico exigido pelo Detran-SP.',
+    selfTitle: 'Resolva o cadastro',
+    selfCopy: 'Confira a orientação oficial do Detran-SP para saber como continuar o cadastro e a biometria do seu processo.',
+    officialLabel: 'Ver como continuar no Detran-SP',
+    confirmLabel: 'Já concluí cadastro e biometria',
+    help: 'Olá, já iniciei minha CNH e preciso de ajuda com RENACH e biometria.',
   },
   {
     id: 'health',
     short: 'Exames',
-    title: 'Avaliações de saúde',
-    summary: 'Realize avaliação psicológica e exame de aptidão física e mental.',
-    now: 'Conclua as avaliações exigidas para que o seu processo possa avançar para a etapa teórica.',
-    before: 'Seu RENACH e cadastro biométrico precisam estar encaminhados.',
-    after: 'Depois, valide o curso teórico e faça o exame teórico.',
+    title: 'Faça as avaliações de saúde',
+    copy: 'Conclua a avaliação psicológica e o exame de aptidão física e mental para liberar a continuação do processo.',
+    selfTitle: 'Organize os exames',
+    selfCopy: 'O Detran-SP informa atualmente R$ 90,00 para a avaliação psicológica e R$ 90,00 para o exame médico.',
+    officialLabel: 'Ver orientação e valores oficiais',
+    confirmLabel: 'Já concluí minhas avaliações',
+    help: 'Olá, estou na etapa de avaliações da primeira habilitação e preciso de orientação.',
   },
   {
     id: 'theory',
     short: 'Teoria',
-    title: 'Curso e prova teórica',
-    summary: 'Valide o curso teórico e realize o exame teórico.',
-    now: 'Finalize a formação teórica e acompanhe a liberação para realizar a prova.',
-    before: 'As etapas de cadastro e avaliações precisam estar regulares no processo.',
-    after: 'Após a aprovação, você poderá emitir a LADV e iniciar a prática.',
+    title: 'Conclua o curso e faça a prova teórica',
+    copy: 'Finalize a formação teórica, acompanhe a liberação do exame e faça a prova quando o processo estiver apto.',
+    selfTitle: 'Prepare e faça a prova',
+    selfCopy: 'O curso teórico pode ser feito pelo App CNH do Brasil. O Detran-SP informa atualmente taxa de R$ 52,83 para o exame teórico.',
+    officialLabel: 'Ver orientação da etapa teórica',
+    confirmLabel: 'Passei na prova teórica',
+    help: 'Olá, estou na etapa teórica da primeira habilitação e preciso de ajuda para continuar.',
   },
   {
     id: 'practice',
     short: 'Prática',
-    title: 'Começar a dirigir',
-    summary: 'Após aprovação na teoria, emita a LADV e inicie a prática.',
-    now: 'Com a LADV emitida, comece sua preparação prática na categoria escolhida.',
-    before: 'É necessário ter sido aprovado na etapa teórica e estar liberado para a prática.',
-    after: 'Quando concluir a preparação exigida, vem o exame prático.',
+    title: 'Comece sua preparação prática',
+    copy: 'Depois da aprovação na teoria, emita a LADV e comece a prática na categoria que você vai habilitar.',
+    selfTitle: 'Escolha como praticar',
+    selfCopy: 'Para A e B, o Detran-SP informa atualmente mínimo de 2 horas. A prática pode ser feita em autoescola credenciada ou com instrutor autônomo autorizado.',
+    officialLabel: 'Entender as opções oficiais',
+    confirmLabel: 'Concluí minha preparação prática',
+    help: 'Olá, já passei na teoria e quero ajuda com a etapa prática da minha primeira habilitação.',
   },
   {
     id: 'exam',
     short: 'Prova',
-    title: 'Exame prático',
-    summary: 'Conclua a prática mínima exigida e realize o exame prático.',
-    now: 'Confira seu agendamento, prepare o que ainda precisa treinar e vá para a prova sabendo o que esperar.',
-    before: 'A etapa prática e os demais requisitos aplicáveis precisam estar concluídos.',
-    after: 'Depois da aprovação, o processo segue para a emissão da CNH.',
+    title: 'Faça o exame prático',
+    copy: 'Quando sua preparação estiver concluída, organize o exame prático e vá para a avaliação sabendo o que precisa levar e acompanhar.',
+    selfTitle: 'Organize sua prova',
+    selfCopy: 'O Detran-SP informa atualmente taxa de R$ 52,83 para o exame prático e permite que o cidadão faça o agendamento diretamente.',
+    officialLabel: 'Ver orientação do exame prático',
+    confirmLabel: 'Fui aprovado no exame prático',
+    help: 'Olá, estou me preparando para o exame prático e preciso de ajuda.',
   },
   {
     id: 'license',
     short: 'CNH',
-    title: 'CNH disponível',
-    summary: 'Após aprovação e demais requisitos aplicáveis, acesse a CNH digital.',
-    now: 'Com as etapas concluídas e o processo aprovado, acompanhe a disponibilização da sua CNH.',
-    before: 'O exame prático e os demais requisitos do processo precisam estar concluídos.',
-    after: 'A partir daqui, sua habilitação passa a ser o documento que acompanha sua vida como condutor.',
+    title: 'Acompanhe a emissão da sua CNH',
+    copy: 'Depois da aprovação, acompanhe os requisitos finais e a disponibilização da sua habilitação.',
+    selfTitle: 'Finalize o processo',
+    selfCopy: 'Para processos de primeira habilitação iniciados a partir de 17/06/2026, o Detran-SP informa exigência de exame toxicológico negativo e válido antes da emissão. A CNH digital pode ser acessada sem a taxa da versão física.',
+    officialLabel: 'Ver requisitos finais no Detran-SP',
+    confirmLabel: 'Minha CNH já está disponível',
+    help: 'Olá, fui aprovado e preciso de ajuda para entender os passos finais da minha CNH.',
   },
 ];
 
-const situations = [
-  { id: 'not-started', label: 'Ainda não comecei', step: 0 },
-  { id: 'started', label: 'Já comecei pelo app', step: 1 },
-  { id: 'theory-done', label: 'Já passei na teoria', step: 4 },
-  { id: 'practical', label: 'Estou na prática', step: 4 },
-  { id: 'exam', label: 'Vou fazer a prova', step: 5 },
-  { id: 'approved', label: 'Já fui aprovado', step: 6 },
+const milestoneKeys = [
+  'processStarted',
+  'registrationDone',
+  'healthDone',
+  'theoryPassed',
+  'practiceDone',
+  'examPassed',
+  'licenseAvailable',
 ];
 
-const categories = [
-  { id: 'A', label: 'A · Moto' },
-  { id: 'B', label: 'B · Carro' },
-  { id: 'AB', label: 'A+B · Moto e carro' },
+const correctionLabels = [
+  'Ainda não concluí nenhuma etapa',
+  'Já iniciei meu processo',
+  'Já concluí cadastro e biometria',
+  'Já concluí as avaliações de saúde',
+  'Já passei na prova teórica',
+  'Já concluí minha preparação prática',
+  'Já fui aprovado no exame prático',
+  'Minha CNH já está disponível',
 ];
+
+const validCategories = ['A', 'B', 'AB'];
+
+function emptyState() {
+  return {
+    category: null,
+    milestones: Object.fromEntries(milestoneKeys.map((key) => [key, false])),
+    updatedAt: null,
+  };
+}
+
+function normalizeState(candidate) {
+  const base = emptyState();
+  const source = candidate && typeof candidate === 'object' ? candidate : {};
+  const milestones = { ...base.milestones };
+  for (const key of milestoneKeys) milestones[key] = Boolean(source.milestones?.[key]);
+
+  // A primeira habilitação é linear. Se uma etapa posterior estiver concluída,
+  // as anteriores também precisam estar concluídas no estado local.
+  let reachedGap = false;
+  for (const key of milestoneKeys) {
+    if (reachedGap) milestones[key] = false;
+    else if (!milestones[key]) reachedGap = true;
+  }
+
+  return {
+    category: validCategories.includes(source.category) ? source.category : null,
+    milestones,
+    updatedAt: source.updatedAt || null,
+  };
+}
+
+function applyCompletedIndex(state, completedIndex) {
+  const next = normalizeState(state);
+  milestoneKeys.forEach((key, index) => {
+    next.milestones[key] = index <= completedIndex;
+  });
+  next.updatedAt = new Date().toISOString();
+  return next;
+}
+
+function migrateState() {
+  let state = emptyState();
+
+  try {
+    const journey = JSON.parse(localStorage.getItem(PUBLIC_JOURNEY_KEY) || 'null');
+    if (journey?.goal === 'first-license') {
+      if (journey.category === 'A' || journey.category === 'B') state.category = journey.category;
+      const completedByStage = {
+        'not-started': -1,
+        medical: 0,
+        theory: 2,
+        practical: 3,
+        exam: 4,
+      };
+      if (Object.prototype.hasOwnProperty.call(completedByStage, journey.stage)) {
+        state = applyCompletedIndex(state, completedByStage[journey.stage]);
+      }
+    }
+  } catch {
+    // Continuamos com um estado vazio.
+  }
+
+  try {
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) || 'null');
+    if (legacy) {
+      if (validCategories.includes(legacy.category)) state.category = legacy.category;
+      if (Number.isInteger(legacy.currentStep)) {
+        const completedIndex = Math.max(-1, Math.min(milestoneKeys.length - 1, Number(legacy.currentStep) - 1));
+        const legacyState = applyCompletedIndex(state, completedIndex);
+        const currentCompleted = completedCount(state) - 1;
+        if (completedIndex > currentCompleted) state = legacyState;
+      }
+    }
+  } catch {
+    // O estado antigo é opcional.
+  }
+
+  return normalizeState(state);
+}
 
 function readState() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    const situation = situations.find((item) => item.id === parsed.situation) || situations[0];
-    return {
-      situation: parsed.situation || situation.id,
-      category: categories.some((item) => item.id === parsed.category) ? parsed.category : 'B',
-      currentStep: Number.isInteger(parsed.currentStep) ? parsed.currentStep : situation.step,
-      inspected: Number.isInteger(parsed.inspected) ? parsed.inspected : situation.step,
-    };
+    const saved = JSON.parse(localStorage.getItem(RESOLVER_KEY) || 'null');
+    if (saved) return normalizeState(saved);
   } catch {
-    return { situation: 'not-started', category: 'B', currentStep: 0, inspected: 0 };
+    // Migraremos abaixo.
   }
+  return migrateState();
 }
 
-function saveState(state) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-
-  const currentStep = Number.isInteger(state.currentStep) ? state.currentStep : 0;
-  const stage = currentStep >= 5 ? 'exam' : currentStep >= 4 ? 'practical' : currentStep >= 3 ? 'theory' : currentStep >= 2 ? 'medical' : 'not-started';
-  if (state.category === 'A' || state.category === 'B') {
-    try {
-      const existing = JSON.parse(localStorage.getItem(PUBLIC_JOURNEY_KEY) || '{}');
-      localStorage.setItem(PUBLIC_JOURNEY_KEY, JSON.stringify({ ...existing, goal: 'first-license', category: state.category, stage }));
-    } catch {
-      localStorage.setItem(PUBLIC_JOURNEY_KEY, JSON.stringify({ goal: 'first-license', category: state.category, stage }));
-    }
+function completedCount(state) {
+  let count = 0;
+  for (const key of milestoneKeys) {
+    if (!state.milestones[key]) break;
+    count += 1;
   }
+  return count;
 }
 
-function formatNumber(value) {
-  return new Intl.NumberFormat('pt-BR').format(Number(value || 0));
+function currentStepIndex(state) {
+  return Math.min(completedCount(state), steps.length - 1);
 }
 
-function formatPercent(value) {
-  return Number.isFinite(Number(value)) ? `${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : '—';
-}
-
-function formatPeriod(period) {
-  if (!period) return '';
-  const [year, month] = period.split('-').map(Number);
-  return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1));
-}
-
-async function loadTrafficData() {
+function syncPublicJourney(state) {
   try {
-    const response = await fetch('/data/traffic-intelligence.json', { cache: 'no-store' });
-    if (!response.ok) return null;
-    return await response.json();
+    const current = currentStepIndex(state);
+    const stage = current >= 5 ? 'exam' : current >= 4 ? 'practical' : current >= 3 ? 'theory' : current >= 1 ? 'medical' : 'not-started';
+    const existing = JSON.parse(localStorage.getItem(PUBLIC_JOURNEY_KEY) || 'null');
+    const knownCategory = state.category === 'A' || state.category === 'B'
+      ? state.category
+      : existing?.category === 'A' || existing?.category === 'B'
+        ? existing.category
+        : null;
+
+    // A Home antiga exige categoria para reconhecer a continuidade. Não fabricamos
+    // uma categoria apenas para satisfazer esse contrato; sincronizamos assim que
+    // ela já for conhecida pelo visitante.
+    if (!knownCategory) return;
+
+    localStorage.setItem(PUBLIC_JOURNEY_KEY, JSON.stringify({
+      ...(existing && typeof existing === 'object' ? existing : {}),
+      goal: 'first-license',
+      category: knownCategory,
+      stage,
+      intent: current === 0 ? 'first-license' : 'continue-license',
+      updatedAt: new Date().toISOString(),
+    }));
+    window.dispatchEvent(new CustomEvent('centro:public-journey-change'));
   } catch {
-    return null;
+    // A continuidade na Home é complementar; não bloqueia /cnh.
   }
 }
 
-function practiceNote(category) {
-  if (category === 'AB') {
-    return 'Na combinação A+B, sua preparação reúne moto e carro. O Centro separa a orientação por etapa para você acompanhar cada parte com clareza.';
-  }
-  return `Para a categoria ${category}, o Detran-SP informa atualmente prática mínima de 2 horas. O mínimo legal não determina quanto treino cada pessoa realmente precisa.`;
+function persistState(state) {
+  const normalized = normalizeState({ ...state, updatedAt: new Date().toISOString() });
+  localStorage.setItem(RESOLVER_KEY, JSON.stringify(normalized));
+  syncPublicJourney(normalized);
+  return normalized;
 }
 
-function cityExamMarkup(data, category) {
-  const snapshot = data?.datasets?.practical?.latest;
-  const metrics = snapshot?.metrics;
-  if (!snapshot || !metrics) return '';
+function whatsappUrl(step, category) {
+  const categoryText = category ? ` Categoria ${category}.` : '';
+  return `${WHATSAPP_BASE}?text=${encodeURIComponent(`${step.help}${categoryText}`)}`;
+}
 
-  const wanted = category === 'AB' ? ['A', 'B'] : [category];
-  const categoryCount = (metrics.categories || [])
-    .filter((item) => wanted.includes(String(item.label).toUpperCase()))
-    .reduce((sum, item) => sum + Number(item.value || 0), 0);
+function categoryName(category) {
+  if (category === 'A') return 'A · Moto';
+  if (category === 'B') return 'B · Carro';
+  if (category === 'AB') return 'A+B · Moto e carro';
+  return '';
+}
 
+function renderPath(state, current) {
   return `
-    <aside class="cnh-city-data" aria-label="Dados de exames práticos em São José dos Campos">
-      <div class="cnh-city-data__head">
-        <span>São José dos Campos</span>
-        <small>${formatPeriod(snapshot.period)} · Detran-SP</small>
+    <details class="cnh-resolver-path">
+      <summary>Ver caminho completo até a CNH</summary>
+      <ol>
+        ${steps.map((step, index) => {
+          const done = Boolean(state.milestones[milestoneKeys[index]]);
+          const now = index === current && !state.milestones[milestoneKeys[index]];
+          return `<li class="${done ? 'is-done' : now ? 'is-current' : ''}">
+            <span>${done ? '✓' : String(index + 1).padStart(2, '0')}</span>
+            <div><strong>${step.short}</strong><small>${done ? 'Concluída' : now ? 'Agora' : 'Depois'}</small></div>
+          </li>`;
+        }).join('')}
+      </ol>
+    </details>`;
+}
+
+function renderCorrection(state) {
+  const count = completedCount(state);
+  return `
+    <details class="cnh-resolver-correction">
+      <summary>Corrigir minha situação</summary>
+      <form data-correction-form>
+        <label>
+          <span>Qual foi a última coisa que você concluiu?</span>
+          <select name="completed">
+            ${correctionLabels.map((label, index) => `<option value="${index - 1}" ${index === count ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+        </label>
+        <label>
+          <span>Categoria, se você já souber</span>
+          <select name="category">
+            <option value="" ${!state.category ? 'selected' : ''}>Ainda não preciso informar</option>
+            <option value="A" ${state.category === 'A' ? 'selected' : ''}>A · Moto</option>
+            <option value="B" ${state.category === 'B' ? 'selected' : ''}>B · Carro</option>
+            <option value="AB" ${state.category === 'AB' ? 'selected' : ''}>A+B · Moto e carro</option>
+          </select>
+        </label>
+        <button type="submit">Atualizar minha situação</button>
+      </form>
+    </details>`;
+}
+
+function renderCategoryChoice(state) {
+  if (state.category) return '';
+  return `
+    <div class="cnh-resolver-category" aria-labelledby="cnh-category-title">
+      <p class="cnh-resolver-eyebrow">ANTES DE CONTINUAR</p>
+      <h3 id="cnh-category-title">O que você vai praticar?</h3>
+      <p>A categoria só é necessária agora porque ela muda a orientação da etapa prática.</p>
+      <div role="group" aria-label="Categoria da primeira habilitação">
+        <button type="button" data-category="A"><strong>A</strong><span>Moto</span></button>
+        <button type="button" data-category="B"><strong>B</strong><span>Carro</span></button>
+        <button type="button" data-category="AB"><strong>A+B</strong><span>Moto e carro</span></button>
       </div>
-      <div class="cnh-city-data__grid">
-        <div><strong>${formatNumber(metrics.total)}</strong><span>exames práticos</span></div>
-        <div><strong>${formatPercent(metrics.approvalRate)}</strong><span>aprovação entre resultados decididos</span></div>
-        ${categoryCount ? `<div><strong>${formatNumber(categoryCount)}</strong><span>exames na categoria ${category}</span></div>` : ''}
+    </div>`;
+}
+
+function renderComplete(state, checkedText) {
+  return `
+    <div class="cnh-resolver-context">
+      <div><span>SUA CNH</span><strong>Primeira habilitação${state.category ? ` · ${categoryName(state.category)}` : ''}</strong></div>
+      ${renderCorrection(state)}
+    </div>
+    <article class="cnh-resolver-action cnh-resolver-action--complete" aria-live="polite">
+      <p class="cnh-resolver-eyebrow">PROCESSO CONCLUÍDO</p>
+      <h3>Sua CNH está disponível.</h3>
+      <p>Você marcou todas as etapas desta jornada como concluídas. A partir daqui, o Centro continua útil para entender trânsito, mobilidade e sua vida como condutor.</p>
+      <div class="cnh-resolver-actions">
+        <a class="cnh-resolver-primary" href="${OFFICIAL_GUIDANCE_URL}" target="_blank" rel="noreferrer">Consultar orientação oficial ↗</a>
+        <a class="cnh-resolver-secondary" href="/transito">Explorar o trânsito da cidade →</a>
       </div>
-      <a href="/transito">Ver os dados da cidade →</a>
-    </aside>`;
+      <small>${checkedText}</small>
+    </article>
+    ${renderPath(state, steps.length)}`;
 }
 
 function enhanceTimeline(timeline) {
-  if (!timeline || timeline.dataset.centroJourneyEnhanced === 'true') return;
-
+  if (!timeline || timeline.dataset.centroResolverEnhanced === 'true') return;
   const section = timeline.closest('section');
-  if (!section) return;
+  if (!section || section.dataset.centroResolverEnhanced === 'true') return;
 
-  timeline.dataset.centroJourneyEnhanced = 'true';
-  section.classList.add('cnh-explorer-section');
+  timeline.dataset.centroResolverEnhanced = 'true';
+  section.dataset.centroResolverEnhanced = 'true';
+  section.classList.remove('cnh-explorer-section');
+  section.classList.add('cnh-resolver-section');
 
   const heading = section.querySelector('.platform-section-head h2');
   const sideCopy = section.querySelector('.platform-section-head > p');
-  const checkedText = sideCopy?.textContent?.trim() || 'Informações do Detran-SP.';
-  if (heading) heading.textContent = 'Onde você está na sua CNH?';
-  if (sideCopy) sideCopy.textContent = 'Escolha sua situação. O Centro mostra o que já passou, o que fazer agora e o que vem depois.';
+  const checkedText = sideCopy?.textContent?.trim() || 'Informações do Detran-SP consultadas em 03/09/2026.';
+  if (heading) heading.textContent = 'O que você precisa resolver agora?';
+  if (sideCopy) sideCopy.textContent = 'O Centro mostra o caminho que você pode fazer sozinho. Se preferir ajuda, a Auto Escola Centro entra como alternativa.';
 
-  const controls = document.createElement('div');
-  controls.className = 'cnh-explorer-controls';
-  timeline.before(controls);
-
-  const trackIntro = document.createElement('div');
-  trackIntro.className = 'cnh-track-intro';
-  trackIntro.innerHTML = '<strong>Etapas da sua CNH</strong><span>Selecione uma etapa para ver os detalhes. A etapa atual também fica marcada em texto.</span>';
-  timeline.before(trackIntro);
-
-  const detail = document.createElement('div');
-  detail.className = 'cnh-explorer-detail';
-  detail.setAttribute('role', 'region');
-  detail.setAttribute('aria-live', 'polite');
-  detail.setAttribute('aria-atomic', 'true');
-  timeline.after(detail);
+  const root = document.createElement('div');
+  root.className = 'cnh-resolver';
+  root.setAttribute('aria-live', 'polite');
+  timeline.replaceWith(root);
 
   let state = readState();
-  let trafficData = null;
-  let focusAfterRender = null;
-
-  const restoreFocus = () => {
-    if (!focusAfterRender) return;
-    const target = section.querySelector(focusAfterRender);
-    focusAfterRender = null;
-    if (target instanceof HTMLElement) target.focus({ preventScroll: true });
-  };
 
   const render = () => {
-    const currentStep = Math.max(0, Math.min(steps.length - 1, Number(state.currentStep) || 0));
-    const inspectedIndex = Math.max(0, Math.min(steps.length - 1, Number(state.inspected) || currentStep));
-    const inspected = steps[inspectedIndex];
+    state = normalizeState(state);
+    const done = completedCount(state);
+    if (done >= steps.length) {
+      root.innerHTML = renderComplete(state, checkedText);
+      bind();
+      return;
+    }
 
-    controls.innerHTML = `
-      <div class="cnh-control-group" aria-labelledby="cnh-situation-label">
-        <span id="cnh-situation-label">Onde você está agora?</span>
-        <div class="cnh-choice-row" role="group" aria-labelledby="cnh-situation-label">
-          ${situations.map((item) => {
-            const active = item.id === state.situation && item.step === currentStep;
-            return `<button type="button" class="cnh-choice ${active ? 'is-active' : ''}" data-situation="${item.id}" aria-pressed="${active}">${item.label}</button>`;
-          }).join('')}
+    const index = currentStepIndex(state);
+    const step = steps[index];
+    const needsCategory = step.id === 'practice' && !state.category;
+    const progress = Math.round((done / steps.length) * 100);
+
+    root.innerHTML = `
+      <div class="cnh-resolver-context">
+        <div>
+          <span>SUA CNH</span>
+          <strong>Primeira habilitação${state.category ? ` · ${categoryName(state.category)}` : ''}</strong>
+          <small>Etapa ${index + 1} de ${steps.length}</small>
         </div>
+        ${renderCorrection(state)}
       </div>
-      <div class="cnh-control-group cnh-control-group--category" aria-labelledby="cnh-category-label">
-        <span id="cnh-category-label">Qual CNH você quer tirar?</span>
-        <div class="cnh-choice-row" role="group" aria-labelledby="cnh-category-label">
-          ${categories.map((item) => `<button type="button" class="cnh-choice ${item.id === state.category ? 'is-active' : ''}" data-category="${item.id}" aria-pressed="${item.id === state.category}">${item.label}</button>`).join('')}
-        </div>
-      </div>`;
 
-    timeline.classList.add('cnh-explorer-track');
-    timeline.setAttribute('role', 'navigation');
-    timeline.setAttribute('aria-label', 'Etapas da primeira habilitação');
-    timeline.innerHTML = steps.map((step, index) => {
-      const stateClass = index < currentStep ? 'is-complete' : index === currentStep ? 'is-current' : 'is-future';
-      const inspectedClass = index === inspectedIndex ? 'is-inspected' : '';
-      const statusLabel = index < currentStep ? 'Concluída' : index === currentStep ? 'Você está aqui' : 'Depois';
-      return `
-        <button type="button" class="cnh-step ${stateClass} ${inspectedClass}" data-step="${index}"
-          aria-label="Etapa ${index + 1} de ${steps.length}: ${step.title}. ${statusLabel}."
-          aria-current="${index === currentStep ? 'step' : 'false'}"
-          aria-pressed="${index === inspectedIndex}">
-          <span class="cnh-step__top"><span class="cnh-step__number">${String(index + 1).padStart(2, '0')}</span><span class="cnh-step__status">${statusLabel}</span></span>
-          <span class="cnh-step__label">${step.short}</span>
-          <span class="cnh-step__title">${step.title}</span>
-        </button>`;
-    }).join('');
-
-    const relation = inspectedIndex < currentStep ? 'Etapa concluída' : inspectedIndex === currentStep ? 'Você está aqui' : 'Vem depois';
-    const practiceExtra = inspected.id === 'practice' ? `<div class="cnh-detail-note"><strong>Sobre a prática</strong><p>${practiceNote(state.category)}</p></div>` : '';
-    const cityData = inspected.id === 'exam' ? cityExamMarkup(trafficData, state.category) : '';
-    const schoolHelp = inspected.id === 'practice' || inspected.id === 'exam'
-      ? `<div class="cnh-school-help"><span>Quer ajuda nesta etapa?</span><strong>Auto Escola Centro · categorias A, B e D</strong><a href="/auto-escola-centro">Ver aulas e atendimento →</a></div>`
-      : '';
-    const hasSide = Boolean(cityData || schoolHelp);
-    detail.classList.toggle('is-single', !hasSide);
-    detail.setAttribute('aria-labelledby', `cnh-detail-title-${inspectedIndex}`);
-
-    detail.innerHTML = `
-      <div class="cnh-detail-main">
-        <div class="cnh-detail-kicker"><span>ETAPA ${String(inspectedIndex + 1).padStart(2, '0')}</span><em>${relation}</em></div>
-        <h3 id="cnh-detail-title-${inspectedIndex}">${inspected.title}</h3>
-        <p class="cnh-detail-summary">${inspected.summary}</p>
-        <div class="cnh-detail-grid" aria-label="Antes, agora e depois desta etapa">
-          <article><small>ANTES</small><p>${inspected.before}</p></article>
-          <article class="is-now"><small>AGORA</small><p>${inspected.now}</p></article>
-          <article><small>DEPOIS</small><p>${inspected.after}</p></article>
-        </div>
-        ${practiceExtra}
-        <div class="cnh-detail-actions">
-          ${inspectedIndex !== currentStep ? `<button type="button" class="cnh-mark-current" data-mark-current="${inspectedIndex}">Marcar como minha etapa atual</button>` : ''}
-          <a href="/ferramentas/minha-jornada">Ver meu próximo passo completo →</a>
-        </div>
-        <small class="cnh-source-note">${checkedText}</small>
+      <div class="cnh-resolver-progress" aria-label="${done} de ${steps.length} etapas concluídas">
+        <span style="width:${progress}%"></span>
       </div>
-      ${hasSide ? `<div class="cnh-detail-side">${cityData}${schoolHelp}</div>` : ''}`;
 
-    controls.querySelectorAll('[data-situation]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const next = situations.find((item) => item.id === button.dataset.situation);
-        if (!next) return;
-        state = { ...state, situation: next.id, currentStep: next.step, inspected: next.step };
-        saveState(state);
-        focusAfterRender = `[data-situation="${next.id}"]`;
-        render();
-      });
-    });
+      <div class="cnh-resolver-layout">
+        <article class="cnh-resolver-action" aria-labelledby="cnh-resolver-title">
+          <p class="cnh-resolver-eyebrow">FAÇA ISSO AGORA</p>
+          <h3 id="cnh-resolver-title">${step.title}</h3>
+          <p class="cnh-resolver-lead">${step.copy}</p>
 
-    controls.querySelectorAll('[data-category]').forEach((button) => {
-      button.addEventListener('click', () => {
-        state = { ...state, category: button.dataset.category };
-        saveState(state);
-        focusAfterRender = `[data-category="${button.dataset.category}"]`;
-        render();
-      });
-    });
+          ${needsCategory ? renderCategoryChoice(state) : `
+            <section class="cnh-resolver-self" aria-labelledby="cnh-self-title">
+              <p class="cnh-resolver-eyebrow">${step.selfTitle.toUpperCase()}</p>
+              <h4 id="cnh-self-title">Você pode resolver esta etapa por conta própria.</h4>
+              <p>${step.selfCopy}</p>
+              <a class="cnh-resolver-primary" href="${OFFICIAL_GUIDANCE_URL}" target="_blank" rel="noreferrer">${step.officialLabel} ↗</a>
+            </section>
 
-    timeline.querySelectorAll('[data-step]').forEach((button) => {
-      button.addEventListener('click', () => {
-        state = { ...state, inspected: Number(button.dataset.step) };
-        saveState(state);
-        focusAfterRender = `[data-step="${button.dataset.step}"]`;
-        render();
-      });
+            <div class="cnh-resolver-confirm">
+              <div><span>Quando terminar</span><p>Conte ao Centro apenas o que aconteceu de verdade. A próxima orientação aparece automaticamente.</p></div>
+              <button type="button" data-complete-step="${index}">${step.confirmLabel}</button>
+            </div>`}
 
-      button.addEventListener('keydown', (event) => {
-        const current = Number(button.dataset.step);
-        let next = null;
-        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = Math.min(steps.length - 1, current + 1);
-        if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = Math.max(0, current - 1);
-        if (event.key === 'Home') next = 0;
-        if (event.key === 'End') next = steps.length - 1;
-        if (next === null || next === current) return;
-        event.preventDefault();
-        state = { ...state, inspected: next };
-        saveState(state);
-        focusAfterRender = `[data-step="${next}"]`;
-        render();
-      });
-    });
+          <small class="cnh-resolver-source">${checkedText}</small>
+        </article>
 
-    detail.querySelector('[data-mark-current]')?.addEventListener('click', (event) => {
-      const targetStep = Number(event.currentTarget.dataset.markCurrent);
-      state = { ...state, situation: 'custom', currentStep: targetStep, inspected: targetStep };
-      saveState(state);
-      focusAfterRender = `[data-step="${targetStep}"]`;
-      render();
-    });
+        <aside class="cnh-resolver-help">
+          <p class="cnh-resolver-eyebrow">PREFERE AJUDA?</p>
+          <h3>A Auto Escola Centro pode acompanhar você.</h3>
+          <p>Você não precisa contratar a escola para usar o Centro. Mas, se não quiser fazer esta etapa sozinho ou estiver com dificuldade para avançar, peça ajuda.</p>
+          <a href="${whatsappUrl(step, state.category)}" target="_blank" rel="noreferrer">Quero ajuda nesta etapa →</a>
+          <small>Auto Escola Centro · São José dos Campos${state.category ? ` · ${categoryName(state.category)}` : ''}</small>
+        </aside>
+      </div>
 
-    restoreFocus();
+      ${renderPath(state, index)}
+    `;
+
+    bind();
   };
 
+  const bind = () => {
+    root.querySelectorAll('[data-category]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const category = button.dataset.category;
+        if (!validCategories.includes(category)) return;
+        state = persistState({ ...state, category });
+        render();
+        root.querySelector('#cnh-resolver-title')?.focus?.({ preventScroll: true });
+      });
+    });
+
+    root.querySelector('[data-complete-step]')?.addEventListener('click', (event) => {
+      const index = Number(event.currentTarget.dataset.completeStep);
+      if (!Number.isInteger(index) || index !== currentStepIndex(state)) return;
+      state = applyCompletedIndex(state, index);
+      state = persistState(state);
+      render();
+      root.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+
+    root.querySelector('[data-correction-form]')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const completed = Number(form.get('completed'));
+      const category = String(form.get('category') || '');
+      state = applyCompletedIndex(state, Number.isFinite(completed) ? completed : -1);
+      state.category = validCategories.includes(category) ? category : null;
+      state = persistState(state);
+      render();
+      root.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+  };
+
+  state = persistState(state);
   render();
-  loadTrafficData().then((data) => {
-    trafficData = data;
-    if (document.contains(section)) render();
-  });
 }
 
 function scan() {
+  if (location.pathname !== '/cnh') return;
   document.querySelectorAll('.official-timeline').forEach(enhanceTimeline);
 }
 
-const observer = new MutationObserver(scan);
-observer.observe(document.documentElement, { childList: true, subtree: true });
+new MutationObserver(scan).observe(document.documentElement, { childList: true, subtree: true });
+window.addEventListener('popstate', scan);
 scan();
