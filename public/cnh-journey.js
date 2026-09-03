@@ -87,8 +87,8 @@ function readState() {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     const situation = situations.find((item) => item.id === parsed.situation) || situations[0];
     return {
-      situation: situation.id,
-      category: parsed.category || 'B',
+      situation: parsed.situation || situation.id,
+      category: categories.some((item) => item.id === parsed.category) ? parsed.category : 'B',
       currentStep: Number.isInteger(parsed.currentStep) ? parsed.currentStep : situation.step,
       inspected: Number.isInteger(parsed.inspected) ? parsed.inspected : situation.step,
     };
@@ -154,7 +154,7 @@ function cityExamMarkup(data, category) {
     .reduce((sum, item) => sum + Number(item.value || 0), 0);
 
   return `
-    <aside class="cnh-city-data">
+    <aside class="cnh-city-data" aria-label="Dados de exames práticos em São José dos Campos">
       <div class="cnh-city-data__head">
         <span>São José dos Campos</span>
         <small>${formatPeriod(snapshot.period)} · Detran-SP</small>
@@ -181,78 +181,103 @@ function enhanceTimeline(timeline) {
   const sideCopy = section.querySelector('.platform-section-head > p');
   const checkedText = sideCopy?.textContent?.trim() || 'Informações do Detran-SP.';
   if (heading) heading.textContent = 'Onde você está na sua CNH?';
-  if (sideCopy) sideCopy.textContent = 'Selecione sua situação, explore qualquer etapa e veja o que fazer agora.';
+  if (sideCopy) sideCopy.textContent = 'Escolha sua situação. O Centro mostra o que já passou, o que fazer agora e o que vem depois.';
 
   const controls = document.createElement('div');
   controls.className = 'cnh-explorer-controls';
   timeline.before(controls);
 
+  const trackIntro = document.createElement('div');
+  trackIntro.className = 'cnh-track-intro';
+  trackIntro.innerHTML = '<strong>Etapas da sua CNH</strong><span>Selecione uma etapa para ver os detalhes. A etapa atual também fica marcada em texto.</span>';
+  timeline.before(trackIntro);
+
   const detail = document.createElement('div');
   detail.className = 'cnh-explorer-detail';
+  detail.setAttribute('role', 'region');
+  detail.setAttribute('aria-live', 'polite');
+  detail.setAttribute('aria-atomic', 'true');
   timeline.after(detail);
 
   let state = readState();
   let trafficData = null;
+  let focusAfterRender = null;
+
+  const restoreFocus = () => {
+    if (!focusAfterRender) return;
+    const target = section.querySelector(focusAfterRender);
+    focusAfterRender = null;
+    if (target instanceof HTMLElement) target.focus({ preventScroll: true });
+  };
 
   const render = () => {
     const currentStep = Math.max(0, Math.min(steps.length - 1, Number(state.currentStep) || 0));
-    const inspected = steps[state.inspected] || steps[currentStep];
-    const inspectedIndex = steps.indexOf(inspected);
+    const inspectedIndex = Math.max(0, Math.min(steps.length - 1, Number(state.inspected) || currentStep));
+    const inspected = steps[inspectedIndex];
 
     controls.innerHTML = `
-      <div class="cnh-control-group">
-        <span>Onde você está agora?</span>
-        <div class="cnh-choice-row" role="group" aria-label="Sua situação atual">
-          ${situations.map((item) => `<button type="button" class="cnh-choice ${item.id === state.situation && item.step === currentStep ? 'is-active' : ''}" data-situation="${item.id}">${item.label}</button>`).join('')}
+      <div class="cnh-control-group" aria-labelledby="cnh-situation-label">
+        <span id="cnh-situation-label">Onde você está agora?</span>
+        <div class="cnh-choice-row" role="group" aria-labelledby="cnh-situation-label">
+          ${situations.map((item) => {
+            const active = item.id === state.situation && item.step === currentStep;
+            return `<button type="button" class="cnh-choice ${active ? 'is-active' : ''}" data-situation="${item.id}" aria-pressed="${active}">${item.label}</button>`;
+          }).join('')}
         </div>
       </div>
-      <div class="cnh-control-group cnh-control-group--category">
-        <span>Qual CNH você quer tirar?</span>
-        <div class="cnh-choice-row" role="group" aria-label="Categoria da primeira habilitação">
-          ${categories.map((item) => `<button type="button" class="cnh-choice ${item.id === state.category ? 'is-active' : ''}" data-category="${item.id}">${item.label}</button>`).join('')}
+      <div class="cnh-control-group cnh-control-group--category" aria-labelledby="cnh-category-label">
+        <span id="cnh-category-label">Qual CNH você quer tirar?</span>
+        <div class="cnh-choice-row" role="group" aria-labelledby="cnh-category-label">
+          ${categories.map((item) => `<button type="button" class="cnh-choice ${item.id === state.category ? 'is-active' : ''}" data-category="${item.id}" aria-pressed="${item.id === state.category}">${item.label}</button>`).join('')}
         </div>
       </div>`;
 
     timeline.classList.add('cnh-explorer-track');
+    timeline.setAttribute('role', 'navigation');
+    timeline.setAttribute('aria-label', 'Etapas da primeira habilitação');
     timeline.innerHTML = steps.map((step, index) => {
       const stateClass = index < currentStep ? 'is-complete' : index === currentStep ? 'is-current' : 'is-future';
       const inspectedClass = index === inspectedIndex ? 'is-inspected' : '';
+      const statusLabel = index < currentStep ? 'Concluída' : index === currentStep ? 'Você está aqui' : 'Depois';
       return `
-        <button type="button" class="cnh-step ${stateClass} ${inspectedClass}" data-step="${index}" aria-label="${index + 1}. ${step.title}">
-          <span class="cnh-step__number">${String(index + 1).padStart(2, '0')}</span>
-          <span class="cnh-step__dot" aria-hidden="true"></span>
+        <button type="button" class="cnh-step ${stateClass} ${inspectedClass}" data-step="${index}"
+          aria-label="Etapa ${index + 1} de ${steps.length}: ${step.title}. ${statusLabel}."
+          aria-current="${index === currentStep ? 'step' : 'false'}"
+          aria-pressed="${index === inspectedIndex}">
+          <span class="cnh-step__top"><span class="cnh-step__number">${String(index + 1).padStart(2, '0')}</span><span class="cnh-step__status">${statusLabel}</span></span>
           <span class="cnh-step__label">${step.short}</span>
+          <span class="cnh-step__title">${step.title}</span>
         </button>`;
     }).join('');
 
-    const relation = inspectedIndex < currentStep ? 'Você já passou por esta etapa' : inspectedIndex === currentStep ? 'Você está aqui' : 'Vem depois';
+    const relation = inspectedIndex < currentStep ? 'Etapa concluída' : inspectedIndex === currentStep ? 'Você está aqui' : 'Vem depois';
     const practiceExtra = inspected.id === 'practice' ? `<div class="cnh-detail-note"><strong>Sobre a prática</strong><p>${practiceNote(state.category)}</p></div>` : '';
     const cityData = inspected.id === 'exam' ? cityExamMarkup(trafficData, state.category) : '';
     const schoolHelp = inspected.id === 'practice' || inspected.id === 'exam'
       ? `<div class="cnh-school-help"><span>Quer ajuda nesta etapa?</span><strong>Auto Escola Centro · categorias A, B e D</strong><a href="/auto-escola-centro">Ver aulas e atendimento →</a></div>`
       : '';
+    const hasSide = Boolean(cityData || schoolHelp);
+    detail.classList.toggle('is-single', !hasSide);
+    detail.setAttribute('aria-labelledby', `cnh-detail-title-${inspectedIndex}`);
 
     detail.innerHTML = `
       <div class="cnh-detail-main">
-        <div class="cnh-detail-kicker"><span>${String(inspectedIndex + 1).padStart(2, '0')}</span><em>${relation}</em></div>
-        <h3>${inspected.title}</h3>
+        <div class="cnh-detail-kicker"><span>ETAPA ${String(inspectedIndex + 1).padStart(2, '0')}</span><em>${relation}</em></div>
+        <h3 id="cnh-detail-title-${inspectedIndex}">${inspected.title}</h3>
         <p class="cnh-detail-summary">${inspected.summary}</p>
-        <div class="cnh-detail-grid">
+        <div class="cnh-detail-grid" aria-label="Antes, agora e depois desta etapa">
           <article><small>ANTES</small><p>${inspected.before}</p></article>
           <article class="is-now"><small>AGORA</small><p>${inspected.now}</p></article>
           <article><small>DEPOIS</small><p>${inspected.after}</p></article>
         </div>
         ${practiceExtra}
         <div class="cnh-detail-actions">
-          ${inspectedIndex !== currentStep ? `<button type="button" class="cnh-mark-current" data-mark-current="${inspectedIndex}">Estou nesta etapa</button>` : ''}
+          ${inspectedIndex !== currentStep ? `<button type="button" class="cnh-mark-current" data-mark-current="${inspectedIndex}">Marcar como minha etapa atual</button>` : ''}
           <a href="/ferramentas/minha-jornada">Ver meu próximo passo completo →</a>
         </div>
         <small class="cnh-source-note">${checkedText}</small>
       </div>
-      <div class="cnh-detail-side">
-        ${cityData}
-        ${schoolHelp}
-      </div>`;
+      ${hasSide ? `<div class="cnh-detail-side">${cityData}${schoolHelp}</div>` : ''}`;
 
     controls.querySelectorAll('[data-situation]').forEach((button) => {
       button.addEventListener('click', () => {
@@ -260,6 +285,7 @@ function enhanceTimeline(timeline) {
         if (!next) return;
         state = { ...state, situation: next.id, currentStep: next.step, inspected: next.step };
         saveState(state);
+        focusAfterRender = `[data-situation="${next.id}"]`;
         render();
       });
     });
@@ -268,6 +294,7 @@ function enhanceTimeline(timeline) {
       button.addEventListener('click', () => {
         state = { ...state, category: button.dataset.category };
         saveState(state);
+        focusAfterRender = `[data-category="${button.dataset.category}"]`;
         render();
       });
     });
@@ -276,6 +303,22 @@ function enhanceTimeline(timeline) {
       button.addEventListener('click', () => {
         state = { ...state, inspected: Number(button.dataset.step) };
         saveState(state);
+        focusAfterRender = `[data-step="${button.dataset.step}"]`;
+        render();
+      });
+
+      button.addEventListener('keydown', (event) => {
+        const current = Number(button.dataset.step);
+        let next = null;
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = Math.min(steps.length - 1, current + 1);
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = Math.max(0, current - 1);
+        if (event.key === 'Home') next = 0;
+        if (event.key === 'End') next = steps.length - 1;
+        if (next === null || next === current) return;
+        event.preventDefault();
+        state = { ...state, inspected: next };
+        saveState(state);
+        focusAfterRender = `[data-step="${next}"]`;
         render();
       });
     });
@@ -284,8 +327,11 @@ function enhanceTimeline(timeline) {
       const targetStep = Number(event.currentTarget.dataset.markCurrent);
       state = { ...state, situation: 'custom', currentStep: targetStep, inspected: targetStep };
       saveState(state);
+      focusAfterRender = `[data-step="${targetStep}"]`;
       render();
     });
+
+    restoreFocus();
   };
 
   render();
