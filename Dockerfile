@@ -3,7 +3,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN npm run build
+# Traffic data is refreshed and versioned by the dedicated data workflow.
+# Production builds publish the last accepted snapshot instead of depending on
+# the external Detran portal being reachable at deploy time.
+RUN npm run build:app
 
 FROM nginx:1.27-alpine
 ENV PORT=80
