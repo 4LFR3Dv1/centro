@@ -1,0 +1,23 @@
+name: Home continuity check
+
+on:
+  push:
+    branches:
+      - feat/home-continuity-001
+    paths:
+      - 'src/home-continuity.tsx'
+      - 'src/home-continuity.css'
+      - 'src/main.tsx'
+      - '.github/workflows/home-continuity-check.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: TypeScript + Vite
+        run: npm run build:app
