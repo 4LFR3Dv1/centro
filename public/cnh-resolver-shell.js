@@ -15,14 +15,19 @@ function simplifyCnhSurface() {
 
   const factSection = resolverSection.previousElementSibling;
   if (factSection?.classList.contains('compact-section') && factSection.querySelector('.fact-strip')) {
-    factSection.remove();
+    factSection.hidden = true;
+    factSection.setAttribute('aria-hidden', 'true');
   }
 
   const categories = document.getElementById('categorias');
   if (categories) {
+    categories.hidden = true;
+    categories.setAttribute('aria-hidden', 'true');
     const schoolHelp = categories.nextElementSibling;
-    if (schoolHelp?.classList.contains('premium-boundary')) schoolHelp.remove();
-    categories.remove();
+    if (schoolHelp?.classList.contains('premium-boundary')) {
+      schoolHelp.hidden = true;
+      schoolHelp.setAttribute('aria-hidden', 'true');
+    }
   }
 }
 
