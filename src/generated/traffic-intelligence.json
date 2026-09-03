@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "city": "São José dos Campos",
+  "cityKey": "SAO_JOSE_DOS_CAMPOS",
+  "authority": "Detran-SP · Portal de Dados Abertos do Estado de São Paulo",
+  "datasetLicense": "Creative Commons Attribution 4.0",
+  "latestPeriod": null,
+  "snapshotFingerprint": null,
+  "datasets": {
+    "practical": {
+      "status": "unavailable",
+      "title": "Exames práticos",
+      "dataset": "exames-praticos-realizados",
+      "datasetPage": "https://dadosabertos.sp.gov.br/dataset/exames-praticos-realizados",
+      "authority": "Detran-SP · Dados Abertos SP",
+      "latest": null,
+      "history": []
+    },
+    "theory": {
+      "status": "unavailable",
+      "title": "Exames teóricos",
+      "dataset": "exames-teoricos-realizados",
+      "datasetPage": "https://dadosabertos.sp.gov.br/dataset/exames-teoricos-realizados",
+      "authority": "Detran-SP · Dados Abertos SP",
+      "latest": null,
+      "history": []
+    },
+    "fleet": {
+      "status": "unavailable",
+      "title": "Frota ativa",
+      "dataset": "frota-ativa",
+      "datasetPage": "https://dadosabertos.sp.gov.br/dataset/frota-ativa",
+      "authority": "Detran-SP · Dados Abertos SP",
+      "latest": null,
+      "history": []
+    },
+    "infractions": {
+      "status": "unavailable",
+      "title": "Infrações lavradas pelo Detran-SP",
+      "dataset": "infracoes-lavradas",
+      "datasetPage": "https://dadosabertos.sp.gov.br/dataset/infracoes-lavradas",
+      "authority": "Detran-SP · Dados Abertos SP",
+      "latest": null,
+      "history": []
+    }
+  }
+}
