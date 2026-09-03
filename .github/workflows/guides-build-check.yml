@@ -1,0 +1,25 @@
+name: Guides build check
+
+on:
+  push:
+    branches:
+      - feat/guides-educational-surface
+    paths:
+      - 'src/guides.ts'
+      - 'src/guides-app.tsx'
+      - 'src/guides.css'
+      - 'src/main.tsx'
+      - 'src/platform-data.ts'
+      - '.github/workflows/guides-build-check.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: TypeScript + Vite
+        run: npm run build:app
