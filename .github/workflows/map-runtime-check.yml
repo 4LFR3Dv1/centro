@@ -1,0 +1,22 @@
+name: Map runtime check
+
+on:
+  push:
+    branches:
+      - fix/overlay-geojson-ack
+    paths:
+      - 'src/home-map.ts'
+      - 'src/main.tsx'
+      - '.github/workflows/map-runtime-check.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: TypeScript + Vite
+        run: npm run build:app
