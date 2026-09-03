@@ -1,0 +1,24 @@
+@media (max-width: 640px) {
+  .home-map-actions {
+    width: calc(100% - 24px);
+    max-width: none;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    justify-content: flex-start;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .home-map-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .home-map-actions button {
+    flex: 0 0 auto;
+  }
+
+  .home-map-results {
+    top: 184px;
+  }
+}

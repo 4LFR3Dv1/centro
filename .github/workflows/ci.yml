@@ -33,6 +33,9 @@ jobs:
       - name: Validate persisted safety snapshot
         run: npm run safety:data:validate
 
+      - name: Validate persisted transit snapshot
+        run: npm run transit:data:validate
+
       - name: Build
         run: npm run build:app
 
