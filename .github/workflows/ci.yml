@@ -62,8 +62,30 @@ jobs:
       - name: Validate persisted transit snapshot
         run: npm run transit:data:validate
 
-      - name: Build
-        run: npm run build:app
+      - name: Build frontend and server
+        run: |
+          npm run build:app
+          npm run build:server
 
       - name: Build deployment image
-        run: docker build -t centro:r3c .
+        run: docker build -t centro:admin-002 .
+
+      - name: Smoke production runtime
+        run: |
+          docker run -d --name centro-runtime-smoke --network host \
+            -e NODE_ENV=production \
+            -e PORT=18080 \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e CENTRO_PUBLIC_ORIGIN=http://127.0.0.1:18080 \
+            centro:admin-002
+          trap 'docker rm -f centro-runtime-smoke >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:18080/healthz >/dev/null; then break; fi
+            if [ "$attempt" = "20" ]; then
+              docker logs centro-runtime-smoke
+              exit 1
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:18080/admin >/dev/null
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/auth/session)" = "401"
