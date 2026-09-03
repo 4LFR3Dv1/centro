@@ -17,7 +17,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=80
 COPY package*.json ./
-RUN npm install --omit=dev && npm cache clean --force
+# Reuse the exact dependency tree that compiled and passed the build stage.
+# Avoid a second network install during production image assembly.
+COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/.server-dist ./.server-dist
 EXPOSE 80
