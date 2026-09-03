@@ -1,7 +1,7 @@
 {
   "name": "centro",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,15 +12,21 @@
     "safety:data:validate": "node scripts/refresh-safety-data-v2.mjs --validate-existing",
     "transit:data:refresh": "node scripts/refresh-transit-data.mjs --strict",
     "transit:data:validate": "node scripts/refresh-transit-data.mjs --validate-existing",
+    "db:migrate": "tsx server/db/migrate.ts",
+    "ops:test:unit": "tsx --test server/ops/credentials.test.ts server/ops/contracts.test.ts",
+    "ops:test:db": "tsx --test server/db/constitution.test.ts",
+    "ops:check": "tsc -p tsconfig.server.json --noEmit && npm run ops:test:unit && npm run ops:test:db",
     "build:app": "tsc --noEmit && vite build",
     "build": "npm run data:ingest && npm run build:app",
     "preview": "vite preview",
-    "check": "npm run data:ingest -- --strict && npm run map:data:validate && npm run safety:data:validate && npm run transit:data:validate && npm run build:app"
+    "check": "npm run ops:check && npm run data:ingest -- --strict && npm run map:data:validate && npm run safety:data:validate && npm run transit:data:validate && npm run build:app"
   },
   "dependencies": {
+    "@node-rs/argon2": "latest",
     "@vitejs/plugin-react": "latest",
     "csv-parse": "latest",
     "maplibre-gl": "^6.7.0",
+    "pg": "latest",
     "vite": "latest",
     "typescript": "latest",
     "react": "latest",
@@ -28,7 +34,10 @@
     "react-router-dom": "latest"
   },
   "devDependencies": {
+    "@types/node": "latest",
+    "@types/pg": "latest",
     "@types/react": "latest",
-    "@types/react-dom": "latest"
+    "@types/react-dom": "latest",
+    "tsx": "latest"
   }
 }

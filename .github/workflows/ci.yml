@@ -9,6 +9,22 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: centro
+          POSTGRES_PASSWORD: centro
+          POSTGRES_DB: centro_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U centro -d centro_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://centro:centro@127.0.0.1:5432/centro_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,6 +36,14 @@ jobs:
 
       - name: Install
         run: npm install
+
+      - name: Apply operational migrations twice
+        run: |
+          npm run db:migrate
+          npm run db:migrate
+
+      - name: Validate operational constitution
+        run: npm run ops:check
 
       - name: Validate public CNH resolver
         run: |
