@@ -21,8 +21,10 @@ jobs:
       - name: Install
         run: npm install
 
-      - name: Validate public CNH journey
-        run: node --check public/cnh-journey.js
+      - name: Validate public CNH resolver
+        run: |
+          node --check public/cnh-journey.js
+          node --check public/cnh-resolver-shell.js
 
       - name: Ingest official Detran-SP data
         run: npm run data:ingest -- --strict
