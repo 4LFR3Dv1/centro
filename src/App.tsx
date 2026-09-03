@@ -23,7 +23,7 @@ const journeyOptions: JourneyOption[] = [
     label: 'Quero minha primeira CNH',
     detail: 'Ainda não comecei e quero entender o caminho.',
     next: 'Organizar sua primeira habilitação',
-    recommendation: 'A Central te orienta sobre o processo e ajuda a transformar a primeira CNH em um caminho claro.',
+    recommendation: 'A Centro te orienta sobre o processo e ajuda a transformar a primeira CNH em um caminho claro.',
   },
   {
     id: 'in-process',
@@ -44,14 +44,14 @@ const journeyOptions: JourneyOption[] = [
     label: 'Quero mais aulas práticas',
     detail: 'Preciso ganhar confiança, treinar ou me preparar melhor.',
     next: 'Definir seu treino',
-    recommendation: 'A Central atende alunos em formação e também quem precisa reforçar habilidades específicas ao volante.',
+    recommendation: 'A Centro atende alunos em formação e também quem precisa reforçar habilidades específicas ao volante.',
   },
   {
     id: 'addition',
     label: 'Quero adicionar categoria',
     detail: 'Já sou habilitado e quero ampliar minha CNH.',
     next: 'Escolher a categoria desejada',
-    recommendation: 'A Central trabalha com adição de categorias A, B e D conforme a situação do condutor.',
+    recommendation: 'A Centro trabalha com adição de categorias A, B e D conforme a situação do condutor.',
   },
   {
     id: 'licensed',
@@ -103,7 +103,7 @@ export default function App() {
             <span />
           </span>
           <span className="brand-copy">
-            <strong>CENTRAL</strong>
+            <strong>CENTRO</strong>
             <small>Auto Escola · São José dos Campos</small>
           </span>
         </a>
@@ -121,14 +121,14 @@ export default function App() {
 
       <section className="hero shell-width" id="top">
         <div className="hero-copy">
-          <p className="eyebrow">AUTO ESCOLA CENTRAL · SÃO JOSÉ DOS CAMPOS</p>
+          <p className="eyebrow">AUTO ESCOLA CENTRO · SÃO JOSÉ DOS CAMPOS</p>
           <h1>
             Sua CNH,
             <br />
             <em>com caminho claro.</em>
           </h1>
           <p className="hero-lead">
-            {business.yearsLabel}, a Auto Escola Central ajuda pessoas de São José dos Campos a conquistar a primeira habilitação, adicionar categoria e voltar a dirigir com confiança.
+            {business.yearsLabel}, a Auto Escola Centro ajuda pessoas de São José dos Campos a conquistar a primeira habilitação, adicionar categoria e voltar a dirigir com confiança.
           </p>
           <div className="hero-actions">
             <a className="primary-action" href="#caminho">
@@ -140,11 +140,11 @@ export default function App() {
           </div>
         </div>
 
-        <aside className="hero-system" aria-label="Resumo da jornada na Auto Escola Central">
+        <aside className="hero-system" aria-label="Resumo da jornada na Auto Escola Centro">
           <div className="system-head">
             <span className="status-dot" />
             <span>Seu caminho até dirigir</span>
-            <small>Central / SJC</small>
+            <small>Centro / SJC</small>
           </div>
           <div className="route-stack" aria-label="Etapas da jornada">
             {stages.map((stage, index) => (
@@ -158,7 +158,7 @@ export default function App() {
             ))}
           </div>
           <div className="system-note">
-            <span>Central</span>
+            <span>Centro</span>
             <p>Formação e treinamento prático com experiência no trânsito real da cidade.</p>
           </div>
         </aside>
@@ -171,7 +171,7 @@ export default function App() {
             <h2>O que você precisa agora?</h2>
           </div>
           <p>
-            Em vez de jogar uma lista de serviços em você, a Central começa pela sua situação e aponta a próxima ação.
+            Em vez de jogar uma lista de serviços em você, a Centro começa pela sua situação e aponta a próxima ação.
           </p>
         </div>
 
@@ -214,7 +214,7 @@ export default function App() {
               </span>
             </div>
             <a className="primary-action primary-action--full" href={contactHref} target="_blank" rel="noreferrer">
-              Conversar com a Central <span aria-hidden="true">→</span>
+              Conversar com a Centro <span aria-hidden="true">→</span>
             </a>
           </aside>
         </div>
@@ -227,7 +227,7 @@ export default function App() {
             <h2>Da primeira CNH à confiança de dirigir sozinho.</h2>
           </div>
           <p>
-            A oferta real da Central organizada pelo objetivo do aluno — sem repetir dezenas de palavras-chave para explicar a mesma coisa.
+            A oferta real da Centro organizada pelo objetivo do aluno — sem repetir dezenas de palavras-chave para explicar a mesma coisa.
           </p>
         </div>
 
@@ -256,7 +256,7 @@ export default function App() {
             <p className="eyebrow">03 · ATENDIMENTO</p>
             <h2>Fale direto com quem pode organizar seu próximo passo.</h2>
             <p>
-              Valores, documentação, disponibilidade e detalhes da sua categoria são confirmados no atendimento da Central.
+              Valores, documentação, disponibilidade e detalhes da sua categoria são confirmados no atendimento da Centro.
             </p>
           </div>
           <div className="capacity-slots" aria-label="Canais de atendimento">
@@ -293,7 +293,7 @@ export default function App() {
           <p className="eyebrow">04 · SÃO JOSÉ DOS CAMPOS</p>
           <h2>Aprenda no trânsito que você vai dirigir de verdade.</h2>
           <p>
-            A Central prepara seus alunos com prática no trânsito do dia a dia, trabalhando leitura de fluxo, conversões, estacionamento e tomada de decisão em ambiente urbano real.
+            A Centro prepara seus alunos com prática no trânsito do dia a dia, trabalhando leitura de fluxo, conversões, estacionamento e tomada de decisão em ambiente urbano real.
           </p>
           <div className="city-points">
             <span>Primeira CNH</span>
@@ -310,7 +310,7 @@ export default function App() {
           <div className="route-line route-line--two" />
           <span className="map-node map-node--start"><i />Centro</span>
           <span className="map-node map-node--mid"><i />Treino</span>
-          <span className="map-node map-node--end"><i />Central</span>
+          <span className="map-node map-node--end"><i />Centro</span>
           <div className="map-caption">
             <span>ENDEREÇO</span>
             <strong>Avenida São José, 1.009</strong>
@@ -320,7 +320,7 @@ export default function App() {
 
       <section className="contact-section shell-width" id="contato">
         <div>
-          <p className="eyebrow">AUTO ESCOLA CENTRAL</p>
+          <p className="eyebrow">AUTO ESCOLA CENTRO</p>
           <h2>Primeira CNH, nova categoria ou confiança para voltar a dirigir.</h2>
           <p>{businessAddress}</p>
         </div>
