@@ -27,6 +27,9 @@ jobs:
       - name: Ingest official Detran-SP data
         run: npm run data:ingest -- --strict
 
+      - name: Validate persisted map snapshot
+        run: npm run map:data:validate
+
       - name: Build
         run: npm run build:app
 
