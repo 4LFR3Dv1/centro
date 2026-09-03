@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "city": "São José dos Campos",
+  "authority": "Detran-SP · Infosiga · Dados Abertos SP",
+  "dataset": "eventos-de-sinistro",
+  "datasetPage": "https://dadosabertos.sp.gov.br/dataset/eventos-de-sinistro",
+  "license": "Creative Commons Attribution 4.0",
+  "latestPeriod": "2026-07",
+  "range": {
+    "from": "2025-08",
+    "to": "2026-07",
+    "months": 12
+  },
+  "metrics": {
+    "total": 2869,
+    "geocoded": 1667,
+    "geocodedRate": 58.1,
+    "fatal": 68,
+    "topTypes": [],
+    "topTurns": [
+      {
+        "label": "TARDE",
+        "value": 907
+      },
+      {
+        "label": "NOITE",
+        "value": 826
+      },
+      {
+        "label": "MANHA",
+        "value": 821
+      },
+      {
+        "label": "MADRUGADA",
+        "value": 313
+      },
+      {
+        "label": "NAO DISPONIVEL",
+        "value": 2
+      }
+    ],
+    "topRoadTypes": [
+      {
+        "label": "VIAS URBANAS",
+        "value": 2405
+      },
+      {
+        "label": "ESTRADAS E RODOVIAS",
+        "value": 460
+      },
+      {
+        "label": "NAO DISPONIVEL",
+        "value": 4
+      }
+    ]
+  },
+  "periods": [
+    {
+      "period": "2025-08",
+      "total": 217,
+      "geocoded": 106,
+      "fatal": 14
+    },
+    {
+      "period": "2025-09",
+      "total": 270,
+      "geocoded": 150,
+      "fatal": 4
+    },
+    {
+      "period": "2025-10",
+      "total": 268,
+      "geocoded": 148,
+      "fatal": 4
+    },
+    {
+      "period": "2025-11",
+      "total": 267,
+      "geocoded": 136,
+      "fatal": 5
+    },
+    {
+      "period": "2025-12",
+      "total": 253,
+      "geocoded": 136,
+      "fatal": 4
+    },
+    {
+      "period": "2026-01",
+      "total": 232,
+      "geocoded": 116,
+      "fatal": 5
+    },
+    {
+      "period": "2026-02",
+      "total": 187,
+      "geocoded": 143,
+      "fatal": 4
+    },
+    {
+      "period": "2026-03",
+      "total": 251,
+      "geocoded": 203,
+      "fatal": 6
+    },
+    {
+      "period": "2026-04",
+      "total": 197,
+      "geocoded": 76,
+      "fatal": 3
+    },
+    {
+      "period": "2026-05",
+      "total": 264,
+      "geocoded": 132,
+      "fatal": 7
+    },
+    {
+      "period": "2026-06",
+      "total": 232,
+      "geocoded": 127,
+      "fatal": 10
+    },
+    {
+      "period": "2026-07",
+      "total": 231,
+      "geocoded": 194,
+      "fatal": 2
+    }
+  ],
+  "schema": {
+    "municipalityField": "municipio",
+    "municipalitySelector": "São José dos Campos",
+    "latitude": "latitude",
+    "longitude": "longitude",
+    "type": null,
+    "date": "data_sinistro",
+    "turn": "turno",
+    "roadType": "tipo_via",
+    "street": "logradouro",
+    "fatal": "qtd_gravidade_fatal"
+  },
+  "snapshotFingerprint": "d0ae12455e7a9aa0347d84826a0f54636e3eee246ef7279c2d4d2bd13ad19f30",
+  "mapArtifact": "/data/maps/sjc-sinistros.geojson",
+  "mapManifest": "/data/maps/sjc-sinistros-manifest.json"
+}
