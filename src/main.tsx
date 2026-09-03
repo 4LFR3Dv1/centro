@@ -5,7 +5,7 @@ import App from './App';
 import './styles.css';
 import './r3a.css';
 import './platform.css';
-import './home-map-v2';
+import './home-map';
 import './home-map-overlays.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
