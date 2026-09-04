@@ -7,9 +7,11 @@ import {
   revokeStudentSession,
   type StudentSession,
 } from '../student/auth.js';
+import { getStudentCalendar, getStudentLesson, type StudentLessonView } from '../student/calendar.js';
 
 const SESSION_COOKIE = 'centro_student_session';
 const MAX_BODY_BYTES = 32 * 1024;
+const UUID_PATH = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}';
 
 class HttpError extends Error {
   constructor(public status: number, message: string) {
@@ -91,6 +93,26 @@ async function requireStudent(pool: pg.Pool, req: IncomingMessage): Promise<{ to
   return { token, session };
 }
 
+function requireStudentPortal(session: StudentSession): void {
+  if (session.mustChangePassword) {
+    throw new HttpError(403, 'Troque a senha inicial antes de acessar sua agenda.');
+  }
+}
+
+function lessonPayload(lesson: StudentLessonView) {
+  return {
+    id: lesson.id,
+    enrollmentId: lesson.enrollmentId,
+    category: lesson.category,
+    startsAt: lesson.startsAt.toISOString(),
+    endsAt: lesson.endsAt.toISOString(),
+    status: lesson.status,
+    instructorName: lesson.instructorName,
+    vehicleLabel: lesson.vehicleLabel,
+    notes: lesson.notes,
+  };
+}
+
 function sessionPayload(session: StudentSession) {
   return {
     student: {
@@ -143,6 +165,29 @@ export function createStudentApiHandler(pool: pg.Pool, options: StudentApiOption
         const { session } = await requireStudent(pool, req);
         sendJson(res, 200, sessionPayload(session));
         return true;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/student/calendar') {
+        const { session } = await requireStudent(pool, req);
+        requireStudentPortal(session);
+        const calendar = await getStudentCalendar(pool, session.studentId);
+        sendJson(res, 200, {
+          upcoming: calendar.upcoming.map(lessonPayload),
+          past: calendar.past.map(lessonPayload),
+        });
+        return true;
+      }
+
+      if (req.method === 'GET') {
+        const lessonMatch = url.pathname.match(new RegExp(`^/api/student/lessons/(${UUID_PATH})$`));
+        if (lessonMatch) {
+          const { session } = await requireStudent(pool, req);
+          requireStudentPortal(session);
+          const lesson = await getStudentLesson(pool, session.studentId, lessonMatch[1]);
+          if (!lesson) throw new HttpError(404, 'Aula não encontrada.');
+          sendJson(res, 200, { lesson: lessonPayload(lesson) });
+          return true;
+        }
       }
 
       if (req.method === 'POST' && url.pathname === '/api/student/auth/change-initial-password') {
