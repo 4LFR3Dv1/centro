@@ -5,6 +5,7 @@ import { extname, resolve, sep } from 'node:path';
 import { createAdminApiHandler } from './http/admin-api.js';
 import { createProcessApiHandler } from './http/process-api.js';
 import { createStudentApiHandler } from './http/student-api.js';
+import { createStudentGuideApiHandler } from './http/student-guide-api.js';
 import { createDatabasePool } from './db/pool.js';
 import { runMigrations } from './db/migrate.js';
 import { bootstrapFirstAdmin } from './staff/auth.js';
@@ -118,6 +119,9 @@ export async function startCentroRuntime(): Promise<void> {
   const indexPath = resolve(distDir, 'index.html');
   if (!await fileExists(indexPath)) throw new Error(`Frontend build not found at ${indexPath}.`);
 
+  const guideApi = createStudentGuideApiHandler(pool, {
+    publicOrigin: publicOrigin || undefined,
+  });
   const processApi = createProcessApiHandler(pool, {
     publicOrigin: publicOrigin || undefined,
   });
@@ -145,9 +149,10 @@ export async function startCentroRuntime(): Promise<void> {
         return;
       }
 
-      // PROCESS-001 owns routes nested under /api/admin/process and /api/student/process.
-      // It must run before the broad admin/student handlers, which otherwise terminate
-      // unknown namespace routes with their own 404 response.
+      // DOCS-001 and PROCESS-001 own sub-namespaces nested below the broad
+      // admin/student APIs. They must run first or the generic handlers would
+      // terminate unknown paths with their own 404 response.
+      if (await guideApi(req, res)) return;
       if (await processApi(req, res)) return;
       if (await adminApi(req, res)) return;
       if (await studentApi(req, res)) return;
