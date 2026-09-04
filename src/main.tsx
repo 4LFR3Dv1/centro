@@ -12,6 +12,7 @@ import './platform.css';
 import './guides-standard-scale.css';
 import './admin-students.css';
 import './student-guide-workspace.css';
+import './student-nav.css';
 import './home-continuity';
 import './home-map';
 import './home-map-overlays.css';
