@@ -66,6 +66,68 @@ export async function bootstrapFirstAdmin(
   }
 }
 
+export async function rotateStaffPassword(
+  pool: pg.Pool,
+  input: { username: string; password: string },
+): Promise<{ rotated: boolean; staffUserId: string | null }> {
+  const username = input.username.trim();
+  if (!username) throw new Error('username is required.');
+  if (input.password.length < 12) throw new Error('staff password must contain at least 12 characters.');
+
+  const passwordHash = await hashPassword(input.password);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`centro-staff-password-rotate:${username.toLowerCase()}`]);
+    const existing = await client.query<{ id: string }>(
+      `SELECT u.id
+       FROM staff_users u
+       JOIN staff_credentials c ON c.staff_user_id = u.id
+       WHERE lower(u.username) = lower($1)
+       LIMIT 1
+       FOR UPDATE OF u, c`,
+      [username],
+    );
+
+    const staffUserId = existing.rows[0]?.id ?? null;
+    if (!staffUserId) {
+      await client.query('ROLLBACK');
+      return { rotated: false, staffUserId: null };
+    }
+
+    await client.query(
+      `UPDATE staff_credentials
+       SET password_hash = $2,
+           password_version = password_version + 1,
+           failed_attempts = 0,
+           locked_until = NULL,
+           updated_at = now()
+       WHERE staff_user_id = $1`,
+      [staffUserId, passwordHash],
+    );
+    await client.query(
+      `UPDATE sessions
+       SET revoked_at = now()
+       WHERE subject_type = 'STAFF'
+         AND staff_user_id = $1
+         AND revoked_at IS NULL`,
+      [staffUserId],
+    );
+    await client.query(
+      `INSERT INTO audit_events(id, actor_type, action, entity_type, entity_id, metadata)
+       VALUES ($1, 'SYSTEM', 'STAFF_CREDENTIAL_ROTATED', 'StaffCredential', $2, $3::jsonb)`,
+      [randomUUID(), staffUserId, JSON.stringify({ username, source: 'operator_recovery' })],
+    );
+    await client.query('COMMIT');
+    return { rotated: true, staffUserId };
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch { /* noop */ }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function recordFailedAttempt(pool: pg.Pool, staffUserId: string, previousAttempts: number): Promise<void> {
   const nextAttempts = previousAttempts + 1;
   const shouldLock = nextAttempts >= MAX_FAILED_ATTEMPTS;
