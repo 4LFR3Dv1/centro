@@ -68,7 +68,7 @@ jobs:
           npm run build:server
 
       - name: Build deployment image
-        run: docker build -t centro:admin-002 .
+        run: docker build -t centro:student-001 .
 
       - name: Smoke production runtime
         run: |
@@ -77,7 +77,7 @@ jobs:
             -e PORT=18080 \
             -e DATABASE_URL="$DATABASE_URL" \
             -e CENTRO_PUBLIC_ORIGIN=http://127.0.0.1:18080 \
-            centro:admin-002
+            centro:student-001
           trap 'docker rm -f centro-runtime-smoke >/dev/null 2>&1 || true' EXIT
           for attempt in $(seq 1 20); do
             if curl -fsS http://127.0.0.1:18080/healthz >/dev/null; then break; fi
@@ -88,4 +88,6 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:18080/admin >/dev/null
+          curl -fsS http://127.0.0.1:18080/aluno >/dev/null
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/auth/session)" = "401"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/student/auth/session)" = "401"
