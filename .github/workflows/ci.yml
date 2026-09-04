@@ -68,7 +68,7 @@ jobs:
           npm run build:server
 
       - name: Build deployment image
-        run: docker build -t centro:admin-004 .
+        run: docker build -t centro:staff-security .
 
       - name: Smoke production runtime
         run: |
@@ -77,7 +77,7 @@ jobs:
             -e PORT=18080 \
             -e DATABASE_URL="$DATABASE_URL" \
             -e CENTRO_PUBLIC_ORIGIN=http://127.0.0.1:18080 \
-            centro:admin-004
+            centro:staff-security
           trap 'docker rm -f centro-runtime-smoke >/dev/null 2>&1 || true' EXIT
           for attempt in $(seq 1 20); do
             if curl -fsS http://127.0.0.1:18080/healthz >/dev/null; then break; fi
@@ -91,12 +91,14 @@ jobs:
           curl -fsS http://127.0.0.1:18080/admin/hoje >/dev/null
           curl -fsS http://127.0.0.1:18080/admin/alunos >/dev/null
           curl -fsS http://127.0.0.1:18080/admin/agenda >/dev/null
+          curl -fsS http://127.0.0.1:18080/admin/seguranca >/dev/null
           curl -fsS http://127.0.0.1:18080/aluno >/dev/null
           curl -fsS http://127.0.0.1:18080/aluno/agenda >/dev/null
           curl -fsS http://127.0.0.1:18080/aluno/processo >/dev/null
           curl -fsS http://127.0.0.1:18080/aluno/guia >/dev/null
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/auth/session)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/today)" = "401"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/security)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/students)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/schedule/options)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/process/enrollments/00000000-0000-4000-8000-000000000000)" = "401"
