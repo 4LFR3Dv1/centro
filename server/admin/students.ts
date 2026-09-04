@@ -203,6 +203,7 @@ export async function getAdminStudentWorkspace(
        WHERE a.actor_student_id = $1
           OR a.entity_id = $1
           OR a.entity_id IN (SELECT id FROM enrollments WHERE student_id = $1)
+          OR a.entity_id IN (SELECT id FROM student_access_qrs WHERE student_id = $1)
        ORDER BY a.occurred_at DESC
        LIMIT 40`,
       [studentId],
