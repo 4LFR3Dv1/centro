@@ -68,7 +68,7 @@ jobs:
           npm run build:server
 
       - name: Build deployment image
-        run: docker build -t centro:staff-security .
+        run: docker build -t centro:exams-001 .
 
       - name: Smoke production runtime
         run: |
@@ -77,7 +77,7 @@ jobs:
             -e PORT=18080 \
             -e DATABASE_URL="$DATABASE_URL" \
             -e CENTRO_PUBLIC_ORIGIN=http://127.0.0.1:18080 \
-            centro:staff-security
+            centro:exams-001
           trap 'docker rm -f centro-runtime-smoke >/dev/null 2>&1 || true' EXIT
           for attempt in $(seq 1 20); do
             if curl -fsS http://127.0.0.1:18080/healthz >/dev/null; then break; fi
@@ -91,6 +91,7 @@ jobs:
           curl -fsS http://127.0.0.1:18080/admin/hoje >/dev/null
           curl -fsS http://127.0.0.1:18080/admin/alunos >/dev/null
           curl -fsS http://127.0.0.1:18080/admin/agenda >/dev/null
+          curl -fsS http://127.0.0.1:18080/admin/exames >/dev/null
           curl -fsS http://127.0.0.1:18080/admin/seguranca >/dev/null
           curl -fsS http://127.0.0.1:18080/aluno >/dev/null
           curl -fsS http://127.0.0.1:18080/aluno/agenda >/dev/null
@@ -101,6 +102,7 @@ jobs:
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/security)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/students)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/schedule/options)" = "401"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/exams)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/process/enrollments/00000000-0000-4000-8000-000000000000)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' 'http://127.0.0.1:18080/api/admin/guides?studentId=00000000-0000-4000-8000-000000000000')" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/student/auth/session)" = "401"
