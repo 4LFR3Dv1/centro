@@ -11,6 +11,19 @@ const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 const SESSION_HOURS = 12;
 
+function logCredentialDiagnostic(usernameInput: string, password: string): void {
+  const expectedUsername = process.env.CENTRO_ADMIN_RECOVERY_USERNAME ?? '';
+  const expectedPassword = process.env.CENTRO_ADMIN_RECOVERY_PASSWORD ?? '';
+  if (!expectedUsername && !expectedPassword) return;
+
+  console.info('[centro-admin-login-diagnostic]', JSON.stringify({
+    usernameMatches: usernameInput.trim().toLowerCase() === expectedUsername.trim().toLowerCase(),
+    passwordMatches: password === expectedPassword,
+    usernameLength: usernameInput.length,
+    passwordLength: password.length,
+  }));
+}
+
 export type StaffSession = {
   sessionId: string;
   staffUserId: string;
@@ -84,6 +97,7 @@ export async function authenticateStaff(
   usernameInput: string,
   password: string,
 ): Promise<{ token: string; session: StaffSession } | null> {
+  logCredentialDiagnostic(usernameInput, password);
   const username = usernameInput.trim();
   if (!username || !password) return null;
 
