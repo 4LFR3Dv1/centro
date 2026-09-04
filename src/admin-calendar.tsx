@@ -196,6 +196,20 @@ async function fetchLessonsInRange(from: string, to: string): Promise<Lesson[]> 
   return [...byId.values()].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
+function calendarEventContent(info: EventDisplayInfo) {
+  const kind = String(info.event.extendedProps.kind || 'LESSON');
+  const subtitle = String(info.event.extendedProps.subtitle || '');
+  return (
+    <span className={`ops-calendar-card ops-calendar-card--${kind === 'EXAM' ? 'exam' : 'lesson'}`}>
+      {info.timeText && <span className="ops-calendar-card__time">{info.timeText}</span>}
+      <span className="ops-calendar-card__body">
+        <strong>{info.event.title}</strong>
+        {subtitle && <small>{subtitle}</small>}
+      </span>
+    </span>
+  );
+}
+
 function LessonEditor({ editor, options, busy, error, onChange, onCancel, onSubmit }: {
   editor: EditorState;
   options: Options;
@@ -307,42 +321,61 @@ function ResourceSetup({ options, onChanged }: { options: Options; onChanged: ()
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
   async function run(operation: () => Promise<unknown>, success: string) {
     setBusy(true); setError(''); setMessage('');
     try { await operation(); setMessage(success); await onChanged(); }
     catch (candidate) { setError(candidate instanceof Error ? candidate.message : 'Não foi possível salvar o recurso.'); }
     finally { setBusy(false); }
   }
+
   function submitInstructor(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const form = new FormData(event.currentTarget);
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
     const categories = ['A', 'B', 'D'].filter((category) => form.get(`category-${category}`) === 'on');
     void run(() => scheduleApi('/api/admin/schedule/instructors', { method: 'POST', body: JSON.stringify({ displayName: String(form.get('displayName') || ''), categories }) }), 'Instrutor cadastrado.');
     event.currentTarget.reset();
   }
+
   function submitVehicle(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const form = new FormData(event.currentTarget);
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
     void run(() => scheduleApi('/api/admin/schedule/vehicles', { method: 'POST', body: JSON.stringify({ plate: String(form.get('plate') || ''), label: String(form.get('label') || ''), category: String(form.get('category') || 'B') }) }), 'Veículo cadastrado.');
     event.currentTarget.reset();
   }
-  function submitPolicy(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const form = new FormData(event.currentTarget);
-    void run(() => scheduleApi('/api/admin/schedule/policy', { method: 'POST', body: JSON.stringify({ name: String(form.get('name') || 'Política da escola'), timezone: 'America/Sao_Paulo', slotMinutes: Number(form.get('slotMinutes')), lessonMinMinutes: Number(form.get('lessonMinMinutes')), lessonMaxMinutes: Number(form.get('lessonMaxMinutes')) }) }), 'Política de agenda ativada.');
-  }
-  return <section className="calendar-resources">
-    <button className="calendar-resources-toggle" type="button" onClick={() => setOpen((value) => !value)}><span>Recursos da agenda</span><small>{options.instructors.filter((item) => item.active).length} instrutor(es) · {options.vehicles.filter((item) => item.active).length} veículo(s)</small><strong>{open ? '−' : '+'}</strong></button>
-    {open && <div className="calendar-resources-body">
-      <div className="calendar-resource-column"><div className="calendar-resource-title"><strong>Instrutores</strong><span>Quem pode operar cada categoria.</span></div><div className="calendar-resource-list">{options.instructors.map((item) => <div key={item.id}><strong>{item.displayName}</strong><small>{item.categories.join(' · ') || 'Sem categoria'}</small></div>)}</div><form className="calendar-resource-form" onSubmit={submitInstructor}><input name="displayName" placeholder="Nome do instrutor" required /><div className="calendar-checks">{(['A', 'B', 'D'] as PhysicalCategory[]).map((category) => <label key={category}><input type="checkbox" name={`category-${category}`} /> {category}</label>)}</div><button className="admin-secondary" type="submit" disabled={busy}>Adicionar instrutor</button></form></div>
-      <div className="calendar-resource-column"><div className="calendar-resource-title"><strong>Veículos</strong><span>Categoria física é única por veículo.</span></div><div className="calendar-resource-list">{options.vehicles.map((item) => <div key={item.id}><strong>{item.label}</strong><small>{item.plate} · {item.category}</small></div>)}</div><form className="calendar-resource-form" onSubmit={submitVehicle}><input name="label" placeholder="Ex.: Onix 01" required /><input name="plate" placeholder="Placa" required /><select name="category" defaultValue="B"><option value="A">A</option><option value="B">B</option><option value="D">D</option></select><button className="admin-secondary" type="submit" disabled={busy}>Adicionar veículo</button></form></div>
-      <div className="calendar-resource-column"><div className="calendar-resource-title"><strong>Política</strong><span>{options.policy.persisted ? options.policy.name : 'Usando política padrão não persistida'}</span></div><form className="calendar-resource-form" onSubmit={submitPolicy}><input name="name" defaultValue={options.policy.persisted ? options.policy.name : 'Política da escola'} required /><label>Slot (min)<input name="slotMinutes" type="number" min="5" max="120" defaultValue={options.policy.slotMinutes} required /></label><label>Mínimo (min)<input name="lessonMinMinutes" type="number" min="10" max="240" defaultValue={options.policy.lessonMinMinutes} required /></label><label>Máximo (min)<input name="lessonMaxMinutes" type="number" min="10" max="480" defaultValue={options.policy.lessonMaxMinutes} required /></label><button className="admin-secondary" type="submit" disabled={busy}>Ativar nova política</button></form></div>
-    </div>}
-    {message && <p className="calendar-resource-message">{message}</p>}{error && <p className="admin-error" role="alert">{error}</p>}
-  </section>;
-}
 
-function calendarEventContent(info: EventDisplayInfo) {
-  const kind = String(info.event.extendedProps.kind || 'LESSON');
-  const subtitle = String(info.event.extendedProps.subtitle || '');
-  return <span className={`calendar-event-card calendar-event-card--${kind === 'EXAM' ? 'exam' : 'lesson'}`}>{info.timeText && <span className="calendar-event-card__time">{info.timeText}</span>}<span className="calendar-event-card__body"><strong>{info.event.title}</strong>{subtitle && <small>{subtitle}</small>}</span></span>;
+  return (
+    <section className="calendar-resources">
+      <button className="calendar-resources-toggle" type="button" onClick={() => setOpen((value) => !value)}>
+        <span>Recursos da agenda</span>
+        <small>{options.instructors.filter((item) => item.active).length} instrutor(es) · {options.vehicles.filter((item) => item.active).length} veículo(s)</small>
+        <strong>{open ? '−' : '+'}</strong>
+      </button>
+      {open && <div className="calendar-resources-body">
+        <div className="calendar-resource-column">
+          <div className="calendar-resource-title"><strong>Instrutores</strong><span>Quem pode operar cada categoria.</span></div>
+          <div className="calendar-resource-list">{options.instructors.map((item) => <div key={item.id}><strong>{item.displayName}</strong><small>{item.categories.join(' · ') || 'Sem categoria'}</small></div>)}</div>
+          <form className="calendar-resource-form" onSubmit={submitInstructor}>
+            <input name="displayName" placeholder="Nome do instrutor" required />
+            <div className="calendar-checks">{(['A', 'B', 'D'] as PhysicalCategory[]).map((category) => <label key={category}><input type="checkbox" name={`category-${category}`} /> {category}</label>)}</div>
+            <button className="admin-secondary" type="submit" disabled={busy}>Adicionar instrutor</button>
+          </form>
+        </div>
+        <div className="calendar-resource-column">
+          <div className="calendar-resource-title"><strong>Veículos</strong><span>Categoria física é única por veículo.</span></div>
+          <div className="calendar-resource-list">{options.vehicles.map((item) => <div key={item.id}><strong>{item.label}</strong><small>{item.plate} · {item.category}</small></div>)}</div>
+          <form className="calendar-resource-form" onSubmit={submitVehicle}>
+            <input name="label" placeholder="Ex.: Onix 01" required />
+            <input name="plate" placeholder="Placa" required />
+            <select name="category" defaultValue="B"><option value="A">A</option><option value="B">B</option><option value="D">D</option></select>
+            <button className="admin-secondary" type="submit" disabled={busy}>Adicionar veículo</button>
+          </form>
+        </div>
+      </div>}
+      {message && <p className="calendar-resource-message">{message}</p>}
+      {error && <p className="admin-error" role="alert">{error}</p>}
+    </section>
+  );
 }
 
 export function AdminCalendar() {
@@ -366,100 +399,309 @@ export function AdminCalendar() {
   const focusedLesson = lessons.find((lesson) => lesson.id === focusedLessonId) ?? null;
 
   async function reloadOptions() { setOptions(await scheduleApi<Options>('/api/admin/schedule/options')); }
+
   async function loadVisibleRange(from: string, to: string) {
     setLoading(true); setError('');
     try {
-      const [nextLessons, examPayload] = await Promise.all([fetchLessonsInRange(from, to), scheduleApi<{ sessions: ExamSession[] }>(`/api/admin/exams?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)]);
-      setLessons(nextLessons); setExams(examPayload.sessions);
-    } catch (candidate) { setError(candidate instanceof Error ? candidate.message : 'Não foi possível carregar a agenda operacional.'); }
-    finally { setLoading(false); }
+      const [nextLessons, examPayload] = await Promise.all([
+        fetchLessonsInRange(from, to),
+        scheduleApi<{ sessions: ExamSession[] }>(`/api/admin/exams?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+      ]);
+      setLessons(nextLessons);
+      setExams(examPayload.sessions);
+    } catch (candidate) {
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível carregar a agenda operacional.');
+    } finally {
+      setLoading(false);
+    }
   }
+
   async function reloadData() { if (range) await loadVisibleRange(range.from, range.to); }
 
   useEffect(() => {
     let alive = true;
-    void scheduleApi<Options>('/api/admin/schedule/options').then((value) => { if (alive) setOptions(value); }).catch((candidate) => { if (alive) setError(candidate instanceof Error ? candidate.message : 'Não foi possível carregar recursos da agenda.'); }).finally(() => { if (alive) setLoading(false); });
+    void scheduleApi<Options>('/api/admin/schedule/options')
+      .then((value) => { if (alive) setOptions(value); })
+      .catch((candidate) => { if (alive) setError(candidate instanceof Error ? candidate.message : 'Não foi possível carregar recursos da agenda.'); })
+      .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, []);
-  useEffect(() => { if (range) void loadVisibleRange(range.from, range.to); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [range?.from, range?.to]);
 
-  const visibleLessons = useMemo(() => lessons.filter((lesson) => kindFilter !== 'EXAM' && (!instructorFilter || lesson.instructorId === instructorFilter) && (!vehicleFilter || lesson.vehicleId === vehicleFilter) && (!categoryFilter || lesson.category === categoryFilter)), [lessons, kindFilter, instructorFilter, vehicleFilter, categoryFilter]);
-  const visibleExams = useMemo(() => exams.filter((exam) => kindFilter !== 'LESSON' && (!instructorFilter || exam.instructorId === instructorFilter) && (!vehicleFilter || exam.vehicleId === vehicleFilter) && (!categoryFilter || exam.category === categoryFilter)), [exams, kindFilter, instructorFilter, vehicleFilter, categoryFilter]);
+  useEffect(() => {
+    if (range) void loadVisibleRange(range.from, range.to);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range?.from, range?.to]);
+
+  const visibleLessons = useMemo(() => lessons.filter((lesson) =>
+    kindFilter !== 'EXAM' &&
+    (!instructorFilter || lesson.instructorId === instructorFilter) &&
+    (!vehicleFilter || lesson.vehicleId === vehicleFilter) &&
+    (!categoryFilter || lesson.category === categoryFilter)),
+  [lessons, kindFilter, instructorFilter, vehicleFilter, categoryFilter]);
+
+  const visibleExams = useMemo(() => exams.filter((exam) =>
+    kindFilter !== 'LESSON' &&
+    (!instructorFilter || exam.instructorId === instructorFilter) &&
+    (!vehicleFilter || exam.vehicleId === vehicleFilter) &&
+    (!categoryFilter || exam.category === categoryFilter)),
+  [exams, kindFilter, instructorFilter, vehicleFilter, categoryFilter]);
+
   const events = useMemo(() => [
-    ...visibleLessons.map((lesson) => ({ id: `lesson:${lesson.id}`, title: lesson.studentName, start: lesson.startsAt, end: lesson.endsAt, startEditable: lesson.status === 'SCHEDULED', durationEditable: lesson.status === 'SCHEDULED', classNames: ['centro-calendar-event', 'centro-calendar-event--lesson', `is-${lesson.status.toLowerCase()}`], extendedProps: { kind: 'LESSON', lessonId: lesson.id, subtitle: `${lesson.studentPublicId} · ${lesson.instructorName} · ${lesson.vehicleLabel}` } })),
-    ...visibleExams.map((exam) => ({ id: `exam:${exam.id}`, title: `Exame ${exam.category} · ${exam.candidateCount} aluno${exam.candidateCount === 1 ? '' : 's'}`, start: exam.startsAt, end: exam.endsAt, startEditable: false, durationEditable: false, classNames: ['centro-calendar-event', 'centro-calendar-event--exam', `is-${exam.status.toLowerCase()}`], extendedProps: { kind: 'EXAM', examId: exam.id, subtitle: `${exam.locationLabel} · ${exam.instructorName} · ${exam.vehicleLabel}` } })),
+    ...visibleLessons.map((lesson) => ({
+      id: `lesson:${lesson.id}`,
+      title: lesson.studentName,
+      start: lesson.startsAt,
+      end: lesson.endsAt,
+      startEditable: lesson.status === 'SCHEDULED',
+      durationEditable: lesson.status === 'SCHEDULED',
+      classNames: ['centro-calendar-event', 'centro-calendar-event--lesson', `is-${lesson.status.toLowerCase()}`],
+      extendedProps: {
+        kind: 'LESSON',
+        lessonId: lesson.id,
+        subtitle: `${lesson.studentPublicId} · ${lesson.instructorName} · ${lesson.vehicleLabel}`,
+      },
+    })),
+    ...visibleExams.map((exam) => ({
+      id: `exam:${exam.id}`,
+      title: `Exame ${exam.category} · ${exam.candidateCount} aluno${exam.candidateCount === 1 ? '' : 's'}`,
+      start: exam.startsAt,
+      end: exam.endsAt,
+      startEditable: false,
+      durationEditable: false,
+      classNames: ['centro-calendar-event', 'centro-calendar-event--exam', `is-${exam.status.toLowerCase()}`],
+      extendedProps: {
+        kind: 'EXAM',
+        examId: exam.id,
+        subtitle: `${exam.locationLabel} · ${exam.instructorName} · ${exam.vehicleLabel}`,
+      },
+    })),
   ], [visibleLessons, visibleExams]);
 
-  function openCreate(anchor?: Date) { if (!options) return; setFocusedLessonId(null); setEditorError(''); const draft = emptyEditor(options, ymd(anchor ?? new Date())); if (anchor) draft.startsAtLocal = localInput(anchor); setEditor(draft); }
+  function openCreate(anchor?: Date) {
+    if (!options) return;
+    setFocusedLessonId(null);
+    setEditorError('');
+    const draft = emptyEditor(options, ymd(anchor ?? new Date()));
+    if (anchor) draft.startsAtLocal = localInput(anchor);
+    setEditor(draft);
+  }
+
   function openCreateFromSelection(selection: DateSelectInfo) {
-    if (!options) return; const draft = emptyEditor(options, ymd(selection.start));
-    if (selection.allDay) draft.startsAtLocal = `${selection.startStr.slice(0, 10)}T08:00`;
-    else { draft.startsAtLocal = localInput(selection.start); const selectedMinutes = Math.round((selection.end.getTime() - selection.start.getTime()) / 60000); const snapped = Math.round(selectedMinutes / options.policy.slotMinutes) * options.policy.slotMinutes; draft.durationMinutes = Math.max(options.policy.lessonMinMinutes, Math.min(options.policy.lessonMaxMinutes, snapped || options.policy.lessonMinMinutes)); }
-    setFocusedLessonId(null); setEditorError(''); setEditor(draft);
+    if (!options) return;
+    const draft = emptyEditor(options, ymd(selection.start));
+    if (selection.allDay) {
+      draft.startsAtLocal = `${selection.startStr.slice(0, 10)}T08:00`;
+    } else {
+      draft.startsAtLocal = localInput(selection.start);
+      const selectedMinutes = Math.round((selection.end.getTime() - selection.start.getTime()) / 60000);
+      const snapped = Math.round(selectedMinutes / options.policy.slotMinutes) * options.policy.slotMinutes;
+      draft.durationMinutes = Math.max(options.policy.lessonMinMinutes, Math.min(options.policy.lessonMaxMinutes, snapped || options.policy.lessonMinMinutes));
+    }
+    setFocusedLessonId(null);
+    setEditorError('');
+    setEditor(draft);
   }
-  function openReschedule(lesson: Lesson) { setFocusedLessonId(null); setEditorError(''); setEditor({ lessonId: lesson.id, enrollmentId: lesson.enrollmentId, category: lesson.category, instructorId: lesson.instructorId, vehicleId: lesson.vehicleId, startsAtLocal: localInput(new Date(lesson.startsAt)), durationMinutes: durationMinutes(lesson), notes: lesson.notes ?? '' }); }
+
+  function openReschedule(lesson: Lesson) {
+    setFocusedLessonId(null);
+    setEditorError('');
+    setEditor({
+      lessonId: lesson.id,
+      enrollmentId: lesson.enrollmentId,
+      category: lesson.category,
+      instructorId: lesson.instructorId,
+      vehicleId: lesson.vehicleId,
+      startsAtLocal: localInput(new Date(lesson.startsAt)),
+      durationMinutes: durationMinutes(lesson),
+      notes: lesson.notes ?? '',
+    });
+  }
+
   async function saveEditor() {
-    if (!editor || !options) return; const enrollment = options.enrollments.find((item) => item.id === editor.enrollmentId); if (!enrollment) { setEditorError('Selecione uma matrícula ativa.'); return; }
-    const startsAt = new Date(editor.startsAtLocal); const endsAt = new Date(startsAt.getTime() + editor.durationMinutes * 60000); setEditorBusy(true); setEditorError('');
+    if (!editor || !options) return;
+    const enrollment = options.enrollments.find((item) => item.id === editor.enrollmentId);
+    if (!enrollment) { setEditorError('Selecione uma matrícula ativa.'); return; }
+    const startsAt = new Date(editor.startsAtLocal);
+    const endsAt = new Date(startsAt.getTime() + editor.durationMinutes * 60000);
+    setEditorBusy(true); setEditorError('');
     try {
-      if (editor.lessonId) await scheduleApi<void>(`/api/admin/schedule/lessons/${editor.lessonId}/reschedule`, { method: 'POST', body: JSON.stringify({ instructorId: editor.instructorId, vehicleId: editor.vehicleId, category: editor.category, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), notes: editor.notes || null }) });
-      else await scheduleApi('/api/admin/schedule/lessons', { method: 'POST', body: JSON.stringify({ enrollmentId: enrollment.id, studentId: enrollment.studentId, instructorId: editor.instructorId, vehicleId: editor.vehicleId, category: editor.category, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), notes: editor.notes || null }) });
-      setEditor(null); await reloadData();
-    } catch (candidate) { setEditorError(candidate instanceof Error ? candidate.message : 'Não foi possível salvar a aula.'); }
-    finally { setEditorBusy(false); }
+      if (editor.lessonId) {
+        await scheduleApi<void>(`/api/admin/schedule/lessons/${editor.lessonId}/reschedule`, {
+          method: 'POST',
+          body: JSON.stringify({ instructorId: editor.instructorId, vehicleId: editor.vehicleId, category: editor.category, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), notes: editor.notes || null }),
+        });
+      } else {
+        await scheduleApi('/api/admin/schedule/lessons', {
+          method: 'POST',
+          body: JSON.stringify({ enrollmentId: enrollment.id, studentId: enrollment.studentId, instructorId: editor.instructorId, vehicleId: editor.vehicleId, category: editor.category, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), notes: editor.notes || null }),
+        });
+      }
+      setEditor(null);
+      await reloadData();
+    } catch (candidate) {
+      setEditorError(candidate instanceof Error ? candidate.message : 'Não foi possível salvar a aula.');
+    } finally {
+      setEditorBusy(false);
+    }
   }
+
   async function resolveLesson(lesson: Lesson, status: 'COMPLETED' | 'NO_SHOW' | 'CANCELLED') {
-    const label = status === 'COMPLETED' ? 'concluir' : status === 'NO_SHOW' ? 'marcar falta' : 'cancelar'; if (!window.confirm(`Confirmar: ${label} a aula de ${lesson.studentName}?`)) return;
+    const label = status === 'COMPLETED' ? 'concluir' : status === 'NO_SHOW' ? 'marcar falta' : 'cancelar';
+    if (!window.confirm(`Confirmar: ${label} a aula de ${lesson.studentName}?`)) return;
     setActionBusy(lesson.id); setError('');
-    try { await scheduleApi<void>(`/api/admin/schedule/lessons/${lesson.id}/resolve`, { method: 'POST', body: JSON.stringify({ status }) }); setFocusedLessonId(null); await reloadData(); }
-    catch (candidate) { setError(candidate instanceof Error ? candidate.message : 'Não foi possível resolver a aula.'); }
-    finally { setActionBusy(''); }
+    try {
+      await scheduleApi<void>(`/api/admin/schedule/lessons/${lesson.id}/resolve`, { method: 'POST', body: JSON.stringify({ status }) });
+      setFocusedLessonId(null);
+      await reloadData();
+    } catch (candidate) {
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível resolver a aula.');
+    } finally {
+      setActionBusy('');
+    }
   }
+
   async function moveLessonFromCalendar(lessonId: string, startsAt: Date | null, endsAt: Date | null, revert: () => void) {
-    const lesson = lessons.find((item) => item.id === lessonId); if (!lesson || lesson.status !== 'SCHEDULED' || !startsAt) { revert(); return; }
-    const end = endsAt ?? new Date(startsAt.getTime() + durationMinutes(lesson) * 60000); setError('');
-    try { await scheduleApi<void>(`/api/admin/schedule/lessons/${lesson.id}/reschedule`, { method: 'POST', body: JSON.stringify({ instructorId: lesson.instructorId, vehicleId: lesson.vehicleId, category: lesson.category, startsAt: startsAt.toISOString(), endsAt: end.toISOString(), notes: lesson.notes }) }); await reloadData(); }
-    catch (candidate) { revert(); setError(candidate instanceof Error ? candidate.message : 'O kernel rejeitou a nova posição da aula.'); }
+    const lesson = lessons.find((item) => item.id === lessonId);
+    if (!lesson || lesson.status !== 'SCHEDULED' || !startsAt) { revert(); return; }
+    const end = endsAt ?? new Date(startsAt.getTime() + durationMinutes(lesson) * 60000);
+    setError('');
+    try {
+      await scheduleApi<void>(`/api/admin/schedule/lessons/${lesson.id}/reschedule`, {
+        method: 'POST',
+        body: JSON.stringify({ instructorId: lesson.instructorId, vehicleId: lesson.vehicleId, category: lesson.category, startsAt: startsAt.toISOString(), endsAt: end.toISOString(), notes: lesson.notes }),
+      });
+      await reloadData();
+    } catch (candidate) {
+      revert();
+      setError(candidate instanceof Error ? candidate.message : 'O kernel rejeitou a nova posição da aula.');
+    }
   }
-  function syncRange(info: DatesSetInfo) { const next = { from: info.start.toISOString(), to: info.end.toISOString(), title: info.view.title }; setRange((current) => current?.from === next.from && current.to === next.to ? current : next); }
-  function handleEventClick(info: EventClickInfo) { if (String(info.event.extendedProps.kind || 'LESSON') === 'EXAM') { navigate('/admin/exames'); return; } const lessonId = String(info.event.extendedProps.lessonId || ''); if (lessonId) setFocusedLessonId(lessonId); }
+
+  function syncRange(info: DatesSetInfo) {
+    const next = { from: info.start.toISOString(), to: info.end.toISOString(), title: info.view.title };
+    setRange((current) => current?.from === next.from && current.to === next.to ? current : next);
+  }
+
+  function handleEventClick(info: EventClickInfo) {
+    if (String(info.event.extendedProps.kind || 'LESSON') === 'EXAM') {
+      navigate('/admin/exames');
+      return;
+    }
+    const lessonId = String(info.event.extendedProps.lessonId || '');
+    if (lessonId) setFocusedLessonId(lessonId);
+  }
 
   if (!options) return <section className="admin-work-card"><p className="admin-empty">{error || 'Abrindo agenda…'}</p></section>;
+
   const canSchedule = options.enrollments.length > 0 && options.instructors.some((item) => item.active) && options.vehicles.some((item) => item.active);
 
-  return <section className="admin-calendar" aria-labelledby="calendar-title">
-    <div className="calendar-hero"><div><p className="admin-eyebrow">AGENDA OPERACIONAL</p><h1 id="calendar-title">Calendário</h1><p>Aulas e listas de exame compartilham a mesma superfície. Mover uma aula solicita uma remarcação ao kernel; conflitos continuam sendo rejeitados antes da gravação.</p></div><button className="admin-primary" type="button" onClick={() => openCreate()} disabled={!canSchedule}>Nova aula</button></div>
-    <div className="calendar-context-bar"><div className="calendar-filters">
-      <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value as CalendarKindFilter)} aria-label="Filtrar tipo de evento"><option value="ALL">Aulas + exames</option><option value="LESSON">Somente aulas</option><option value="EXAM">Somente exames</option></select>
-      <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as '' | PhysicalCategory)} aria-label="Filtrar categoria"><option value="">Todas as categorias</option><option value="A">Categoria A</option><option value="B">Categoria B</option><option value="D">Categoria D</option></select>
-      <select value={instructorFilter} onChange={(event) => setInstructorFilter(event.target.value)} aria-label="Filtrar por instrutor"><option value="">Todos os instrutores</option>{options.instructors.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}</select>
-      <select value={vehicleFilter} onChange={(event) => setVehicleFilter(event.target.value)} aria-label="Filtrar por veículo"><option value="">Todos os veículos</option>{options.vehicles.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
-    </div><div className="calendar-legend" aria-label="Legenda da agenda"><span><i className="calendar-legend-dot calendar-legend-dot--lesson" /> Aula</span><span><i className="calendar-legend-dot calendar-legend-dot--exam" /> Exame</span><small>{options.policy.timezone} · slots de {options.policy.slotMinutes} min</small></div></div>
-    {error && <p className="admin-error" role="alert">{error}</p>}
-    {!canSchedule && <div className="calendar-empty-callout"><strong>A agenda ainda precisa de recursos.</strong><span>Cadastre ao menos um instrutor e um veículo. Uma matrícula ativa também é necessária para criar aulas.</span></div>}
-    <div className="calendar-surface">{loading && <div className="calendar-loading">Atualizando agenda…</div>}<FullCalendar
-      plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
-      locale={ptBrLocale}
-      initialView={initialView}
-      headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' }}
-      height="auto"
-      timeZone={options.policy.timezone}
-      nowIndicator
-      selectable={canSchedule}
-      selectMirror
-      editable
-      events={events}
-      datesSet={syncRange}
-      select={openCreateFromSelection}
-      eventClick={handleEventClick}
-      eventContent={calendarEventContent}
-      eventDidMount={(info) => { const subtitle = String(info.event.extendedProps.subtitle || ''); info.el.setAttribute('title', subtitle ? `${info.event.title} — ${subtitle}` : info.event.title); }}
-      eventDrop={(info) => void moveLessonFromCalendar(String(info.event.extendedProps.lessonId || ''), info.event.start, info.event.end, info.revert)}
-      eventResize={(info) => void moveLessonFromCalendar(String(info.event.extendedProps.lessonId || ''), info.event.start, info.event.end, info.revert)}
-    /></div>
-    <div className="calendar-footnote"><span>{range?.title || 'Agenda'}</span><span>{visibleLessons.length} aula(s) · {visibleExams.length} lista(s) de exame</span></div>
-    <ResourceSetup options={options} onChanged={async () => { await reloadOptions(); }} />
-    {focusedLesson && <LessonInspector lesson={focusedLesson} busy={actionBusy === focusedLesson.id} onClose={() => setFocusedLessonId(null)} onReschedule={() => openReschedule(focusedLesson)} onResolve={(status) => void resolveLesson(focusedLesson, status)} />}
-    {editor && <LessonEditor editor={editor} options={options} busy={editorBusy} error={editorError} onChange={setEditor} onCancel={() => setEditor(null)} onSubmit={() => void saveEditor()} />}
-  </section>;
+  return (
+    <section className="admin-calendar" aria-labelledby="calendar-title">
+      <div className="calendar-hero">
+        <div>
+          <p className="admin-eyebrow">AGENDA OPERACIONAL</p>
+          <h1 id="calendar-title">Calendário</h1>
+          <p>Aulas e listas de exame compartilham a mesma superfície. O calendário apresenta o estado; o kernel continua decidindo se uma mudança pode existir.</p>
+        </div>
+        <button className="admin-primary" type="button" onClick={() => openCreate()} disabled={!canSchedule}>Nova aula</button>
+      </div>
+
+      <div className="calendar-context-bar">
+        <div className="calendar-filters">
+          <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value as CalendarKindFilter)} aria-label="Filtrar tipo de evento"><option value="ALL">Aulas + exames</option><option value="LESSON">Somente aulas</option><option value="EXAM">Somente exames</option></select>
+          <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as '' | PhysicalCategory)} aria-label="Filtrar categoria"><option value="">Todas as categorias</option><option value="A">Categoria A</option><option value="B">Categoria B</option><option value="D">Categoria D</option></select>
+          <select value={instructorFilter} onChange={(event) => setInstructorFilter(event.target.value)} aria-label="Filtrar por instrutor"><option value="">Todos os instrutores</option>{options.instructors.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}</select>
+          <select value={vehicleFilter} onChange={(event) => setVehicleFilter(event.target.value)} aria-label="Filtrar por veículo"><option value="">Todos os veículos</option>{options.vehicles.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
+        </div>
+        <div className="calendar-legend" aria-label="Legenda da agenda"><span><i className="calendar-legend-dot calendar-legend-dot--lesson" /> Aula</span><span><i className="calendar-legend-dot calendar-legend-dot--exam" /> Exame</span><small>{options.policy.timezone} · slots de {options.policy.slotMinutes} min</small></div>
+      </div>
+
+      {error && <p className="admin-error" role="alert">{error}</p>}
+      {!canSchedule && <div className="calendar-empty-callout"><strong>A agenda ainda precisa de recursos.</strong><span>Cadastre ao menos um instrutor e um veículo. Uma matrícula ativa também é necessária para criar aulas.</span></div>}
+
+      <div className="calendar-surface">
+        {loading && <div className="calendar-loading">Atualizando agenda…</div>}
+        <FullCalendar
+          plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
+          locale={ptBrLocale}
+          initialView={initialView}
+          views={{
+            dayGridMonth: {
+              className: 'ops-calendar-view--month',
+              eventContent: calendarEventContent,
+            },
+          }}
+          headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' }}
+          height="auto"
+          timeZone={options.policy.timezone}
+          nowIndicator
+          selectable={canSchedule}
+          selectMirror
+          editable
+          events={events}
+          datesSet={syncRange}
+          select={openCreateFromSelection}
+          eventClick={handleEventClick}
+          eventContent={calendarEventContent}
+          eventDidMount={(info) => {
+            const subtitle = String(info.event.extendedProps.subtitle || '');
+            info.el.setAttribute('title', subtitle ? `${info.event.title} — ${subtitle}` : info.event.title);
+          }}
+          eventDrop={(info) => void moveLessonFromCalendar(String(info.event.extendedProps.lessonId || ''), info.event.start, info.event.end, info.revert)}
+          eventResize={(info) => void moveLessonFromCalendar(String(info.event.extendedProps.lessonId || ''), info.event.start, info.event.end, info.revert)}
+          toolbarClass="ops-calendar-toolbar"
+          headerToolbarClass="ops-calendar-toolbar--header"
+          toolbarSectionClass="ops-calendar-toolbar__section"
+          toolbarTitleClass="ops-calendar-toolbar__title"
+          buttonGroupClass="ops-calendar-button-group"
+          buttonClass={(info) => `ops-calendar-button${info.isSelected ? ' ops-calendar-button--selected' : ''}${info.isDisabled ? ' ops-calendar-button--disabled' : ''}`}
+          viewClass="ops-calendar-view"
+          tableClass="ops-calendar-table"
+          tableHeaderClass="ops-calendar-table__header"
+          tableBodyClass="ops-calendar-table__body"
+          dayHeaderRowClass="ops-calendar-day-header-row"
+          dayHeaderClass="ops-calendar-day-header"
+          dayHeaderDividerClass="ops-calendar-divider"
+          dayRowClass="ops-calendar-day-row"
+          dayCellClass={(info) => `ops-calendar-day-cell${info.isToday ? ' ops-calendar-day-cell--today' : ''}${info.isOther ? ' ops-calendar-day-cell--other' : ''}`}
+          dayCellTopClass="ops-calendar-day-cell__top"
+          dayCellTopInnerClass="ops-calendar-day-cell__number"
+          dayCellInnerClass="ops-calendar-day-cell__inner"
+          dayCellBottomClass="ops-calendar-day-cell__bottom"
+          dayLaneClass={(info) => `ops-calendar-day-lane${info.isToday ? ' ops-calendar-day-lane--today' : ''}`}
+          slotLaneClass={(info) => `ops-calendar-slot-lane${info.isMajor ? ' ops-calendar-slot-lane--major' : ''}`}
+          slotHeaderClass="ops-calendar-slot-header"
+          slotHeaderDividerClass="ops-calendar-divider"
+          allDayHeaderClass="ops-calendar-all-day-header"
+          rowEventClass="ops-calendar-event ops-calendar-event--row"
+          rowEventInnerClass="ops-calendar-event__inner"
+          rowEventTimeClass="ops-calendar-event__time"
+          rowEventTitleClass="ops-calendar-event__title"
+          columnEventClass="ops-calendar-event ops-calendar-event--column"
+          columnEventInnerClass="ops-calendar-event__inner"
+          columnEventTimeClass="ops-calendar-event__time"
+          columnEventTitleClass="ops-calendar-event__title"
+          listItemEventClass="ops-calendar-list-event"
+          listItemEventInnerClass="ops-calendar-list-event__inner"
+          listItemEventTimeClass="ops-calendar-list-event__time"
+          listItemEventTitleClass="ops-calendar-list-event__title"
+          listDayClass="ops-calendar-list-day"
+          listDayHeaderClass="ops-calendar-list-day__header"
+          listDayHeaderInnerClass="ops-calendar-list-day__header-inner"
+          noEventsClass="ops-calendar-no-events"
+          noEventsInnerClass="ops-calendar-no-events__inner"
+          noEventsContent="Nenhum evento neste período."
+          highlightClass="ops-calendar-highlight"
+          nowIndicatorHeaderClass="ops-calendar-now-indicator__header"
+          nowIndicatorLineClass="ops-calendar-now-indicator__line"
+          nowIndicatorDotClass="ops-calendar-now-indicator__dot"
+        />
+      </div>
+
+      <div className="calendar-footnote"><span>{range?.title || 'Agenda'}</span><span>{visibleLessons.length} aula(s) · {visibleExams.length} lista(s) de exame</span></div>
+      <ResourceSetup options={options} onChanged={async () => { await reloadOptions(); }} />
+      {focusedLesson && <LessonInspector lesson={focusedLesson} busy={actionBusy === focusedLesson.id} onClose={() => setFocusedLessonId(null)} onReschedule={() => openReschedule(focusedLesson)} onResolve={(status) => void resolveLesson(focusedLesson, status)} />}
+      {editor && <LessonEditor editor={editor} options={options} busy={editorBusy} error={editorError} onChange={setEditor} onCancel={() => setEditor(null)} onSubmit={() => void saveEditor()} />}
+    </section>
+  );
 }
