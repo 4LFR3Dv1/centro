@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { AdminStudentDetail, AdminStudents } from './admin-students';
 import './admin.css';
 
 type Staff = {
@@ -108,7 +109,7 @@ function Login({ onAuthenticated }: { onAuthenticated: (session: SessionPayload)
   );
 }
 
-function Receipt({ receipt, onNew }: { receipt: EnrollmentReceipt; onNew: () => void }) {
+function Receipt({ receipt, onNew, onStudent }: { receipt: EnrollmentReceipt; onNew: () => void; onStudent: () => void }) {
   const service = serviceLabels[receipt.enrollment.serviceType];
   const category = categoryLabels[receipt.enrollment.category];
 
@@ -150,6 +151,7 @@ function Receipt({ receipt, onNew }: { receipt: EnrollmentReceipt; onNew: () => 
 
       <div className="admin-receipt-actions">
         {receipt.credential.created && <button className="admin-secondary" type="button" onClick={() => window.print()}>Imprimir acesso</button>}
+        <button className="admin-secondary" type="button" onClick={onStudent}>Abrir aluno</button>
         <button className="admin-primary" type="button" onClick={onNew}>Nova matrícula</button>
       </div>
     </section>
@@ -315,6 +317,10 @@ export default function AdminApp() {
     navigate('/admin/matriculas/nova');
   }
 
+  const studentDetail = location.pathname.match(/^\/admin\/alunos\/([0-9a-f-]{36})$/i);
+  const studentsActive = location.pathname.startsWith('/admin/alunos');
+  const enrollmentsActive = location.pathname.startsWith('/admin/matriculas');
+
   if (checking) return <main className="admin-loading">Abrindo operação da escola…</main>;
   if (!session) return <Login onAuthenticated={(value) => { setSession(value); navigate('/admin', { replace: true }); }} />;
 
@@ -334,20 +340,32 @@ export default function AdminApp() {
       <main className="admin-main">
         <aside className="admin-rail" aria-label="Administração">
           <p>OPERAÇÃO</p>
-          <button type="button" className="is-active" onClick={startNewEnrollment}>Matrículas</button>
+          <button type="button" className={studentsActive ? 'is-active' : ''} onClick={() => navigate('/admin/alunos')}>Alunos</button>
+          <button type="button" className={enrollmentsActive ? 'is-active' : ''} onClick={startNewEnrollment}>Matrículas</button>
         </aside>
 
         <div className="admin-workspace">
           {location.pathname === RECEIPT_PATH && receipt ? (
-            <Receipt receipt={receipt} onNew={startNewEnrollment} />
+            <Receipt
+              receipt={receipt}
+              onNew={startNewEnrollment}
+              onStudent={() => navigate(`/admin/alunos/${receipt.student.id}`)}
+            />
           ) : location.pathname === '/admin/matriculas/nova' ? (
             <EnrollmentForm onCreated={acceptReceipt} />
+          ) : location.pathname === '/admin/alunos' ? (
+            <AdminStudents />
+          ) : studentDetail ? (
+            <AdminStudentDetail studentId={studentDetail[1]} onNewEnrollment={startNewEnrollment} />
           ) : (
             <section className="admin-home">
               <p className="admin-eyebrow">AUTO ESCOLA CENTRO</p>
               <h1>Operação da escola.</h1>
-              <p>O primeiro fluxo operacional disponível é a matrícula. Alunos, aulas, agenda e materiais entram nos próximos checkpoints do programa.</p>
-              <button className="admin-primary" type="button" onClick={startNewEnrollment}>Nova matrícula</button>
+              <p>Identidades, matrículas e acessos agora compartilham o mesmo estado institucional. Agenda, milestones e materiais entram nos próximos cortes do programa.</p>
+              <div className="admin-home-actions">
+                <button className="admin-primary" type="button" onClick={() => navigate('/admin/alunos')}>Abrir alunos</button>
+                <button className="admin-secondary" type="button" onClick={startNewEnrollment}>Nova matrícula</button>
+              </div>
             </section>
           )}
         </div>
