@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { AccessQr, studentAccessUrl } from './access-qr';
 import { AdminCalendar } from './admin-calendar';
 import { AdminExams } from './admin-exams';
 import { AdminSecurity } from './admin-security';
@@ -30,6 +31,10 @@ type EnrollmentReceipt = {
     initialPassword: string | null;
     mustChangePassword: boolean;
   };
+};
+
+type AccessQrPayload = {
+  qr: { id: string; publicToken: string; createdAt: string };
 };
 
 const RECEIPT_PATH = '/admin/matriculas/receipt';
@@ -116,6 +121,16 @@ function Login({ onAuthenticated }: { onAuthenticated: (session: SessionPayload)
 function Receipt({ receipt, onNew, onStudent }: { receipt: EnrollmentReceipt; onNew: () => void; onStudent: () => void }) {
   const service = serviceLabels[receipt.enrollment.serviceType];
   const category = categoryLabels[receipt.enrollment.category];
+  const [accessQr, setAccessQr] = useState<AccessQrPayload['qr'] | null>(null);
+  const [qrError, setQrError] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    void api<AccessQrPayload>(`/api/admin/students/${receipt.student.id}/access-qr`)
+      .then((value) => { if (alive) setAccessQr(value.qr); })
+      .catch((candidate) => { if (alive) setQrError(candidate instanceof Error ? candidate.message : 'Não foi possível carregar o QR.'); });
+    return () => { alive = false; };
+  }, [receipt.student.id]);
 
   async function copy(value: string) {
     try { await navigator.clipboard.writeText(value); } catch { /* copy is optional */ }
@@ -126,6 +141,26 @@ function Receipt({ receipt, onNew, onStudent }: { receipt: EnrollmentReceipt; on
       <div className="admin-receipt-status">MATRÍCULA CRIADA</div>
       <h2 id="receipt-title">Acesso do aluno</h2>
       <p>{service} · {category}</p>
+
+      <div className="admin-receipt-progress" aria-label="Materialização do acesso">
+        <span>✓ Matrícula</span>
+        <span>✓ Identidade {receipt.student.publicId}</span>
+        <span>{accessQr ? '✓ QR persistente' : '… QR persistente'}</span>
+        <span>{receipt.credential.created ? '✓ Senha inicial emitida' : '✓ Credencial existente preservada'}</span>
+      </div>
+
+      <div className="admin-receipt-qr">
+        <div>
+          {accessQr ? <AccessQr publicToken={accessQr.publicToken} size={230} /> : <div className="admin-receipt-qr-placeholder">Gerando QR…</div>}
+        </div>
+        <div>
+          <span>ESCANEIE PARA ACESSAR</span>
+          <strong>{receipt.student.publicId}</strong>
+          <p>O QR abre o login com o ID do aluno preenchido. A senha continua obrigatória.</p>
+          {accessQr && <button type="button" onClick={() => void copy(studentAccessUrl(accessQr.publicToken))}>Copiar link de acesso</button>}
+          {qrError && <small>{qrError}</small>}
+        </div>
+      </div>
 
       <div className="admin-access-grid">
         <div>
@@ -150,11 +185,11 @@ function Receipt({ receipt, onNew, onStudent }: { receipt: EnrollmentReceipt; on
       </div>
 
       {receipt.credential.created && (
-        <p className="admin-receipt-warning">Entregue esta senha ao aluno agora. Ela não será armazenada em texto e desaparece ao sair desta tela, recarregar ou encerrar a sessão.</p>
+        <p className="admin-receipt-warning">Entregue esta senha ao aluno agora. Ela não será armazenada em texto e desaparece ao sair desta tela, recarregar ou encerrar a sessão. O QR permanecerá disponível no cadastro do aluno.</p>
       )}
 
       <div className="admin-receipt-actions">
-        {receipt.credential.created && <button className="admin-secondary" type="button" onClick={() => window.print()}>Imprimir acesso</button>}
+        <button className="admin-secondary" type="button" onClick={() => window.print()} disabled={!accessQr}>Imprimir acesso</button>
         <button className="admin-secondary" type="button" onClick={onStudent}>Abrir aluno</button>
         <button className="admin-primary" type="button" onClick={onNew}>Nova matrícula</button>
       </div>
@@ -231,14 +266,7 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
           <legend>Serviço</legend>
           <div className="admin-choice-grid" role="radiogroup" aria-label="Serviço da matrícula">
             {(Object.keys(serviceLabels) as ServiceType[]).map((value) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={serviceType === value}
-                className={serviceType === value ? 'is-selected' : ''}
-                onClick={() => setServiceType(value)}
-              >
+              <button key={value} type="button" role="radio" aria-checked={serviceType === value} className={serviceType === value ? 'is-selected' : ''} onClick={() => setServiceType(value)}>
                 {serviceLabels[value]}
               </button>
             ))}
@@ -249,14 +277,7 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
           <legend>Categoria</legend>
           <div className="admin-choice-grid admin-category-grid" role="radiogroup" aria-label="Categoria da matrícula">
             {categories.map((value) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={category === value}
-                className={category === value ? 'is-selected' : ''}
-                onClick={() => setCategory(value)}
-              >
+              <button key={value} type="button" role="radio" aria-checked={category === value} className={category === value ? 'is-selected' : ''} onClick={() => setCategory(value)}>
                 {categoryLabels[value]}
               </button>
             ))}
@@ -266,7 +287,7 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
         <label>Observação<textarea name="notes" rows={3} /></label>
         {error && <p className="admin-error" role="alert">{error}</p>}
         <div className="admin-submit-row">
-          <span>A criação é transacional: aluno, acesso, matrícula e auditoria entram juntos.</span>
+          <span>A criação é transacional: aluno, QR de acesso, credencial, matrícula e auditoria entram juntos.</span>
           <button className="admin-primary" type="submit" disabled={busy}>{busy ? 'Criando…' : 'Confirmar matrícula'}</button>
         </div>
       </form>
@@ -298,9 +319,7 @@ export default function AdminApp() {
 
   useEffect(() => {
     if (location.pathname !== RECEIPT_PATH && receipt) setReceipt(null);
-    if (!checking && session && location.pathname === RECEIPT_PATH && !receipt) {
-      navigate('/admin/matriculas/nova', { replace: true });
-    }
+    if (!checking && session && location.pathname === RECEIPT_PATH && !receipt) navigate('/admin/matriculas/nova', { replace: true });
   }, [checking, session, location.pathname, receipt, navigate]);
 
   async function logout() {
@@ -335,14 +354,8 @@ export default function AdminApp() {
   return (
     <div className="admin-shell">
       <header className="admin-topbar">
-        <div>
-          <a href="/" className="admin-wordmark">Centro</a>
-          <span>Auto Escola Centro · Administração</span>
-        </div>
-        <div className="admin-user">
-          <span>{session.staff.displayName}</span>
-          <button type="button" onClick={() => void logout()}>Sair</button>
-        </div>
+        <div><a href="/" className="admin-wordmark">Centro</a><span>Auto Escola Centro · Administração</span></div>
+        <div className="admin-user"><span>{session.staff.displayName}</span><button type="button" onClick={() => void logout()}>Sair</button></div>
       </header>
 
       <main className="admin-main">
@@ -359,11 +372,7 @@ export default function AdminApp() {
 
         <div className="admin-workspace">
           {location.pathname === RECEIPT_PATH && receipt ? (
-            <Receipt
-              receipt={receipt}
-              onNew={startNewEnrollment}
-              onStudent={() => navigate(`/admin/alunos/${receipt.student.id}`)}
-            />
+            <Receipt receipt={receipt} onNew={startNewEnrollment} onStudent={() => navigate(`/admin/alunos/${receipt.student.id}`)} />
           ) : location.pathname === '/admin/matriculas/nova' ? (
             <EnrollmentForm onCreated={acceptReceipt} />
           ) : location.pathname === '/admin/agenda' ? (

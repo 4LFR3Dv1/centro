@@ -8,6 +8,7 @@ import { createAdminTodayApiHandler } from './http/admin-today.js';
 import { createProcessApiHandler } from './http/process-api.js';
 import { createStaffSecurityApiHandler } from './http/staff-security-api.js';
 import { createStudentApiHandler } from './http/student-api.js';
+import { createStudentAccessApiHandler } from './http/student-access-api.js';
 import { createStudentExperienceApiHandler } from './http/student-experience-api.js';
 import { createStudentGuideApiHandler } from './http/student-guide-api.js';
 import { createDatabasePool } from './db/pool.js';
@@ -43,7 +44,7 @@ function sendText(res: ServerResponse, status: number, body: string, contentType
 function setBaseHeaders(res: ServerResponse): void {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), payment=()');
+  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), payment=()');
 }
 
 function isInsideDist(distDir: string, candidate: string): boolean {
@@ -104,6 +105,7 @@ export async function startCentroRuntime(): Promise<void> {
 
   const guideApi = createStudentGuideApiHandler(pool, { publicOrigin: publicOrigin || undefined });
   const processApi = createProcessApiHandler(pool, { publicOrigin: publicOrigin || undefined });
+  const studentAccessApi = createStudentAccessApiHandler(pool, { publicOrigin: publicOrigin || undefined });
   const studentExperienceApi = createStudentExperienceApiHandler(pool, { publicOrigin: publicOrigin || undefined });
   const examsApi = createAdminExamsApiHandler(pool, { publicOrigin: publicOrigin || undefined });
   const todayApi = createAdminTodayApiHandler(pool);
@@ -128,8 +130,10 @@ export async function startCentroRuntime(): Promise<void> {
         return;
       }
 
+      // Narrow feature-owned namespaces must run before broad /api/admin and /api/student handlers.
       if (await guideApi(req, res)) return;
       if (await processApi(req, res)) return;
+      if (await studentAccessApi(req, res)) return;
       if (await studentExperienceApi(req, res)) return;
       if (await examsApi(req, res)) return;
       if (await todayApi(req, res)) return;

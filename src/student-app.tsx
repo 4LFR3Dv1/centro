@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { StudentAccessEntry } from './student-access-entry';
 import { StudentCalendar, StudentLessonDetail } from './student-calendar';
 import { StudentExamDetail, StudentExams } from './student-exams';
 import { StudentGuides } from './student-guides';
@@ -116,6 +117,7 @@ export default function StudentApp() {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
   const [session, setSession] = useState<StudentSessionPayload | null>(null);
+  const accessToken = location.pathname.match(/^\/aluno\/acesso\/([A-Za-z0-9_-]{20,80})\/?$/)?.[1] ?? null;
 
   useEffect(() => {
     let alive = true;
@@ -128,23 +130,31 @@ export default function StudentApp() {
 
   useEffect(() => {
     if (checking) return;
-    if (!session && location.pathname !== '/aluno/login') { navigate('/aluno/login', { replace: true }); return; }
+    const publicEntry = location.pathname === '/aluno/login' || Boolean(accessToken);
+    if (!session && !publicEntry) { navigate('/aluno/login', { replace: true }); return; }
     if (!session) return;
     if (session.credential.mustChangePassword && location.pathname !== '/aluno/trocar-senha') { navigate('/aluno/trocar-senha', { replace: true }); return; }
-    if (!session.credential.mustChangePassword && (location.pathname === '/aluno/login' || location.pathname === '/aluno/trocar-senha')) navigate('/aluno', { replace: true });
-  }, [checking, session, location.pathname, navigate]);
+    if (!session.credential.mustChangePassword && (location.pathname === '/aluno/login' || location.pathname === '/aluno/trocar-senha' || Boolean(accessToken))) {
+      navigate('/aluno', { replace: true });
+    }
+  }, [checking, session, location.pathname, navigate, accessToken]);
 
   async function logout() {
     try { await api<void>('/api/student/auth/logout', { method: 'POST' }); }
     finally { setSession(null); navigate('/aluno/login', { replace: true }); }
   }
 
+  function acceptAuthentication(value: StudentSessionPayload) {
+    setSession(value);
+    navigate(value.credential.mustChangePassword ? '/aluno/trocar-senha' : '/aluno', { replace: true });
+  }
+
   if (checking) return <main className="student-loading">Abrindo sua área…</main>;
   if (!session) {
-    return <StudentLogin onAuthenticated={(value) => {
-      setSession(value);
-      navigate(value.credential.mustChangePassword ? '/aluno/trocar-senha' : '/aluno', { replace: true });
-    }} />;
+    if (accessToken) {
+      return <StudentAccessEntry publicToken={accessToken} onAuthenticated={acceptAuthentication} onManualLogin={() => navigate('/aluno/login', { replace: true })} />;
+    }
+    return <StudentLogin onAuthenticated={acceptAuthentication} />;
   }
 
   const lessonDetail = location.pathname.match(/^\/aluno\/agenda\/([0-9a-f-]{36})$/i);

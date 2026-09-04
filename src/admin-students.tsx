@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AccessQr, studentAccessUrl } from './access-qr';
 import { AdminProcessPanel } from './admin-process';
+import { AdminQrScanner } from './admin-qr-scanner';
 
 type StudentSummary = {
   id: string;
@@ -52,6 +54,10 @@ type StudentWorkspace = {
   recentAudit: AuditEvent[];
 };
 
+type AccessQrPayload = {
+  qr: { id: string; publicToken: string; createdAt: string };
+};
+
 const serviceLabels: Record<StudentEnrollment['serviceType'], string> = {
   FIRST_LICENSE: 'Primeira habilitação',
   CATEGORY_ADDITION: 'Adição de categoria',
@@ -70,27 +76,35 @@ const enrollmentStatusLabels: Record<StudentEnrollment['status'], string> = {
 const auditLabels: Record<string, string> = {
   STUDENT_CREATED: 'Aluno criado',
   STUDENT_CREDENTIAL_CREATED: 'Acesso criado',
+  STUDENT_ACCESS_QR_CREATED: 'QR de acesso criado',
+  STUDENT_ACCESS_QR_ROTATED: 'QR de acesso substituído',
   ENROLLMENT_CREATED: 'Matrícula criada',
   STUDENT_LOGIN: 'Aluno entrou no portal',
   STUDENT_LOGOUT: 'Aluno saiu do portal',
   STUDENT_INITIAL_PASSWORD_CHANGED: 'Senha inicial alterada',
+  STUDENT_PASSWORD_CHANGED: 'Senha alterada pelo aluno',
+  STUDENT_OTHER_SESSIONS_REVOKED: 'Outras sessões encerradas',
   PROCESS_MILESTONE_SCHEDULED: 'Marco processual agendado',
   PROCESS_MILESTONE_ACHIEVED: 'Marco processual concluído',
   PROCESS_MILESTONE_REVOKED: 'Marco processual revertido',
 };
 
-async function adminApi<T>(path: string): Promise<T> {
-  const response = await fetch(path, { credentials: 'same-origin' });
+async function adminApi<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    credentials: 'same-origin',
+    ...init,
+    headers: {
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...init?.headers,
+    },
+  });
   const body = await response.json().catch(() => ({})) as T & { error?: string };
   if (!response.ok) throw new Error(body.error || 'Não foi possível carregar os dados.');
   return body;
 }
 
 function dateTime(value: string): string {
-  return new Intl.DateTimeFormat('pt-BR', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(new Date(value));
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
 }
 
 function dateOnly(value: string): string {
@@ -120,6 +134,7 @@ export function AdminStudents() {
   const [students, setStudents] = useState<StudentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -145,18 +160,21 @@ export function AdminStudents() {
           <p className="admin-eyebrow">ALUNOS</p>
           <h2 id="students-title">Workspace de alunos</h2>
         </div>
-        <p>Busque por nome, ID Centro, documento, telefone ou e-mail. A senha do aluno nunca aparece nesta superfície.</p>
+        <p>Busque por nome, ID Centro, documento, telefone ou e-mail. O QR é uma busca interna rápida e nunca substitui a autenticação.</p>
       </div>
 
-      <form className="admin-student-search" onSubmit={submit}>
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Nome, CEN-26-00001, documento, telefone…"
-          aria-label="Buscar aluno"
-        />
-        <button className="admin-primary" type="submit">Buscar</button>
-      </form>
+      <div className="admin-student-search-row">
+        <form className="admin-student-search" onSubmit={submit}>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Nome, CEN-26-00001, documento, telefone…"
+            aria-label="Buscar aluno"
+          />
+          <button className="admin-primary" type="submit">Buscar</button>
+        </form>
+        <button className="admin-secondary admin-scan-button" type="button" onClick={() => setScannerOpen(true)}>Ler QR</button>
+      </div>
 
       {error && <p className="admin-error" role="alert">{error}</p>}
       {loading ? (
@@ -172,31 +190,25 @@ export function AdminStudents() {
             <span>Aluno</span><span>Matrículas</span><span>Contato</span><span>Atualizado</span>
           </div>
           {students.map((student) => (
-            <button
-              key={student.id}
-              type="button"
-              className="admin-student-row"
-              onClick={() => navigate(`/admin/alunos/${student.id}`)}
-            >
-              <span className="admin-student-identity">
-                <strong>{student.fullName}</strong>
-                <small>{student.publicId} · {documentLabel(student.document)}</small>
-              </span>
-              <span>
-                <strong>{student.activeEnrollments}</strong>
-                <small>{student.totalEnrollments} no histórico</small>
-              </span>
-              <span>
-                <strong>{student.phone}</strong>
-                <small>{student.email || 'Sem e-mail'}</small>
-              </span>
-              <span>
-                <strong>{dateOnly(student.updatedAt)}</strong>
-                <small>{student.status === 'ACTIVE' ? 'Aluno ativo' : 'Arquivado'}</small>
-              </span>
+            <button key={student.id} type="button" className="admin-student-row" onClick={() => navigate(`/admin/alunos/${student.id}`)}>
+              <span className="admin-student-identity"><strong>{student.fullName}</strong><small>{student.publicId} · {documentLabel(student.document)}</small></span>
+              <span><strong>{student.activeEnrollments}</strong><small>{student.totalEnrollments} no histórico</small></span>
+              <span><strong>{student.phone}</strong><small>{student.email || 'Sem e-mail'}</small></span>
+              <span><strong>{dateOnly(student.updatedAt)}</strong><small>{student.status === 'ACTIVE' ? 'Aluno ativo' : 'Arquivado'}</small></span>
             </button>
           ))}
         </div>
+      )}
+
+      {scannerOpen && (
+        <AdminQrScanner
+          onClose={() => setScannerOpen(false)}
+          onResolved={(studentId, meta) => {
+            setScannerOpen(false);
+            if (!meta.active) window.alert(`QR antigo de ${meta.fullName}. Abrindo o cadastro atual.`);
+            navigate(`/admin/alunos/${studentId}`);
+          }}
+        />
       )}
     </section>
   );
@@ -205,19 +217,51 @@ export function AdminStudents() {
 export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: string; onNewEnrollment: () => void }) {
   const navigate = useNavigate();
   const [workspace, setWorkspace] = useState<StudentWorkspace | null>(null);
+  const [accessQr, setAccessQr] = useState<AccessQrPayload['qr'] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [rotating, setRotating] = useState(false);
+
+  async function loadWorkspace() {
+    const [workspaceValue, qrValue] = await Promise.all([
+      adminApi<StudentWorkspace>(`/api/admin/students/${studentId}`),
+      adminApi<AccessQrPayload>(`/api/admin/students/${studentId}/access-qr`),
+    ]);
+    setWorkspace(workspaceValue);
+    setAccessQr(qrValue.qr);
+  }
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
     setError('');
-    void adminApi<StudentWorkspace>(`/api/admin/students/${studentId}`)
-      .then((value) => { if (alive) setWorkspace(value); })
-      .catch((candidate) => { if (alive) setError(candidate instanceof Error ? candidate.message : 'Não foi possível abrir o aluno.'); })
-      .finally(() => { if (alive) setLoading(false); });
+    void Promise.all([
+      adminApi<StudentWorkspace>(`/api/admin/students/${studentId}`),
+      adminApi<AccessQrPayload>(`/api/admin/students/${studentId}/access-qr`),
+    ]).then(([workspaceValue, qrValue]) => {
+      if (!alive) return;
+      setWorkspace(workspaceValue);
+      setAccessQr(qrValue.qr);
+    }).catch((candidate) => {
+      if (alive) setError(candidate instanceof Error ? candidate.message : 'Não foi possível abrir o aluno.');
+    }).finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [studentId]);
+
+  async function rotateQr() {
+    if (!workspace || !window.confirm('Substituir o QR atual? Cartões antigos deixarão de abrir o login do aluno.')) return;
+    setRotating(true);
+    setError('');
+    try {
+      const next = await adminApi<AccessQrPayload>(`/api/admin/students/${studentId}/access-qr/rotate`, {
+        method: 'POST', body: JSON.stringify({}),
+      });
+      setAccessQr(next.qr);
+      await loadWorkspace();
+    } catch (candidate) {
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível substituir o QR.');
+    } finally { setRotating(false); }
+  }
 
   if (loading) return <section className="admin-work-card"><p className="admin-empty">Abrindo aluno…</p></section>;
   if (error || !workspace) {
@@ -256,9 +300,17 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
       </div>
 
       <div className="admin-student-columns">
-        <div className="admin-detail-card">
+        <div className="admin-detail-card admin-access-card">
           <div className="admin-card-title"><span>ACESSO</span><strong className={`admin-state admin-state-${access.tone}`}>{access.title}</strong></div>
           <p>{access.detail}</p>
+          <div className="admin-access-qr-layout">
+            {accessQr && <AccessQr publicToken={accessQr.publicToken} size={190} />}
+            <div>
+              <strong>{student.publicId}</strong>
+              {accessQr && <small>QR ativo desde {dateTime(accessQr.createdAt)}</small>}
+              <small>O QR localiza esta identidade. A senha continua obrigatória no portal.</small>
+            </div>
+          </div>
           {credential.exists && (
             <dl className="admin-detail-list">
               <div><dt>Troca inicial</dt><dd>{credential.mustChangePassword ? 'Pendente' : 'Concluída'}</dd></div>
@@ -266,6 +318,11 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
               <div><dt>Tentativas inválidas</dt><dd>{credential.failedAttempts}</dd></div>
             </dl>
           )}
+          <div className="admin-access-actions">
+            {accessQr && <button className="admin-secondary" type="button" onClick={() => void navigator.clipboard.writeText(studentAccessUrl(accessQr.publicToken))}>Copiar link</button>}
+            {accessQr && <button className="admin-secondary" type="button" onClick={() => window.print()}>Imprimir QR</button>}
+            <button className="admin-secondary" type="button" onClick={() => void rotateQr()} disabled={rotating}>{rotating ? 'Substituindo…' : 'Girar QR'}</button>
+          </div>
           <small>Senhas e hashes nunca são projetados para o admin.</small>
         </div>
 
@@ -276,13 +333,8 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
         <div className="admin-card-title"><span>MATRÍCULAS</span><strong>{enrollments.length} registro(s)</strong></div>
         {enrollments.length === 0 ? <p>Nenhuma matrícula registrada.</p> : enrollments.map((enrollment) => (
           <article key={enrollment.id} className="admin-enrollment-record">
-            <div>
-              <strong>{serviceLabels[enrollment.serviceType]} · {enrollment.category}</strong>
-              <small>Aberta em {dateTime(enrollment.openedAt)}</small>
-            </div>
-            <span className={`admin-state admin-state-${enrollment.status === 'ACTIVE' ? 'ok' : enrollment.status === 'PAUSED' ? 'pending' : 'neutral'}`}>
-              {enrollmentStatusLabels[enrollment.status]}
-            </span>
+            <div><strong>{serviceLabels[enrollment.serviceType]} · {enrollment.category}</strong><small>Aberta em {dateTime(enrollment.openedAt)}</small></div>
+            <span className={`admin-state admin-state-${enrollment.status === 'ACTIVE' ? 'ok' : enrollment.status === 'PAUSED' ? 'pending' : 'neutral'}`}>{enrollmentStatusLabels[enrollment.status]}</span>
             {enrollment.notes && <p>{enrollment.notes}</p>}
           </article>
         ))}

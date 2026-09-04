@@ -12,6 +12,7 @@ import {
   generateInitialPassword,
   hashPassword,
 } from '../ops/credentials.js';
+import { ensureStudentAccessQr } from '../student/access.js';
 
 export type EnrollmentMaterializationInput = {
   fullName: string;
@@ -31,6 +32,11 @@ export type EnrollmentReceipt = {
   enrollmentId: string;
   credentialCreated: boolean;
   initialPassword: string | null;
+  accessQr: {
+    id: string;
+    publicToken: string;
+    created: boolean;
+  };
   serviceType: ServiceType;
   category: EnrollmentCategory;
 };
@@ -98,9 +104,7 @@ export async function materializeEnrollment(
         [studentId, phone, input.email?.trim() || null],
       );
     } else {
-      const sequence = await client.query<{ value: string }>(
-        `SELECT nextval('student_public_id_seq')::text AS value`,
-      );
+      const sequence = await client.query<{ value: string }>(`SELECT nextval('student_public_id_seq')::text AS value`);
       const number = Number(sequence.rows[0]?.value);
       if (!Number.isSafeInteger(number)) throw new Error('Student public ID sequence returned an invalid value.');
 
@@ -112,15 +116,7 @@ export async function materializeEnrollment(
         `INSERT INTO students(
           id, public_id, full_name, phone, email, document_normalized, birth_date
          ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          studentId,
-          studentPublicId,
-          fullName,
-          phone,
-          input.email?.trim() || null,
-          documentNormalized,
-          input.birthDate || null,
-        ],
+        [studentId, studentPublicId, fullName, phone, input.email?.trim() || null, documentNormalized, input.birthDate || null],
       );
     }
 
@@ -140,6 +136,8 @@ export async function materializeEnrollment(
       );
       credentialCreated = true;
     }
+
+    const accessQr = await ensureStudentAccessQr(client, studentId, input.actorStaffUserId);
 
     const enrollmentId = randomUUID();
     await client.query(
@@ -171,12 +169,7 @@ export async function materializeEnrollment(
       `INSERT INTO audit_events(
         id, actor_type, actor_staff_user_id, action, entity_type, entity_id, metadata
        ) VALUES ($1, 'STAFF', $2, 'ENROLLMENT_CREATED', 'Enrollment', $3, $4::jsonb)`,
-      [
-        randomUUID(),
-        input.actorStaffUserId,
-        enrollmentId,
-        JSON.stringify({ studentId, publicId: studentPublicId, serviceType, category }),
-      ],
+      [randomUUID(), input.actorStaffUserId, enrollmentId, JSON.stringify({ studentId, publicId: studentPublicId, serviceType, category })],
     );
 
     await client.query('COMMIT');
@@ -187,6 +180,11 @@ export async function materializeEnrollment(
       enrollmentId,
       credentialCreated,
       initialPassword,
+      accessQr: {
+        id: accessQr.qr.id,
+        publicToken: accessQr.qr.publicToken,
+        created: accessQr.created,
+      },
       serviceType,
       category,
     };
