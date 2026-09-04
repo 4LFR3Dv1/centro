@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { createAdminApiHandler } from './http/admin-api.js';
+import { createAdminExamsApiHandler } from './http/admin-exams.js';
 import { createAdminTodayApiHandler } from './http/admin-today.js';
 import { createProcessApiHandler } from './http/process-api.js';
 import { createStaffSecurityApiHandler } from './http/staff-security-api.js';
@@ -127,6 +128,9 @@ export async function startCentroRuntime(): Promise<void> {
   const processApi = createProcessApiHandler(pool, {
     publicOrigin: publicOrigin || undefined,
   });
+  const examsApi = createAdminExamsApiHandler(pool, {
+    publicOrigin: publicOrigin || undefined,
+  });
   const todayApi = createAdminTodayApiHandler(pool);
   const securityApi = createStaffSecurityApiHandler(pool, {
     publicOrigin: publicOrigin || undefined,
@@ -159,6 +163,7 @@ export async function startCentroRuntime(): Promise<void> {
       // must run first or generic handlers would terminate unknown paths with 404.
       if (await guideApi(req, res)) return;
       if (await processApi(req, res)) return;
+      if (await examsApi(req, res)) return;
       if (await todayApi(req, res)) return;
       if (await securityApi(req, res)) return;
       if (await adminApi(req, res)) return;
