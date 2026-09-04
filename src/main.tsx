@@ -15,7 +15,6 @@ import './student-guide-workspace.css';
 import './home-continuity';
 import './home-map';
 import './home-map-overlays.css';
-import './admin-calendar-lisa.css';
 
 function RootSurface() {
   const location = useLocation();
