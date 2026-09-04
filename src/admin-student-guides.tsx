@@ -11,7 +11,7 @@ type EnrollmentOption = {
   serviceType: 'FIRST_LICENSE' | 'CATEGORY_ADDITION' | 'CATEGORY_CHANGE' | 'LICENSED_TRAINING';
   category: 'A' | 'B' | 'AB' | 'D';
   status: 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
-  openedAt: string;
+  openedAt?: string;
 };
 
 type PreviewPayload = {
