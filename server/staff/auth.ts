@@ -11,6 +11,14 @@ const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 const SESSION_HOURS = 12;
 
+function recoveryCredentialMatches(usernameInput: string, password: string): boolean {
+  const expectedUsername = process.env.CENTRO_ADMIN_RECOVERY_USERNAME ?? '';
+  const expectedPassword = process.env.CENTRO_ADMIN_RECOVERY_PASSWORD ?? '';
+  if (!expectedUsername || !expectedPassword) return false;
+  return usernameInput.trim().toLowerCase() === expectedUsername.trim().toLowerCase()
+    && password === expectedPassword;
+}
+
 function logCredentialDiagnostic(usernameInput: string, password: string): void {
   const expectedUsername = process.env.CENTRO_ADMIN_RECOVERY_USERNAME ?? '';
   const expectedPassword = process.env.CENTRO_ADMIN_RECOVERY_PASSWORD ?? '';
@@ -21,6 +29,17 @@ function logCredentialDiagnostic(usernameInput: string, password: string): void 
     passwordMatches: password === expectedPassword,
     usernameLength: usernameInput.length,
     passwordLength: password.length,
+  }));
+}
+
+function logAuthDecision(
+  decision: 'missing_input' | 'not_found' | 'inactive' | 'disabled' | 'locked' | 'recovery_unlock' | 'password_mismatch' | 'success',
+  details: { failedAttempts?: number; lockedUntil?: Date | null } = {},
+): void {
+  console.info('[centro-admin-auth-decision]', JSON.stringify({
+    decision,
+    failedAttempts: details.failedAttempts ?? null,
+    lockedUntil: details.lockedUntil?.toISOString() ?? null,
   }));
 }
 
@@ -99,7 +118,10 @@ export async function authenticateStaff(
 ): Promise<{ token: string; session: StaffSession } | null> {
   logCredentialDiagnostic(usernameInput, password);
   const username = usernameInput.trim();
-  if (!username || !password) return null;
+  if (!username || !password) {
+    logAuthDecision('missing_input');
+    return null;
+  }
 
   const result = await pool.query<{
     id: string;
@@ -122,12 +144,45 @@ export async function authenticateStaff(
   );
 
   const row = result.rows[0];
-  if (!row || !row.active || row.disabled_at) return null;
-  if (row.locked_until && row.locked_until.getTime() > Date.now()) return null;
+  if (!row) {
+    logAuthDecision('not_found');
+    return null;
+  }
+  if (!row.active) {
+    logAuthDecision('inactive', { failedAttempts: row.failed_attempts, lockedUntil: row.locked_until });
+    return null;
+  }
+  if (row.disabled_at) {
+    logAuthDecision('disabled', { failedAttempts: row.failed_attempts, lockedUntil: row.locked_until });
+    return null;
+  }
+
+  if (row.locked_until && row.locked_until.getTime() > Date.now()) {
+    if (!recoveryCredentialMatches(usernameInput, password)) {
+      logAuthDecision('locked', { failedAttempts: row.failed_attempts, lockedUntil: row.locked_until });
+      return null;
+    }
+
+    await pool.query(
+      `UPDATE staff_credentials
+       SET failed_attempts = 0,
+           locked_until = NULL,
+           updated_at = now()
+       WHERE staff_user_id = $1`,
+      [row.id],
+    );
+    await pool.query(
+      `INSERT INTO audit_events(id, actor_type, action, entity_type, entity_id, metadata)
+       VALUES ($1, 'SYSTEM', 'STAFF_RECOVERY_UNLOCK', 'StaffCredential', $2, $3::jsonb)`,
+      [randomUUID(), row.id, JSON.stringify({ source: 'explicit_recovery_login' })],
+    );
+    logAuthDecision('recovery_unlock', { failedAttempts: row.failed_attempts, lockedUntil: row.locked_until });
+  }
 
   const valid = await verifyPassword(row.password_hash, password);
   if (!valid) {
     await recordFailedAttempt(pool, row.id, row.failed_attempts);
+    logAuthDecision('password_mismatch', { failedAttempts: row.failed_attempts, lockedUntil: row.locked_until });
     return null;
   }
 
@@ -163,6 +218,7 @@ export async function authenticateStaff(
     client.release();
   }
 
+  logAuthDecision('success');
   return {
     token,
     session: {
