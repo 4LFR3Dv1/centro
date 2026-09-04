@@ -117,7 +117,7 @@ export default function StudentApp() {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
   const [session, setSession] = useState<StudentSessionPayload | null>(null);
-  const accessMatch = location.pathname.match(/^\/aluno\/acesso\/([A-Za-z0-9_-]{20,80})\/?$/);
+  const accessToken = location.pathname.match(/^\/aluno\/acesso\/([A-Za-z0-9_-]{20,80})\/?$/)?.[1] ?? null;
 
   useEffect(() => {
     let alive = true;
@@ -130,14 +130,14 @@ export default function StudentApp() {
 
   useEffect(() => {
     if (checking) return;
-    const publicEntry = location.pathname === '/aluno/login' || Boolean(accessMatch);
+    const publicEntry = location.pathname === '/aluno/login' || Boolean(accessToken);
     if (!session && !publicEntry) { navigate('/aluno/login', { replace: true }); return; }
     if (!session) return;
     if (session.credential.mustChangePassword && location.pathname !== '/aluno/trocar-senha') { navigate('/aluno/trocar-senha', { replace: true }); return; }
-    if (!session.credential.mustChangePassword && (location.pathname === '/aluno/login' || location.pathname === '/aluno/trocar-senha' || Boolean(accessMatch))) {
+    if (!session.credential.mustChangePassword && (location.pathname === '/aluno/login' || location.pathname === '/aluno/trocar-senha' || Boolean(accessToken))) {
       navigate('/aluno', { replace: true });
     }
-  }, [checking, session, location.pathname, navigate, accessMatch]);
+  }, [checking, session, location.pathname, navigate, accessToken]);
 
   async function logout() {
     try { await api<void>('/api/student/auth/logout', { method: 'POST' }); }
@@ -151,8 +151,8 @@ export default function StudentApp() {
 
   if (checking) return <main className="student-loading">Abrindo sua área…</main>;
   if (!session) {
-    if (accessMatch) {
-      return <StudentAccessEntry publicToken={accessMatch[1]} onAuthenticated={acceptAuthentication} onManualLogin={() => navigate('/aluno/login', { replace: true })} />;
+    if (accessToken) {
+      return <StudentAccessEntry publicToken={accessToken} onAuthenticated={acceptAuthentication} onManualLogin={() => navigate('/aluno/login', { replace: true })} />;
     }
     return <StudentLogin onAuthenticated={acceptAuthentication} />;
   }
