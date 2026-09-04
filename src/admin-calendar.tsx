@@ -458,7 +458,6 @@ export function AdminCalendar() {
       slotDuration={durationString(options.policy.slotMinutes)}
       snapDuration={durationString(options.policy.slotMinutes)}
       headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' }}
-      buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia', list: 'Lista' }}
       eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
       slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
       events={events}
