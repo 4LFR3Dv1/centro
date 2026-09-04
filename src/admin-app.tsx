@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AdminCalendar } from './admin-calendar';
+import { AdminExams } from './admin-exams';
 import { AdminSecurity } from './admin-security';
 import { AdminStudentDetail, AdminStudents } from './admin-students';
 import { AdminToday } from './admin-today';
@@ -325,6 +326,7 @@ export default function AdminApp() {
   const studentsActive = location.pathname.startsWith('/admin/alunos');
   const enrollmentsActive = location.pathname.startsWith('/admin/matriculas');
   const calendarActive = location.pathname.startsWith('/admin/agenda');
+  const examsActive = location.pathname.startsWith('/admin/exames');
   const securityActive = location.pathname.startsWith('/admin/seguranca');
 
   if (checking) return <main className="admin-loading">Abrindo operação da escola…</main>;
@@ -348,6 +350,7 @@ export default function AdminApp() {
           <p>OPERAÇÃO</p>
           <button type="button" className={todayActive ? 'is-active' : ''} onClick={() => navigate('/admin')}>Hoje</button>
           <button type="button" className={calendarActive ? 'is-active' : ''} onClick={() => navigate('/admin/agenda')}>Agenda</button>
+          <button type="button" className={examsActive ? 'is-active' : ''} onClick={() => navigate('/admin/exames')}>Exames</button>
           <button type="button" className={studentsActive ? 'is-active' : ''} onClick={() => navigate('/admin/alunos')}>Alunos</button>
           <button type="button" className={enrollmentsActive ? 'is-active' : ''} onClick={startNewEnrollment}>Matrículas</button>
           <p>CONTA</p>
@@ -365,6 +368,8 @@ export default function AdminApp() {
             <EnrollmentForm onCreated={acceptReceipt} />
           ) : location.pathname === '/admin/agenda' ? (
             <AdminCalendar />
+          ) : location.pathname === '/admin/exames' ? (
+            <AdminExams />
           ) : location.pathname === '/admin/alunos' ? (
             <AdminStudents />
           ) : location.pathname === '/admin/seguranca' ? (
