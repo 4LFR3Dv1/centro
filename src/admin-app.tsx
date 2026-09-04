@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { AdminCalendar } from './admin-calendar';
 import { AdminStudentDetail, AdminStudents } from './admin-students';
 import './admin.css';
 
@@ -320,6 +321,7 @@ export default function AdminApp() {
   const studentDetail = location.pathname.match(/^\/admin\/alunos\/([0-9a-f-]{36})$/i);
   const studentsActive = location.pathname.startsWith('/admin/alunos');
   const enrollmentsActive = location.pathname.startsWith('/admin/matriculas');
+  const calendarActive = location.pathname.startsWith('/admin/agenda');
 
   if (checking) return <main className="admin-loading">Abrindo operação da escola…</main>;
   if (!session) return <Login onAuthenticated={(value) => { setSession(value); navigate('/admin', { replace: true }); }} />;
@@ -340,6 +342,7 @@ export default function AdminApp() {
       <main className="admin-main">
         <aside className="admin-rail" aria-label="Administração">
           <p>OPERAÇÃO</p>
+          <button type="button" className={calendarActive ? 'is-active' : ''} onClick={() => navigate('/admin/agenda')}>Agenda</button>
           <button type="button" className={studentsActive ? 'is-active' : ''} onClick={() => navigate('/admin/alunos')}>Alunos</button>
           <button type="button" className={enrollmentsActive ? 'is-active' : ''} onClick={startNewEnrollment}>Matrículas</button>
         </aside>
@@ -353,6 +356,8 @@ export default function AdminApp() {
             />
           ) : location.pathname === '/admin/matriculas/nova' ? (
             <EnrollmentForm onCreated={acceptReceipt} />
+          ) : location.pathname === '/admin/agenda' ? (
+            <AdminCalendar />
           ) : location.pathname === '/admin/alunos' ? (
             <AdminStudents />
           ) : studentDetail ? (
@@ -361,9 +366,10 @@ export default function AdminApp() {
             <section className="admin-home">
               <p className="admin-eyebrow">AUTO ESCOLA CENTRO</p>
               <h1>Operação da escola.</h1>
-              <p>Identidades, matrículas e acessos agora compartilham o mesmo estado institucional. Agenda, milestones e materiais entram nos próximos cortes do programa.</p>
+              <p>Identidades, matrículas, acessos e agenda agora compartilham o mesmo estado institucional. O próximo corte materializa o calendário do aluno sobre estas mesmas aulas.</p>
               <div className="admin-home-actions">
-                <button className="admin-primary" type="button" onClick={() => navigate('/admin/alunos')}>Abrir alunos</button>
+                <button className="admin-primary" type="button" onClick={() => navigate('/admin/agenda')}>Abrir agenda</button>
+                <button className="admin-secondary" type="button" onClick={() => navigate('/admin/alunos')}>Abrir alunos</button>
                 <button className="admin-secondary" type="button" onClick={startNewEnrollment}>Nova matrícula</button>
               </div>
             </section>
