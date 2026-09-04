@@ -12,8 +12,7 @@
 .access-qr-loading {
   min-width: 180px;
   min-height: 180px;
-  background:
-    linear-gradient(90deg, #f0eee9 25%, #faf9f6 37%, #f0eee9 63%);
+  background: linear-gradient(90deg, #f0eee9 25%, #faf9f6 37%, #f0eee9 63%);
   background-size: 400% 100%;
   animation: access-qr-loading 1.2s ease infinite;
 }
@@ -28,7 +27,105 @@
   text-align: center;
 }
 
+.admin-receipt-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 22px 0;
+}
+
+.admin-receipt-progress span {
+  border: 1px solid var(--admin-line);
+  background: #f7f6f2;
+  color: var(--admin-muted);
+  padding: 7px 9px;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.admin-receipt-qr {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+  margin: 26px 0;
+  border: 1px solid var(--admin-line);
+  background: #fff;
+  padding: 22px;
+}
+
+.admin-receipt-qr > div:last-child {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-receipt-qr span {
+  color: var(--admin-muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.admin-receipt-qr strong {
+  font-size: clamp(24px, 4vw, 42px);
+  letter-spacing: -.035em;
+}
+
+.admin-receipt-qr p {
+  max-width: 440px;
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.admin-receipt-qr button {
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  color: var(--admin-blue);
+  padding: 5px 0;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-receipt-qr small {
+  color: #842d23;
+  font-size: 9px;
+}
+
+.admin-receipt-qr-placeholder {
+  display: grid;
+  place-items: center;
+  width: 230px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--admin-line);
+  background: #f3f2ed;
+  color: var(--admin-muted);
+  font-size: 10px;
+}
+
 @keyframes access-qr-loading {
   0% { background-position: 100% 0; }
   100% { background-position: 0 0; }
+}
+
+@media (max-width: 720px) {
+  .admin-receipt-qr {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .admin-receipt-qr button,
+  .admin-receipt-progress {
+    display: none !important;
+  }
+
+  .admin-receipt-qr {
+    break-inside: avoid;
+  }
 }
