@@ -5,6 +5,7 @@ import App from './App';
 import AdminApp from './admin-app';
 import StudentApp from './student-app';
 import GuidesApp from './guides-app';
+import '@fullcalendar/react/skeleton.css';
 import './styles.css';
 import './r3a.css';
 import './platform.css';
