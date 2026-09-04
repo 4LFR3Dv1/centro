@@ -1,7 +1,7 @@
 import { createDatabasePool } from '../db/pool.js';
 import { recoverStaffPassword } from './security.js';
 
-function env(...names: string[]): string {
+function firstNonBlank(...names: string[]): string {
   for (const name of names) {
     const value = process.env[name];
     if (value?.trim()) return value.trim();
@@ -9,9 +9,17 @@ function env(...names: string[]): string {
   return '';
 }
 
+function firstPresent(...names: string[]): string {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value !== undefined && value.length > 0) return value;
+  }
+  return '';
+}
+
 async function run(): Promise<void> {
-  const username = env('CENTRO_ADMIN_RECOVERY_USERNAME', 'CENTRO_BOOTSTRAP_ADMIN_USERNAME');
-  const newPassword = env('CENTRO_ADMIN_RECOVERY_PASSWORD', 'CENTRO_BOOTSTRAP_ADMIN_PASSWORD');
+  const username = firstNonBlank('CENTRO_ADMIN_RECOVERY_USERNAME', 'CENTRO_BOOTSTRAP_ADMIN_USERNAME');
+  const newPassword = firstPresent('CENTRO_ADMIN_RECOVERY_PASSWORD', 'CENTRO_BOOTSTRAP_ADMIN_PASSWORD');
   if (!username || !newPassword) {
     throw new Error(
       'CENTRO_ADMIN_RECOVERY_USERNAME/CENTRO_ADMIN_RECOVERY_PASSWORD or the bootstrap username/password variables are required.',
