@@ -155,10 +155,6 @@ function durationMinutes(lesson: Lesson): number {
   return Math.round((new Date(lesson.endsAt).getTime() - new Date(lesson.startsAt).getTime()) / 60000);
 }
 
-function durationString(minutes: number): string {
-  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:00`;
-}
-
 function nextSlot(policy: SchedulePolicy, anchor: string): string {
   const now = new Date();
   const target = ymd(now) === anchor ? new Date(now) : new Date(`${anchor}T08:00:00`);
@@ -445,21 +441,13 @@ export function AdminCalendar() {
       plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
       locale={ptBrLocale}
       initialView={initialView}
-      firstDay={1}
+      headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' }}
+      height="auto"
+      timeZone={options.policy.timezone}
       nowIndicator
       selectable={canSchedule}
       selectMirror
       editable
-      allDaySlot={false}
-      dayMaxEvents={4}
-      height="auto"
-      slotMinTime="06:00:00"
-      slotMaxTime="22:00:00"
-      slotDuration={durationString(options.policy.slotMinutes)}
-      snapDuration={durationString(options.policy.slotMinutes)}
-      headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' }}
-      eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
-      slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
       events={events}
       datesSet={syncRange}
       select={openCreateFromSelection}
