@@ -4,6 +4,7 @@ export const lessonCategories = ['A', 'B', 'D'] as const;
 export const lessonStatuses = ['SCHEDULED', 'COMPLETED', 'NO_SHOW', 'CANCELLED'] as const;
 
 export type LessonCategory = typeof lessonCategories[number];
+export type PhysicalCategory = LessonCategory;
 export type LessonStatus = typeof lessonStatuses[number];
 
 export interface InstructorRecord {
