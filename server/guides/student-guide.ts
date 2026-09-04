@@ -52,7 +52,7 @@ export type StudentGuideSnapshot = {
       achievedAt: string | null;
       scheduledFor: string | null;
     }>;
-    progress: EnrollmentProcessView['progress'] & { nextLessonAt: string | null };
+    progress: Omit<EnrollmentProcessView['progress'], 'nextLessonAt'> & { nextLessonAt: string | null };
     nextAction: EnrollmentProcessView['nextAction'];
   };
   agenda: {
