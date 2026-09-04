@@ -1,0 +1,168 @@
+.admin-guide-workspace,
+.student-guides-page {
+  display: grid;
+  gap: 22px;
+}
+
+.admin-guide-control {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-guide-enrollment {
+  display: grid;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.admin-guide-enrollment select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--admin-line, #d8d8d8);
+  border-radius: 10px;
+  background: white;
+  padding: 0 12px;
+  color: inherit;
+}
+
+.admin-guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-guide-receipt {
+  display: grid;
+  gap: 5px;
+  border: 1px solid #bfd5c5;
+  border-radius: 12px;
+  background: #f5fbf6;
+  padding: 14px;
+}
+
+.admin-guide-receipt span,
+.admin-guide-receipt code {
+  font-size: 0.76rem;
+}
+
+.admin-guide-receipt code {
+  overflow-wrap: anywhere;
+}
+
+.admin-guide-history {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-guide-history > strong {
+  font-size: 0.76rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.admin-guide-history > button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  border: 1px solid var(--admin-line, #dedede);
+  border-radius: 10px;
+  background: white;
+  padding: 11px 12px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.admin-guide-history > button.is-active {
+  border-color: #244cff;
+  box-shadow: inset 3px 0 0 #244cff;
+}
+
+.admin-guide-history small {
+  color: #6c7278;
+}
+
+.admin-guide-preview,
+.student-guide-portal-document {
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.student-guides-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.student-guides-heading h1,
+.student-guide-empty-state h1 {
+  margin: 3px 0 10px;
+  font-size: clamp(2rem, 5vw, 4rem);
+  letter-spacing: -0.05em;
+}
+
+.student-guides-heading p,
+.student-guide-empty-state p {
+  max-width: 660px;
+}
+
+.student-guides-layout {
+  display: grid;
+  grid-template-columns: minmax(190px, 250px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.student-guides-history {
+  display: grid;
+  gap: 8px;
+  position: sticky;
+  top: 18px;
+}
+
+.student-guides-history button {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  border: 1px solid rgba(20, 26, 33, 0.14);
+  border-radius: 14px;
+  background: white;
+  padding: 14px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.student-guides-history button.is-active {
+  border-color: #244cff;
+  box-shadow: inset 3px 0 0 #244cff;
+}
+
+.student-guides-history span,
+.student-guides-history small {
+  color: #68717a;
+}
+
+.student-guide-empty-state {
+  min-height: 320px;
+  display: grid;
+  align-content: center;
+}
+
+@media (max-width: 860px) {
+  .student-guides-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .student-guides-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .student-guides-history {
+    position: static;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}

@@ -1,0 +1,350 @@
+.student-guide-document {
+  --guide-ink: #171a1d;
+  --guide-muted: #667079;
+  --guide-line: #d9d5cc;
+  --guide-paper: #fffdf9;
+  --guide-accent: #244cff;
+  width: min(920px, 100%);
+  margin: 0 auto;
+  background: var(--guide-paper);
+  color: var(--guide-ink);
+  border: 1px solid var(--guide-line);
+}
+
+.student-guide-cover,
+.student-guide-section,
+.student-guide-footer {
+  padding: clamp(24px, 4vw, 48px);
+}
+
+.student-guide-cover {
+  position: relative;
+  min-height: 360px;
+  border-bottom: 1px solid var(--guide-line);
+}
+
+.student-guide-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.student-guide-brand strong {
+  font-size: 1.15rem;
+  letter-spacing: -0.04em;
+}
+
+.student-guide-brand span,
+.student-guide-cover > p,
+.student-guide-footer,
+.student-guide-lessons span,
+.student-guide-milestones small {
+  color: var(--guide-muted);
+}
+
+.student-guide-badge {
+  position: absolute;
+  top: clamp(24px, 4vw, 48px);
+  right: clamp(24px, 4vw, 48px);
+  border: 1px solid var(--guide-ink);
+  padding: 7px 9px;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+}
+
+.student-guide-badge.is-preview {
+  border-style: dashed;
+  color: var(--guide-muted);
+}
+
+.student-guide-cover > p {
+  max-width: 580px;
+  margin: 74px 0 12px;
+  line-height: 1.55;
+}
+
+.student-guide-cover h1 {
+  max-width: 740px;
+  margin: 0;
+  font-size: clamp(2.5rem, 7vw, 5.4rem);
+  line-height: 0.94;
+  letter-spacing: -0.06em;
+}
+
+.student-guide-cover-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 52px;
+  border: 1px solid var(--guide-line);
+  background: var(--guide-line);
+}
+
+.student-guide-cover-facts > div,
+.student-guide-practice > div {
+  display: grid;
+  gap: 7px;
+  padding: 15px;
+  background: var(--guide-paper);
+}
+
+.student-guide-cover-facts span,
+.student-guide-practice span,
+.student-guide-section-head small {
+  color: var(--guide-muted);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.student-guide-cover-facts strong {
+  font-size: 0.9rem;
+}
+
+.student-guide-section {
+  border-bottom: 1px solid var(--guide-line);
+}
+
+.student-guide-section-head {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+}
+
+.student-guide-section-head > span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--guide-ink);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.student-guide-section-head h2 {
+  margin: 3px 0 0;
+  font-size: clamp(1.5rem, 4vw, 2.35rem);
+  letter-spacing: -0.045em;
+}
+
+.student-guide-section-head > strong {
+  font-size: 1.25rem;
+  letter-spacing: -0.04em;
+}
+
+.student-guide-progress {
+  height: 8px;
+  margin: 24px 0;
+  overflow: hidden;
+  background: #e5e1d9;
+}
+
+.student-guide-progress span {
+  display: block;
+  height: 100%;
+  background: var(--guide-accent);
+}
+
+.student-guide-milestones {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.student-guide-milestones li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  border-top: 1px solid var(--guide-line);
+  padding: 13px 0;
+}
+
+.student-guide-milestones li > span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--guide-line);
+  border-radius: 50%;
+  font-size: 0.72rem;
+}
+
+.student-guide-milestones li > div {
+  display: grid;
+  gap: 4px;
+}
+
+.student-guide-milestones li.is-done > span {
+  border-color: #2d7043;
+  background: #eff8f1;
+  color: #245c38;
+}
+
+.student-guide-milestones li.is-current > span {
+  border-color: var(--guide-accent);
+  color: var(--guide-accent);
+}
+
+.student-guide-next > p {
+  margin: 24px 0 0 52px;
+  max-width: 720px;
+  color: var(--guide-muted);
+  line-height: 1.6;
+}
+
+.student-guide-practice {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 20px 0 0 52px;
+  border: 1px solid var(--guide-line);
+  background: var(--guide-line);
+}
+
+.student-guide-lessons {
+  display: grid;
+  gap: 0;
+  margin-top: 22px;
+}
+
+.student-guide-lessons article {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.9fr) minmax(200px, 1.1fr);
+  gap: 20px;
+  border-top: 1px solid var(--guide-line);
+  padding: 16px 0;
+}
+
+.student-guide-lessons article > div {
+  display: grid;
+  gap: 5px;
+}
+
+.student-guide-lessons span {
+  font-size: 0.82rem;
+}
+
+.student-guide-empty {
+  margin: 22px 0 0 52px;
+  color: var(--guide-muted);
+  line-height: 1.55;
+}
+
+.student-guide-footer {
+  display: grid;
+  gap: 14px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.student-guide-footer > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.student-guide-footer code {
+  overflow-wrap: anywhere;
+  color: var(--guide-ink);
+  font-size: 0.7rem;
+}
+
+.student-guide-footer p {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .student-guide-badge {
+    position: static;
+    display: inline-block;
+    margin-top: 22px;
+  }
+
+  .student-guide-cover > p {
+    margin-top: 38px;
+  }
+
+  .student-guide-cover-facts,
+  .student-guide-practice {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .student-guide-practice,
+  .student-guide-next > p,
+  .student-guide-empty {
+    margin-left: 0;
+  }
+
+  .student-guide-lessons article {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .student-guide-footer > div {
+    flex-direction: column;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+@media print {
+  body.student-guide-printing {
+    background: white !important;
+  }
+
+  body.student-guide-printing * {
+    visibility: hidden !important;
+  }
+
+  body.student-guide-printing .student-guide-document,
+  body.student-guide-printing .student-guide-document * {
+    visibility: visible !important;
+  }
+
+  body.student-guide-printing .student-guide-document {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border: 0;
+    background: white;
+  }
+
+  body.student-guide-printing .student-guide-cover,
+  body.student-guide-printing .student-guide-section,
+  body.student-guide-printing .student-guide-footer {
+    padding: 10mm 7mm;
+  }
+
+  body.student-guide-printing .student-guide-cover {
+    min-height: auto;
+  }
+
+  body.student-guide-printing .student-guide-cover > p {
+    margin-top: 24mm;
+  }
+
+  body.student-guide-printing .student-guide-cover h1 {
+    font-size: 36pt;
+  }
+
+  body.student-guide-printing .student-guide-section {
+    break-inside: avoid;
+  }
+
+  body.student-guide-printing .student-guide-lessons article,
+  body.student-guide-printing .student-guide-milestones li {
+    break-inside: avoid;
+  }
+}
