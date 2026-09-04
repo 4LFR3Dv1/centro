@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type pg from 'pg';
+import { getAdminStudentWorkspace, listAdminStudents } from '../admin/students.js';
 import { materializeEnrollment } from '../enrollments/materialize.js';
 import {
   authenticateStaff,
@@ -10,6 +11,7 @@ import {
 
 const SESSION_COOKIE = 'centro_admin_session';
 const MAX_BODY_BYTES = 64 * 1024;
+const UUID_PATH = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}';
 
 class HttpError extends Error {
   constructor(public status: number, message: string) {
@@ -145,6 +147,28 @@ export function createAdminApiHandler(pool: pg.Pool, options: AdminApiOptions = 
         res.setHeader('Cache-Control', 'no-store');
         res.end();
         return true;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/admin/students') {
+        await requireStaff(pool, req);
+        const rawLimit = Number(url.searchParams.get('limit') ?? '50');
+        const students = await listAdminStudents(pool, {
+          query: url.searchParams.get('q') ?? '',
+          limit: Number.isFinite(rawLimit) ? rawLimit : 50,
+        });
+        sendJson(res, 200, { students });
+        return true;
+      }
+
+      if (req.method === 'GET') {
+        const studentMatch = url.pathname.match(new RegExp(`^/api/admin/students/(${UUID_PATH})$`));
+        if (studentMatch) {
+          await requireStaff(pool, req);
+          const workspace = await getAdminStudentWorkspace(pool, studentMatch[1]);
+          if (!workspace) throw new HttpError(404, 'Student not found.');
+          sendJson(res, 200, workspace);
+          return true;
+        }
       }
 
       if (req.method === 'POST' && url.pathname === '/api/admin/enrollments') {
