@@ -1,0 +1,181 @@
+.admin-process-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-process-card {
+  min-width: 0;
+}
+
+.admin-process-current {
+  display: grid;
+  gap: 16px;
+  margin: 22px 0;
+  padding: 20px;
+  border: 1px solid var(--admin-line, #d9d5cc);
+  background: #fff;
+}
+
+.admin-process-current small,
+.admin-process-evidence span {
+  color: var(--admin-muted, #687078);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.admin-process-current h3 {
+  margin: 4px 0 0;
+  font-size: 1.55rem;
+  letter-spacing: -0.035em;
+}
+
+.admin-process-current p {
+  margin: 6px 0 0;
+  color: var(--admin-muted, #687078);
+}
+
+.admin-process-meter {
+  height: 7px;
+  overflow: hidden;
+  background: #e8e5de;
+}
+
+.admin-process-meter span {
+  display: block;
+  height: 100%;
+  background: var(--admin-accent, #244cff);
+  transition: width 180ms ease;
+}
+
+.admin-process-milestones {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-process-milestones li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  border-top: 1px solid var(--admin-line, #d9d5cc);
+  padding: 14px 0;
+  color: var(--admin-muted, #687078);
+}
+
+.admin-process-milestones li > span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--admin-line, #d9d5cc);
+  border-radius: 50%;
+  font-size: 0.75rem;
+}
+
+.admin-process-milestones li > div {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-process-milestones strong {
+  color: var(--admin-text, #171a1d);
+}
+
+.admin-process-milestones small {
+  line-height: 1.45;
+}
+
+.admin-process-milestones li.is-done > span {
+  border-color: #2f7046;
+  background: #eef8f1;
+  color: #245d39;
+}
+
+.admin-process-milestones li.is-current {
+  color: var(--admin-text, #171a1d);
+}
+
+.admin-process-milestones li.is-current > span {
+  border-color: var(--admin-accent, #244cff);
+  color: var(--admin-accent, #244cff);
+}
+
+.admin-process-evidence {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 20px 0;
+  background: var(--admin-line, #d9d5cc);
+  border: 1px solid var(--admin-line, #d9d5cc);
+}
+
+.admin-process-evidence > div {
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+  background: #fff;
+}
+
+.admin-process-evidence strong {
+  font-size: 0.95rem;
+}
+
+.admin-process-guidance {
+  margin: 18px 0;
+  padding: 14px 16px;
+  border-left: 3px solid var(--admin-accent, #244cff);
+  background: #f2f5ff;
+  line-height: 1.5;
+}
+
+.admin-process-schedule {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.admin-process-schedule label {
+  display: grid;
+  flex: 1;
+  gap: 6px;
+  color: var(--admin-muted, #687078);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.admin-process-schedule input {
+  min-height: 42px;
+  border: 1px solid var(--admin-line, #d9d5cc);
+  background: #fff;
+  padding: 0 10px;
+  color: var(--admin-text, #171a1d);
+  font: inherit;
+}
+
+.admin-process-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+@media (max-width: 760px) {
+  .admin-process-evidence {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-process-schedule {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-process-actions > button {
+    width: 100%;
+  }
+}

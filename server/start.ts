@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { createAdminApiHandler } from './http/admin-api.js';
+import { createProcessApiHandler } from './http/process-api.js';
 import { createStudentApiHandler } from './http/student-api.js';
 import { createDatabasePool } from './db/pool.js';
 import { runMigrations } from './db/migrate.js';
@@ -117,6 +118,9 @@ export async function startCentroRuntime(): Promise<void> {
   const indexPath = resolve(distDir, 'index.html');
   if (!await fileExists(indexPath)) throw new Error(`Frontend build not found at ${indexPath}.`);
 
+  const processApi = createProcessApiHandler(pool, {
+    publicOrigin: publicOrigin || undefined,
+  });
   const adminApi = createAdminApiHandler(pool, {
     publicOrigin: publicOrigin || undefined,
     secureCookies: process.env.NODE_ENV === 'production',
@@ -141,6 +145,10 @@ export async function startCentroRuntime(): Promise<void> {
         return;
       }
 
+      // PROCESS-001 owns routes nested under /api/admin/process and /api/student/process.
+      // It must run before the broad admin/student handlers, which otherwise terminate
+      // unknown namespace routes with their own 404 response.
+      if (await processApi(req, res)) return;
       if (await adminApi(req, res)) return;
       if (await studentApi(req, res)) return;
 

@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AdminProcessPanel } from './admin-process';
 
 type StudentSummary = {
   id: string;
@@ -73,6 +74,9 @@ const auditLabels: Record<string, string> = {
   STUDENT_LOGIN: 'Aluno entrou no portal',
   STUDENT_LOGOUT: 'Aluno saiu do portal',
   STUDENT_INITIAL_PASSWORD_CHANGED: 'Senha inicial alterada',
+  PROCESS_MILESTONE_SCHEDULED: 'Marco processual agendado',
+  PROCESS_MILESTONE_ACHIEVED: 'Marco processual concluído',
+  PROCESS_MILESTONE_REVOKED: 'Marco processual revertido',
 };
 
 async function adminApi<T>(path: string): Promise<T> {
@@ -265,14 +269,7 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
           <small>Senhas e hashes nunca são projetados para o admin.</small>
         </div>
 
-        <div className="admin-detail-card">
-          <div className="admin-card-title"><span>PROCESSO</span><strong>Derivado de fatos</strong></div>
-          <p>Este workspace não mantém uma etapa manual. O estado processual será derivado de milestones institucionais em PROCESS-001.</p>
-          <dl className="admin-detail-list">
-            <div><dt>Base disponível</dt><dd>{enrollments.length} matrícula(s)</dd></div>
-            <div><dt>Próxima ação derivada</dt><dd>Aguardando PROCESS-001</dd></div>
-          </dl>
-        </div>
+        <AdminProcessPanel enrollments={enrollments} />
       </div>
 
       <div className="admin-detail-card admin-enrollment-history">
