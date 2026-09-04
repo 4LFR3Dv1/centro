@@ -68,7 +68,7 @@ jobs:
           npm run build:server
 
       - name: Build deployment image
-        run: docker build -t centro:student-experience .
+        run: docker build -t centro:access-001 .
 
       - name: Smoke production runtime
         run: |
@@ -77,7 +77,7 @@ jobs:
             -e PORT=18080 \
             -e DATABASE_URL="$DATABASE_URL" \
             -e CENTRO_PUBLIC_ORIGIN=http://127.0.0.1:18080 \
-            centro:student-experience
+            centro:access-001
           trap 'docker rm -f centro-runtime-smoke >/dev/null 2>&1 || true' EXIT
           for attempt in $(seq 1 20); do
             if curl -fsS http://127.0.0.1:18080/healthz >/dev/null; then break; fi
@@ -99,15 +99,19 @@ jobs:
           curl -fsS http://127.0.0.1:18080/aluno/exame >/dev/null
           curl -fsS http://127.0.0.1:18080/aluno/guia >/dev/null
           curl -fsS http://127.0.0.1:18080/aluno/conta >/dev/null
+          curl -fsS http://127.0.0.1:18080/aluno/acesso/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa >/dev/null
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/auth/session)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/today)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/security)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/students)" = "401"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/students/00000000-0000-4000-8000-000000000000/access-qr)" = "401"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'Origin: http://127.0.0.1:18080' -H 'Content-Type: application/json' --data '{\"value\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}' http://127.0.0.1:18080/api/admin/student-access/lookup)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/schedule/options)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/exams)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/admin/process/enrollments/00000000-0000-4000-8000-000000000000)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' 'http://127.0.0.1:18080/api/admin/guides?studentId=00000000-0000-4000-8000-000000000000')" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/student/auth/session)" = "401"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/student/access/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)" = "404"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/student/home)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/student/calendar)" = "401"
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/student/exams)" = "401"
