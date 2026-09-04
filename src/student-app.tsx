@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { StudentCalendar, StudentLessonDetail } from './student-calendar';
+import { StudentGuides } from './student-guides';
 import { StudentProcess } from './student-process';
 import './student.css';
 
@@ -164,7 +165,7 @@ function ChangeInitialPassword({ onChanged }: { onChanged: (session: StudentSess
   );
 }
 
-function StudentHome({ session, onCalendar }: { session: StudentSessionPayload; onCalendar: () => void }) {
+function StudentHome({ session, onCalendar, onGuides }: { session: StudentSessionPayload; onCalendar: () => void; onGuides: () => void }) {
   return (
     <div className="student-home-grid">
       <section className="student-hero-card">
@@ -202,6 +203,13 @@ function StudentHome({ session, onCalendar }: { session: StudentSessionPayload; 
         <h2 id="student-calendar-home-title">Suas aulas.</h2>
         <p>Os horários registrados pela escola são projetados diretamente para sua área, sem confirmação duplicada.</p>
         <button className="student-primary" type="button" onClick={onCalendar}>Abrir minha agenda</button>
+      </section>
+
+      <section className="student-panel student-next-action" aria-labelledby="student-guide-home-title">
+        <p className="student-eyebrow">GUIA DO ALUNO</p>
+        <h2 id="student-guide-home-title">Versões entregues pela escola.</h2>
+        <p>Cada guia preserva processo, próxima ação e agenda exatamente como estavam no momento da geração.</p>
+        <button className="student-primary" type="button" onClick={onGuides}>Abrir meus guias</button>
       </section>
     </div>
   );
@@ -256,6 +264,7 @@ export default function StudentApp() {
   const lessonDetail = location.pathname.match(/^\/aluno\/agenda\/([0-9a-f-]{36})$/i);
   const calendarActive = location.pathname.startsWith('/aluno/agenda');
   const processActive = location.pathname === '/aluno/processo';
+  const guidesActive = location.pathname === '/aluno/guia';
   const homeActive = location.pathname === '/aluno';
 
   let content;
@@ -267,8 +276,10 @@ export default function StudentApp() {
     content = <StudentCalendar />;
   } else if (processActive) {
     content = <StudentProcess />;
+  } else if (guidesActive) {
+    content = <StudentGuides />;
   } else {
-    content = <StudentHome session={session} onCalendar={() => navigate('/aluno/agenda')} />;
+    content = <StudentHome session={session} onCalendar={() => navigate('/aluno/agenda')} onGuides={() => navigate('/aluno/guia')} />;
   }
 
   return (
@@ -283,6 +294,7 @@ export default function StudentApp() {
             <button type="button" className={homeActive ? 'is-active' : ''} onClick={() => navigate('/aluno')}>Início</button>
             <button type="button" className={processActive ? 'is-active' : ''} onClick={() => navigate('/aluno/processo')}>Processo</button>
             <button type="button" className={calendarActive ? 'is-active' : ''} onClick={() => navigate('/aluno/agenda')}>Agenda</button>
+            <button type="button" className={guidesActive ? 'is-active' : ''} onClick={() => navigate('/aluno/guia')}>Guia</button>
           </nav>
         )}
         <button type="button" onClick={() => void logout()}>Sair</button>
