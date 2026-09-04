@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { StudentCalendar, StudentLessonDetail } from './student-calendar';
 import './student.css';
 
 type ServiceType = 'FIRST_LICENSE' | 'CATEGORY_ADDITION' | 'CATEGORY_CHANGE' | 'LICENSED_TRAINING';
@@ -162,7 +163,7 @@ function ChangeInitialPassword({ onChanged }: { onChanged: (session: StudentSess
   );
 }
 
-function StudentHome({ session }: { session: StudentSessionPayload }) {
+function StudentHome({ session, onCalendar }: { session: StudentSessionPayload; onCalendar: () => void }) {
   return (
     <div className="student-home-grid">
       <section className="student-hero-card">
@@ -193,10 +194,17 @@ function StudentHome({ session }: { session: StudentSessionPayload }) {
         </div>
       </section>
 
+      <section className="student-panel student-next-action" aria-labelledby="student-calendar-home-title">
+        <p className="student-eyebrow">AGENDA</p>
+        <h2 id="student-calendar-home-title">Suas aulas já podem aparecer aqui.</h2>
+        <p>Os horários registrados pela escola são projetados diretamente para sua área, sem confirmação duplicada.</p>
+        <button className="student-primary" type="button" onClick={onCalendar}>Abrir minha agenda</button>
+      </section>
+
       <section className="student-panel student-next-action" aria-labelledby="student-next-title">
         <p className="student-eyebrow">PRÓXIMA AÇÃO</p>
-        <h2 id="student-next-title">Nenhuma ação obrigatória agora.</h2>
-        <p>Etapas, aulas e progresso aparecerão aqui somente quando forem registrados pela escola nos próximos módulos operacionais.</p>
+        <h2 id="student-next-title">Processo ainda não derivado.</h2>
+        <p>A agenda é factual e já está disponível. A próxima ação do processo será calculada apenas quando o motor de milestones for admitido em PROCESS-001.</p>
       </section>
     </div>
   );
@@ -248,6 +256,21 @@ export default function StudentApp() {
     }} />;
   }
 
+  const lessonDetail = location.pathname.match(/^\/aluno\/agenda\/([0-9a-f-]{36})$/i);
+  const calendarActive = location.pathname.startsWith('/aluno/agenda');
+  const homeActive = location.pathname === '/aluno';
+
+  let content;
+  if (location.pathname === '/aluno/trocar-senha' && session.credential.mustChangePassword) {
+    content = <ChangeInitialPassword onChanged={(value) => { setSession(value); navigate('/aluno', { replace: true }); }} />;
+  } else if (lessonDetail) {
+    content = <StudentLessonDetail lessonId={lessonDetail[1]} />;
+  } else if (location.pathname === '/aluno/agenda') {
+    content = <StudentCalendar />;
+  } else {
+    content = <StudentHome session={session} onCalendar={() => navigate('/aluno/agenda')} />;
+  }
+
   return (
     <div className="student-shell">
       <header className="student-topbar">
@@ -255,13 +278,15 @@ export default function StudentApp() {
           <a className="student-wordmark" href="/">Centro</a>
           <span>Área do aluno</span>
         </div>
+        {!session.credential.mustChangePassword && (
+          <nav className="student-topnav" aria-label="Área do aluno">
+            <button type="button" className={homeActive ? 'is-active' : ''} onClick={() => navigate('/aluno')}>Início</button>
+            <button type="button" className={calendarActive ? 'is-active' : ''} onClick={() => navigate('/aluno/agenda')}>Agenda</button>
+          </nav>
+        )}
         <button type="button" onClick={() => void logout()}>Sair</button>
       </header>
-      <main className="student-main">
-        {location.pathname === '/aluno/trocar-senha' && session.credential.mustChangePassword
-          ? <ChangeInitialPassword onChanged={(value) => { setSession(value); navigate('/aluno', { replace: true }); }} />
-          : <StudentHome session={session} />}
-      </main>
+      <main className="student-main">{content}</main>
     </div>
   );
 }
