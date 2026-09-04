@@ -33,13 +33,14 @@ function logCredentialDiagnostic(usernameInput: string, password: string): void 
 }
 
 function logAuthDecision(
-  decision: 'missing_input' | 'not_found' | 'inactive' | 'disabled' | 'locked' | 'recovery_unlock' | 'password_mismatch' | 'success',
-  details: { failedAttempts?: number; lockedUntil?: Date | null } = {},
+  decision: 'missing_input' | 'not_found' | 'inactive' | 'disabled' | 'locked' | 'recovery_unlock' | 'recovery_rehash' | 'password_mismatch' | 'success',
+  details: { failedAttempts?: number; lockedUntil?: Date | null; passwordVersion?: number } = {},
 ): void {
   console.info('[centro-admin-auth-decision]', JSON.stringify({
     decision,
     failedAttempts: details.failedAttempts ?? null,
     lockedUntil: details.lockedUntil?.toISOString() ?? null,
+    passwordVersion: details.passwordVersion ?? null,
   }));
 }
 
@@ -111,6 +112,70 @@ async function recordFailedAttempt(pool: pg.Pool, staffUserId: string, previousA
   );
 }
 
+async function rehashFromExplicitRecovery(
+  pool: pg.Pool,
+  input: { staffUserId: string; username: string; password: string },
+): Promise<{ passwordVersion: number; revokedSessions: number }> {
+  const passwordHash = await hashPassword(input.password);
+  if (!await verifyPassword(passwordHash, input.password)) {
+    throw new Error('Freshly generated recovery hash failed self-verification.');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtext($1))',
+      [`centro-staff-recovery:${input.username.toLowerCase()}`],
+    );
+    const updated = await client.query<{ password_version: number }>(
+      `UPDATE staff_credentials
+       SET password_hash = $2,
+           password_version = password_version + 1,
+           failed_attempts = 0,
+           locked_until = NULL,
+           updated_at = now()
+       WHERE staff_user_id = $1
+       RETURNING password_version`,
+      [input.staffUserId, passwordHash],
+    );
+    if (!updated.rowCount) throw new Error('Staff credential disappeared during explicit recovery rehash.');
+
+    const revoked = await client.query(
+      `UPDATE sessions
+       SET revoked_at = now()
+       WHERE subject_type = 'STAFF'
+         AND staff_user_id = $1
+         AND revoked_at IS NULL`,
+      [input.staffUserId],
+    );
+    const passwordVersion = updated.rows[0].password_version;
+    const revokedSessions = revoked.rowCount ?? 0;
+
+    await client.query(
+      `INSERT INTO audit_events(id, actor_type, action, entity_type, entity_id, metadata)
+       VALUES ($1, 'SYSTEM', 'STAFF_RECOVERY_REHASH', 'StaffCredential', $2, $3::jsonb)`,
+      [
+        randomUUID(),
+        input.staffUserId,
+        JSON.stringify({
+          username: input.username,
+          passwordVersion,
+          revokedSessions,
+          source: 'explicit_recovery_login',
+        }),
+      ],
+    );
+    await client.query('COMMIT');
+    return { passwordVersion, revokedSessions };
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch { /* noop */ }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function authenticateStaff(
   pool: pg.Pool,
   usernameInput: string,
@@ -157,12 +222,31 @@ export async function authenticateStaff(
     return null;
   }
 
-  if (row.locked_until && row.locked_until.getTime() > Date.now()) {
-    if (!recoveryCredentialMatches(usernameInput, password)) {
-      logAuthDecision('locked', { failedAttempts: row.failed_attempts, lockedUntil: row.locked_until });
-      return null;
-    }
+  const recoveryMatch = recoveryCredentialMatches(usernameInput, password);
+  const lockActive = Boolean(row.locked_until && row.locked_until.getTime() > Date.now());
+  if (lockActive && !recoveryMatch) {
+    logAuthDecision('locked', { failedAttempts: row.failed_attempts, lockedUntil: row.locked_until });
+    return null;
+  }
 
+  let valid = await verifyPassword(row.password_hash, password);
+  if (!valid && recoveryMatch) {
+    const recovered = await rehashFromExplicitRecovery(pool, {
+      staffUserId: row.id,
+      username: row.username,
+      password,
+    });
+    valid = true;
+    logAuthDecision('recovery_rehash', {
+      failedAttempts: row.failed_attempts,
+      lockedUntil: row.locked_until,
+      passwordVersion: recovered.passwordVersion,
+    });
+  } else if (!valid) {
+    await recordFailedAttempt(pool, row.id, row.failed_attempts);
+    logAuthDecision('password_mismatch', { failedAttempts: row.failed_attempts, lockedUntil: row.locked_until });
+    return null;
+  } else if (lockActive && recoveryMatch) {
     await pool.query(
       `UPDATE staff_credentials
        SET failed_attempts = 0,
@@ -177,13 +261,6 @@ export async function authenticateStaff(
       [randomUUID(), row.id, JSON.stringify({ source: 'explicit_recovery_login' })],
     );
     logAuthDecision('recovery_unlock', { failedAttempts: row.failed_attempts, lockedUntil: row.locked_until });
-  }
-
-  const valid = await verifyPassword(row.password_hash, password);
-  if (!valid) {
-    await recordFailedAttempt(pool, row.id, row.failed_attempts);
-    logAuthDecision('password_mismatch', { failedAttempts: row.failed_attempts, lockedUntil: row.locked_until });
-    return null;
   }
 
   const token = generateSessionToken();

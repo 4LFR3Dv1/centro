@@ -33,6 +33,9 @@ test('STAFF-SECURITY changes own password while preserving current session and s
   const oldPassword = `Old-${randomUUID()}-Credential`;
   const newPassword = `New-${randomUUID()}-Credential`;
   const recoveryPassword = `Recovery-${randomUUID()}-Credential`;
+  const driftPassword = `Drift-${randomUUID()}-Credential`;
+  const previousRecoveryUsername = process.env.CENTRO_ADMIN_RECOVERY_USERNAME;
+  const previousRecoveryPassword = process.env.CENTRO_ADMIN_RECOVERY_PASSWORD;
 
   try {
     await pool.query(
@@ -120,7 +123,7 @@ test('STAFF-SECURITY changes own password while preserving current session and s
       assert.equal(await authenticateStaff(pool, username, newPassword), null, 'pre-recovery password must stop authenticating');
       assert.ok(await authenticateStaff(pool, username, recoveryPassword), 'recovery password must authenticate');
 
-      const credential = await pool.query<{
+      let credential = await pool.query<{
         password_version: number;
         failed_attempts: number;
         locked_until: Date | null;
@@ -134,23 +137,59 @@ test('STAFF-SECURITY changes own password while preserving current session and s
       assert.equal(credential.rows[0]?.failed_attempts, 0);
       assert.equal(credential.rows[0]?.locked_until, null);
 
+      process.env.CENTRO_ADMIN_RECOVERY_USERNAME = username;
+      process.env.CENTRO_ADMIN_RECOVERY_PASSWORD = recoveryPassword;
+      await pool.query(
+        `UPDATE staff_credentials
+         SET password_hash = $2,
+             failed_attempts = 4,
+             locked_until = now() + interval '15 minutes',
+             updated_at = now()
+         WHERE staff_user_id = $1`,
+        [staffUserId, await hashPassword(driftPassword)],
+      );
+
+      const recoveredLogin = await authenticateStaff(pool, username, recoveryPassword);
+      assert.ok(recoveredLogin, 'exact explicit recovery credential must repair a diverged persisted hash and authenticate');
+
+      credential = await pool.query<{
+        password_version: number;
+        failed_attempts: number;
+        locked_until: Date | null;
+      }>(
+        `SELECT password_version, failed_attempts, locked_until
+         FROM staff_credentials
+         WHERE staff_user_id = $1`,
+        [staffUserId],
+      );
+      assert.equal(credential.rows[0]?.password_version, 4, 'recovery rehash must advance password version');
+      assert.equal(credential.rows[0]?.failed_attempts, 0, 'recovery rehash must clear failed attempts');
+      assert.equal(credential.rows[0]?.locked_until, null, 'recovery rehash must clear lock');
+
       const audit = await pool.query<{ action: string; actor_type: string }>(
         `SELECT action, actor_type
          FROM audit_events
          WHERE entity_id = $1
-           AND action IN ('STAFF_PASSWORD_CHANGED', 'STAFF_CREDENTIAL_RECOVERED')
+           AND action IN ('STAFF_PASSWORD_CHANGED', 'STAFF_CREDENTIAL_RECOVERED', 'STAFF_RECOVERY_REHASH')
          ORDER BY occurred_at`,
         [staffUserId],
       );
-      assert.equal(audit.rows.length, 2);
+      assert.equal(audit.rows.length, 3);
       assert.equal(audit.rows[0]?.action, 'STAFF_PASSWORD_CHANGED');
       assert.equal(audit.rows[0]?.actor_type, 'STAFF');
       assert.equal(audit.rows[1]?.action, 'STAFF_CREDENTIAL_RECOVERED');
       assert.equal(audit.rows[1]?.actor_type, 'SYSTEM');
+      assert.equal(audit.rows[2]?.action, 'STAFF_RECOVERY_REHASH');
+      assert.equal(audit.rows[2]?.actor_type, 'SYSTEM');
     } finally {
       await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     }
   } finally {
+    if (previousRecoveryUsername === undefined) delete process.env.CENTRO_ADMIN_RECOVERY_USERNAME;
+    else process.env.CENTRO_ADMIN_RECOVERY_USERNAME = previousRecoveryUsername;
+    if (previousRecoveryPassword === undefined) delete process.env.CENTRO_ADMIN_RECOVERY_PASSWORD;
+    else process.env.CENTRO_ADMIN_RECOVERY_PASSWORD = previousRecoveryPassword;
+
     await pool.query('DELETE FROM audit_events WHERE actor_staff_user_id = $1 OR entity_id = $1', [staffUserId]);
     await pool.query('DELETE FROM sessions WHERE staff_user_id = $1', [staffUserId]);
     await pool.query('DELETE FROM staff_users WHERE id = $1', [staffUserId]);
