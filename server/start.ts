@@ -5,6 +5,7 @@ import { extname, resolve, sep } from 'node:path';
 import { createAdminApiHandler } from './http/admin-api.js';
 import { createAdminTodayApiHandler } from './http/admin-today.js';
 import { createProcessApiHandler } from './http/process-api.js';
+import { createStaffSecurityApiHandler } from './http/staff-security-api.js';
 import { createStudentApiHandler } from './http/student-api.js';
 import { createStudentGuideApiHandler } from './http/student-guide-api.js';
 import { createDatabasePool } from './db/pool.js';
@@ -127,6 +128,9 @@ export async function startCentroRuntime(): Promise<void> {
     publicOrigin: publicOrigin || undefined,
   });
   const todayApi = createAdminTodayApiHandler(pool);
+  const securityApi = createStaffSecurityApiHandler(pool, {
+    publicOrigin: publicOrigin || undefined,
+  });
   const adminApi = createAdminApiHandler(pool, {
     publicOrigin: publicOrigin || undefined,
     secureCookies: process.env.NODE_ENV === 'production',
@@ -156,6 +160,7 @@ export async function startCentroRuntime(): Promise<void> {
       if (await guideApi(req, res)) return;
       if (await processApi(req, res)) return;
       if (await todayApi(req, res)) return;
+      if (await securityApi(req, res)) return;
       if (await adminApi(req, res)) return;
       if (await studentApi(req, res)) return;
 
