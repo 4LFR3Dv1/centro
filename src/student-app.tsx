@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { StudentCalendar, StudentLessonDetail } from './student-calendar';
+import { StudentProcess } from './student-process';
 import './student.css';
 
 type ServiceType = 'FIRST_LICENSE' | 'CATEGORY_ADDITION' | 'CATEGORY_CHANGE' | 'LICENSED_TRAINING';
@@ -194,17 +195,13 @@ function StudentHome({ session, onCalendar }: { session: StudentSessionPayload; 
         </div>
       </section>
 
+      <StudentProcess compact />
+
       <section className="student-panel student-next-action" aria-labelledby="student-calendar-home-title">
         <p className="student-eyebrow">AGENDA</p>
-        <h2 id="student-calendar-home-title">Suas aulas já podem aparecer aqui.</h2>
+        <h2 id="student-calendar-home-title">Suas aulas.</h2>
         <p>Os horários registrados pela escola são projetados diretamente para sua área, sem confirmação duplicada.</p>
         <button className="student-primary" type="button" onClick={onCalendar}>Abrir minha agenda</button>
-      </section>
-
-      <section className="student-panel student-next-action" aria-labelledby="student-next-title">
-        <p className="student-eyebrow">PRÓXIMA AÇÃO</p>
-        <h2 id="student-next-title">Processo ainda não derivado.</h2>
-        <p>A agenda é factual e já está disponível. A próxima ação do processo será calculada apenas quando o motor de milestones for admitido em PROCESS-001.</p>
       </section>
     </div>
   );
@@ -258,6 +255,7 @@ export default function StudentApp() {
 
   const lessonDetail = location.pathname.match(/^\/aluno\/agenda\/([0-9a-f-]{36})$/i);
   const calendarActive = location.pathname.startsWith('/aluno/agenda');
+  const processActive = location.pathname === '/aluno/processo';
   const homeActive = location.pathname === '/aluno';
 
   let content;
@@ -267,6 +265,8 @@ export default function StudentApp() {
     content = <StudentLessonDetail lessonId={lessonDetail[1]} />;
   } else if (location.pathname === '/aluno/agenda') {
     content = <StudentCalendar />;
+  } else if (processActive) {
+    content = <StudentProcess />;
   } else {
     content = <StudentHome session={session} onCalendar={() => navigate('/aluno/agenda')} />;
   }
@@ -281,6 +281,7 @@ export default function StudentApp() {
         {!session.credential.mustChangePassword && (
           <nav className="student-topnav" aria-label="Área do aluno">
             <button type="button" className={homeActive ? 'is-active' : ''} onClick={() => navigate('/aluno')}>Início</button>
+            <button type="button" className={processActive ? 'is-active' : ''} onClick={() => navigate('/aluno/processo')}>Processo</button>
             <button type="button" className={calendarActive ? 'is-active' : ''} onClick={() => navigate('/aluno/agenda')}>Agenda</button>
           </nav>
         )}
