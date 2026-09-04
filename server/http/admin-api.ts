@@ -3,6 +3,17 @@ import type pg from 'pg';
 import { getAdminStudentWorkspace, listAdminStudents } from '../admin/students.js';
 import { materializeEnrollment } from '../enrollments/materialize.js';
 import {
+  createScheduleInstructor,
+  createScheduleLesson,
+  createScheduleVehicle,
+  getScheduleOptions,
+  listScheduleLessons,
+  replaceSchedulePolicy,
+  rescheduleLesson,
+  resolveLesson,
+  ScheduleInputError,
+} from '../schedule/admin.js';
+import {
   authenticateStaff,
   resolveStaffSession,
   revokeStaffSession,
@@ -91,6 +102,20 @@ async function requireStaff(pool: pg.Pool, req: IncomingMessage): Promise<{ toke
   const session = await resolveStaffSession(pool, token);
   if (!session) throw new HttpError(401, 'Authentication required.');
   return { token, session };
+}
+
+function scheduleConflictMessage(constraint?: string): string {
+  switch (constraint) {
+    case 'lessons_no_student_overlap': return 'Conflito de agenda: o aluno já possui uma aula nesse horário.';
+    case 'lessons_no_instructor_overlap': return 'Conflito de agenda: o instrutor já está ocupado nesse horário.';
+    case 'lessons_no_vehicle_overlap': return 'Conflito de agenda: o veículo já está ocupado nesse horário.';
+    case 'lessons_active_student_enrollment_required': return 'A aula exige aluno e matrícula ativos.';
+    case 'lessons_enrollment_category_compatible': return 'A categoria da aula não é compatível com a matrícula.';
+    case 'lessons_instructor_category_authorized': return 'O instrutor não está ativo ou autorizado para esta categoria.';
+    case 'lessons_vehicle_category_compatible': return 'O veículo não está ativo ou não pertence à categoria da aula.';
+    case 'vehicles_plate_unique_ci': return 'Já existe um veículo com esta placa.';
+    default: return 'A agenda rejeitou a operação por uma regra operacional.';
+  }
 }
 
 export type AdminApiOptions = {
@@ -215,6 +240,142 @@ export function createAdminApiHandler(pool: pg.Pool, options: AdminApiOptions = 
         return true;
       }
 
+      if (req.method === 'GET' && url.pathname === '/api/admin/schedule/options') {
+        await requireStaff(pool, req);
+        sendJson(res, 200, await getScheduleOptions(pool));
+        return true;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/admin/schedule/lessons') {
+        await requireStaff(pool, req);
+        const from = url.searchParams.get('from') ?? '';
+        const to = url.searchParams.get('to') ?? '';
+        const lessons = await listScheduleLessons(pool, {
+          from,
+          to,
+          instructorId: url.searchParams.get('instructorId') ?? undefined,
+          vehicleId: url.searchParams.get('vehicleId') ?? undefined,
+        });
+        sendJson(res, 200, { lessons });
+        return true;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/admin/schedule/instructors') {
+        const { session } = await requireStaff(pool, req);
+        const body = await readJson<{ displayName?: string; categories?: string[] }>(req);
+        const instructor = await createScheduleInstructor(pool, {
+          displayName: body.displayName ?? '',
+          categories: Array.isArray(body.categories) ? body.categories : [],
+          actorStaffUserId: session.staffUserId,
+        });
+        sendJson(res, 201, { instructor });
+        return true;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/admin/schedule/vehicles') {
+        const { session } = await requireStaff(pool, req);
+        const body = await readJson<{ plate?: string; label?: string; category?: string }>(req);
+        const vehicle = await createScheduleVehicle(pool, {
+          plate: body.plate ?? '',
+          label: body.label ?? '',
+          category: body.category ?? '',
+          actorStaffUserId: session.staffUserId,
+        });
+        sendJson(res, 201, { vehicle });
+        return true;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/admin/schedule/policy') {
+        const { session } = await requireStaff(pool, req);
+        const body = await readJson<{
+          name?: string;
+          timezone?: string;
+          slotMinutes?: number;
+          lessonMinMinutes?: number;
+          lessonMaxMinutes?: number;
+        }>(req);
+        const policy = await replaceSchedulePolicy(pool, {
+          name: body.name ?? '',
+          timezone: body.timezone,
+          slotMinutes: Number(body.slotMinutes),
+          lessonMinMinutes: Number(body.lessonMinMinutes),
+          lessonMaxMinutes: Number(body.lessonMaxMinutes),
+          actorStaffUserId: session.staffUserId,
+        });
+        sendJson(res, 201, { policy });
+        return true;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/admin/schedule/lessons') {
+        const { session } = await requireStaff(pool, req);
+        const body = await readJson<{
+          enrollmentId?: string;
+          studentId?: string;
+          instructorId?: string;
+          vehicleId?: string;
+          category?: string;
+          startsAt?: string;
+          endsAt?: string;
+          notes?: string | null;
+        }>(req);
+        const lesson = await createScheduleLesson(pool, {
+          enrollmentId: body.enrollmentId ?? '',
+          studentId: body.studentId ?? '',
+          instructorId: body.instructorId ?? '',
+          vehicleId: body.vehicleId ?? '',
+          category: body.category ?? '',
+          startsAt: body.startsAt ?? '',
+          endsAt: body.endsAt ?? '',
+          notes: body.notes ?? null,
+          actorStaffUserId: session.staffUserId,
+        });
+        sendJson(res, 201, { lesson });
+        return true;
+      }
+
+      if (req.method === 'POST') {
+        const rescheduleMatch = url.pathname.match(new RegExp(`^/api/admin/schedule/lessons/(${UUID_PATH})/reschedule$`));
+        if (rescheduleMatch) {
+          const { session } = await requireStaff(pool, req);
+          const body = await readJson<{
+            instructorId?: string;
+            vehicleId?: string;
+            category?: string;
+            startsAt?: string;
+            endsAt?: string;
+            notes?: string | null;
+          }>(req);
+          await rescheduleLesson(pool, rescheduleMatch[1], {
+            instructorId: body.instructorId ?? '',
+            vehicleId: body.vehicleId ?? '',
+            category: body.category ?? '',
+            startsAt: body.startsAt ?? '',
+            endsAt: body.endsAt ?? '',
+            notes: body.notes ?? null,
+            actorStaffUserId: session.staffUserId,
+          });
+          res.statusCode = 204;
+          res.setHeader('Cache-Control', 'no-store');
+          res.end();
+          return true;
+        }
+
+        const resolveMatch = url.pathname.match(new RegExp(`^/api/admin/schedule/lessons/(${UUID_PATH})/resolve$`));
+        if (resolveMatch) {
+          const { session } = await requireStaff(pool, req);
+          const body = await readJson<{ status?: string; notes?: string | null }>(req);
+          await resolveLesson(pool, resolveMatch[1], {
+            status: body.status ?? '',
+            notes: body.notes ?? null,
+            actorStaffUserId: session.staffUserId,
+          });
+          res.statusCode = 204;
+          res.setHeader('Cache-Control', 'no-store');
+          res.end();
+          return true;
+        }
+      }
+
       sendJson(res, 404, { error: 'Not found.' });
       return true;
     } catch (error) {
@@ -222,8 +383,21 @@ export function createAdminApiHandler(pool: pg.Pool, options: AdminApiOptions = 
         sendJson(res, error.status, { error: error.message });
         return true;
       }
+      if (error instanceof ScheduleInputError) {
+        sendJson(res, 400, { error: error.message });
+        return true;
+      }
 
       const candidate = error as { code?: string; constraint?: string; message?: string };
+      if (candidate.code === '23P01') {
+        sendJson(res, 409, { error: scheduleConflictMessage(candidate.constraint) });
+        return true;
+      }
+      if ((candidate.code === '23514' && candidate.constraint?.startsWith('lessons_'))
+          || (candidate.code === '23505' && candidate.constraint === 'vehicles_plate_unique_ci')) {
+        sendJson(res, 409, { error: scheduleConflictMessage(candidate.constraint) });
+        return true;
+      }
       if (candidate.code === '23514' || candidate.code === '23505') {
         sendJson(res, 409, { error: 'Enrollment data conflicts with an operational rule.' });
         return true;
