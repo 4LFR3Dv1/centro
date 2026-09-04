@@ -71,6 +71,34 @@
   line-height: 1.6;
 }
 
+.student-access-identity {
+  display: grid;
+  gap: 7px;
+  margin: 28px 0 0;
+  border: 1px solid var(--student-line);
+  background: #fff;
+  padding: 18px;
+}
+
+.student-access-identity > span {
+  color: var(--student-muted);
+  font-size: .68rem;
+  font-weight: 850;
+  letter-spacing: .13em;
+}
+
+.student-access-identity > strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(1.4rem, 5vw, 2rem);
+  letter-spacing: .04em;
+}
+
+.student-access-identity > small {
+  color: var(--student-muted);
+  font-size: .78rem;
+  line-height: 1.55;
+}
+
 .student-form {
   display: grid;
   gap: 18px;
