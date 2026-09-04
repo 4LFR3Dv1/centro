@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AdminCalendar } from './admin-calendar';
+import { AdminSecurity } from './admin-security';
 import { AdminStudentDetail, AdminStudents } from './admin-students';
 import { AdminToday } from './admin-today';
 import './admin.css';
@@ -324,6 +325,7 @@ export default function AdminApp() {
   const studentsActive = location.pathname.startsWith('/admin/alunos');
   const enrollmentsActive = location.pathname.startsWith('/admin/matriculas');
   const calendarActive = location.pathname.startsWith('/admin/agenda');
+  const securityActive = location.pathname.startsWith('/admin/seguranca');
 
   if (checking) return <main className="admin-loading">Abrindo operação da escola…</main>;
   if (!session) return <Login onAuthenticated={(value) => { setSession(value); navigate('/admin', { replace: true }); }} />;
@@ -348,6 +350,8 @@ export default function AdminApp() {
           <button type="button" className={calendarActive ? 'is-active' : ''} onClick={() => navigate('/admin/agenda')}>Agenda</button>
           <button type="button" className={studentsActive ? 'is-active' : ''} onClick={() => navigate('/admin/alunos')}>Alunos</button>
           <button type="button" className={enrollmentsActive ? 'is-active' : ''} onClick={startNewEnrollment}>Matrículas</button>
+          <p>CONTA</p>
+          <button type="button" className={securityActive ? 'is-active' : ''} onClick={() => navigate('/admin/seguranca')}>Segurança</button>
         </aside>
 
         <div className="admin-workspace">
@@ -363,6 +367,8 @@ export default function AdminApp() {
             <AdminCalendar />
           ) : location.pathname === '/admin/alunos' ? (
             <AdminStudents />
+          ) : location.pathname === '/admin/seguranca' ? (
+            <AdminSecurity />
           ) : studentDetail ? (
             <AdminStudentDetail studentId={studentDetail[1]} onNewEnrollment={startNewEnrollment} />
           ) : (
