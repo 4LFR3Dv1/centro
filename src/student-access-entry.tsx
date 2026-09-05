@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { ExceptionGuidanceCard, accessExceptionGuidance } from './exception-guidance';
 
 type StudentSessionPayload = {
   student: { id: string; publicId: string; fullName: string };
@@ -32,6 +33,11 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const body = await response.json().catch(() => ({})) as T & { error?: string };
   if (!response.ok) throw new Error(body.error || 'Não foi possível abrir este acesso.');
   return body;
+}
+
+function looksAccessBlocked(message: string): boolean {
+  const normalized = message.toLocaleLowerCase('pt-BR');
+  return normalized.includes('bloque') || normalized.includes('locked') || normalized.includes('desativ') || normalized.includes('disabled');
 }
 
 export function StudentAccessEntry({ publicToken, onAuthenticated, onManualLogin }: {
@@ -139,7 +145,9 @@ export function StudentAccessEntry({ publicToken, onAuthenticated, onManualLogin
                   />
                 </label>
               )}
-              {error && <p className="student-error" role="alert">{error}</p>}
+              {error && (looksAccessBlocked(error)
+                ? <ExceptionGuidanceCard guidance={accessExceptionGuidance(error)} />
+                : <p className="student-error" role="alert">{error}</p>)}
               <button className="student-primary" disabled={busy} type="submit">
                 {busy
                   ? (resolution.activationRequired ? 'Ativando…' : 'Entrando…')
@@ -149,8 +157,7 @@ export function StudentAccessEntry({ publicToken, onAuthenticated, onManualLogin
           </>
         ) : (
           <>
-            <p className="student-error" role="alert">{error || 'Este QR não está disponível.'}</p>
-            <p className="student-lead">Você ainda pode entrar usando seu ID Centro e sua senha.</p>
+            <ExceptionGuidanceCard guidance={accessExceptionGuidance(error || 'Este QR não está disponível.')} />
             <button className="student-primary" type="button" onClick={onManualLogin}>Entrar com meu ID</button>
           </>
         )}
