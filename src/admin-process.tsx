@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AdminStudentGuides } from './admin-student-guides';
 import './admin-process.css';
 
 type EnrollmentRef = {
@@ -167,8 +166,6 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
     );
   }
 
-  const studentId = processes[0]?.enrollment.studentId ?? '';
-
   return (
     <div className="admin-process-stack">
       {error && <p className="admin-error" role="alert">{error}</p>}
@@ -272,8 +269,6 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
           </div>
         );
       })}
-
-      {studentId && <AdminStudentGuides studentId={studentId} enrollments={operational} />}
     </div>
   );
 }
