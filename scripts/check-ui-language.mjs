@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import * as ts from 'typescript';
+import * as tsNamespace from 'typescript';
+
+const ts = tsNamespace.default ?? tsNamespace;
 
 const roots = ['src'];
 const explicitFiles = ['server/admin/student-operations.ts'];
