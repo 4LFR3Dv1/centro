@@ -1,257 +1,314 @@
-import { useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { OperationalCommandDialog, type OperationalCommand } from './admin-operational-execution';
 import './admin-today.css';
 
-type LessonStatus = 'SCHEDULED' | 'COMPLETED' | 'NO_SHOW' | 'CANCELLED';
+type Severity = 'BLOCKING' | 'ACTION_REQUIRED' | 'SCHEDULED' | 'WAITING' | 'COMPLETE';
+type Category = 'A' | 'B' | 'AB' | 'D';
+type PhysicalCategory = 'A' | 'B' | 'D';
 
-type TodayPayload = {
+type OperationalAction = {
+  enrollmentId: string;
+  serviceType: 'FIRST_LICENSE' | 'CATEGORY_ADDITION' | 'CATEGORY_CHANGE' | 'LICENSED_TRAINING';
+  category: Category;
+  processStateCode: string;
+  code: string;
+  title: string;
+  detail: string;
+  severity: Severity;
+  primaryCommand: OperationalCommand | null;
+  secondaryCommands: OperationalCommand[];
+  actionLabel: string | null;
+  href: string | null;
+};
+
+type AttentionItem = {
+  studentId: string;
+  studentPublicId: string;
+  studentName: string;
+  action: OperationalAction;
+};
+
+type HomeEvent = {
+  id: string;
+  kind: 'LESSON' | 'THEORY_EXAM' | 'PRACTICAL_EXAM';
+  enrollmentId: string;
+  studentId: string;
+  studentPublicId: string;
+  studentName: string;
+  title: string;
+  detail: string;
+  category: Category | null;
+  startsAt: string;
+  endsAt: string | null;
+  href: string;
+};
+
+type HomePayload = {
+  version: 'ADMIN_HOME_V2';
   timezone: 'America/Sao_Paulo';
   generatedAt: string;
   summary: {
-    lessonsToday: number;
-    scheduledRemaining: number;
-    withoutNextLesson: number;
+    activeNow: number;
+    upcoming24h: number;
+    blocking: number;
+    actionRequired: number;
+    waiting: number;
+    scheduledProcesses: number;
     pendingFirstAccess: number;
-    withoutGuide: number;
-    recentNoShows: number;
-    upcomingExams: number;
   };
-  lessons: Array<{
-    id: string;
-    enrollmentId: string;
-    studentId: string;
-    studentPublicId: string;
-    studentName: string;
-    instructorName: string;
-    vehicleLabel: string;
-    category: 'A' | 'B' | 'D';
-    startsAt: string;
-    endsAt: string;
-    status: LessonStatus;
-  }>;
-  upcomingExams: Array<{
-    enrollmentId: string;
-    studentId: string;
-    studentPublicId: string;
-    studentName: string;
-    code: 'THEORY_PASSED' | 'PRACTICAL_EXAM_PASSED';
-    scheduledFor: string;
-  }>;
-  withoutNextLesson: Array<{
-    enrollmentId: string;
-    studentId: string;
-    studentPublicId: string;
-    studentName: string;
-    serviceType: string;
-    category: string;
-    openedAt: string;
-  }>;
+  now: HomeEvent[];
+  upcoming: HomeEvent[];
+  attention: {
+    blocking: AttentionItem[];
+    actionRequired: AttentionItem[];
+    waiting: AttentionItem[];
+  };
   pendingFirstAccess: Array<{
     studentId: string;
     studentPublicId: string;
     studentName: string;
   }>;
-  withoutGuide: Array<{
-    enrollmentId: string;
-    studentId: string;
-    studentPublicId: string;
-    studentName: string;
-    serviceType: string;
-    category: string;
-    openedAt: string;
-  }>;
-  recentNoShows: Array<{
-    lessonId: string;
-    enrollmentId: string;
-    studentId: string;
-    studentPublicId: string;
-    studentName: string;
-    startsAt: string;
-    instructorName: string;
-  }>;
 };
 
-const lessonStatusLabel: Record<LessonStatus, string> = {
-  SCHEDULED: 'Agendada',
-  COMPLETED: 'Concluída',
-  NO_SHOW: 'Falta',
-  CANCELLED: 'Cancelada',
+type ScheduleOptions = {
+  policy: { slotMinutes: number; lessonMinMinutes: number; lessonMaxMinutes: number };
+  instructors: Array<{ id: string; displayName: string; active: boolean; categories: PhysicalCategory[] }>;
+  vehicles: Array<{ id: string; plate: string; label: string; category: PhysicalCategory; active: boolean }>;
+  enrollments: Array<{ id: string; studentId: string; studentName: string; category: Category }>;
 };
 
-async function loadToday(): Promise<TodayPayload> {
-  const response = await fetch('/api/admin/today', { credentials: 'same-origin' });
-  const body = await response.json().catch(() => ({})) as TodayPayload & { error?: string };
-  if (!response.ok) throw new Error(body.error || 'Não foi possível abrir o Hoje.');
+const severityLabel: Record<'BLOCKING' | 'ACTION_REQUIRED' | 'WAITING', string> = {
+  BLOCKING: 'BLOQUEIO',
+  ACTION_REQUIRED: 'AÇÃO NECESSÁRIA',
+  WAITING: 'AGUARDANDO',
+};
+
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    credentials: 'same-origin',
+    ...init,
+    headers: {
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...init?.headers,
+    },
+  });
+  const body = await response.json().catch(() => ({})) as T & { error?: string };
+  if (!response.ok) throw new Error(body.error || 'A operação não pôde ser concluída.');
   return body;
 }
 
 function time(value: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    hour: '2-digit',
-    minute: '2-digit',
+    timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit',
+  }).format(new Date(value));
+}
+
+function dateLabel(value: string): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo', weekday: 'long', day: '2-digit', month: 'long',
   }).format(new Date(value));
 }
 
 function dateTime(value: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
+    timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
   }).format(new Date(value));
 }
 
-function todayLabel(value: string): string {
-  return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-  }).format(new Date(value));
+function localInput(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  const hour = String(value.getHours()).padStart(2, '0');
+  const minute = String(value.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
-function Empty({ children }: { children: string }) {
-  return <p className="admin-today-empty">{children}</p>;
+function HomeLessonScheduler({ item, onClose, onChanged }: { item: AttentionItem; onClose: () => void; onChanged: () => void }) {
+  const [options, setOptions] = useState<ScheduleOptions | null>(null);
+  const [category, setCategory] = useState<PhysicalCategory>(item.action.category === 'AB' ? 'B' : item.action.category as PhysicalCategory);
+  const [instructorId, setInstructorId] = useState('');
+  const [vehicleId, setVehicleId] = useState('');
+  const [startsAtLocal, setStartsAtLocal] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const allowed = useMemo<PhysicalCategory[]>(() => item.action.category === 'AB' ? ['A', 'B'] : [item.action.category as PhysicalCategory], [item.action.category]);
+  const instructors = useMemo(() => options?.instructors.filter((candidate) => candidate.active && candidate.categories.includes(category)) ?? [], [options, category]);
+  const vehicles = useMemo(() => options?.vehicles.filter((candidate) => candidate.active && candidate.category === category) ?? [], [options, category]);
+
+  useEffect(() => {
+    let alive = true;
+    void api<ScheduleOptions>('/api/admin/schedule/options').then((value) => {
+      if (!alive) return;
+      if (!value.enrollments.some((enrollment) => enrollment.id === item.action.enrollmentId && enrollment.studentId === item.studentId)) {
+        throw new Error('A matrícula não está disponível para agendamento.');
+      }
+      setOptions(value);
+      const date = new Date(Date.now() + 60 * 60_000);
+      const slotMs = value.policy.slotMinutes * 60_000;
+      date.setTime(Math.ceil(date.getTime() / slotMs) * slotMs);
+      date.setSeconds(0, 0);
+      setStartsAtLocal(localInput(date));
+      setDurationMinutes(Math.max(value.policy.lessonMinMinutes, Math.min(60, value.policy.lessonMaxMinutes)));
+    }).catch((candidate) => { if (alive) setError(candidate instanceof Error ? candidate.message : 'Não foi possível abrir o agendamento.'); });
+    return () => { alive = false; };
+  }, [item.action.enrollmentId, item.studentId]);
+
+  useEffect(() => {
+    setInstructorId(instructors[0]?.id ?? '');
+    setVehicleId(vehicles[0]?.id ?? '');
+  }, [category, instructors.map((candidate) => candidate.id).join('|'), vehicles.map((candidate) => candidate.id).join('|')]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    const startsAt = new Date(startsAtLocal);
+    if (!Number.isFinite(startsAt.getTime())) return setError('Data e hora inválidas.');
+    setBusy(true); setError('');
+    try {
+      await api('/api/admin/schedule/lessons', {
+        method: 'POST',
+        body: JSON.stringify({
+          enrollmentId: item.action.enrollmentId,
+          studentId: item.studentId,
+          instructorId,
+          vehicleId,
+          category,
+          startsAt: startsAt.toISOString(),
+          endsAt: new Date(startsAt.getTime() + durationMinutes * 60_000).toISOString(),
+          notes: notes || null,
+        }),
+      });
+      window.dispatchEvent(new CustomEvent('centro:process-changed', { detail: { studentId: item.studentId, enrollmentId: item.action.enrollmentId } }));
+      onChanged();
+    } catch (candidate) {
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível agendar a aula.');
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="admin-ops-modal-backdrop" role="presentation">
+      <section className="admin-ops-modal" role="dialog" aria-modal="true">
+        <div className="admin-card-title"><div><span>SCHEDULE / LESSON KERNEL</span><h2>Agendar aula prática</h2></div><button className="admin-ops-close" type="button" onClick={onClose}>×</button></div>
+        <p>{item.studentName} · {item.studentPublicId}. O agendamento permanece sujeito às regras de conflito e categoria.</p>
+        <form className="admin-ops-form" onSubmit={submit}>
+          {allowed.length > 1 && <label>Categoria<select value={category} onChange={(event) => setCategory(event.target.value as PhysicalCategory)}>{allowed.map((value) => <option key={value}>{value}</option>)}</select></label>}
+          <div className="admin-ops-form-grid">
+            <label>Início<input type="datetime-local" required value={startsAtLocal} onChange={(event) => setStartsAtLocal(event.target.value)} /></label>
+            <label>Duração<select value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))}>{options && Array.from({ length: Math.floor((options.policy.lessonMaxMinutes - options.policy.lessonMinMinutes) / options.policy.slotMinutes) + 1 }, (_, index) => options.policy.lessonMinMinutes + index * options.policy.slotMinutes).map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}</select></label>
+          </div>
+          <div className="admin-ops-form-grid">
+            <label>Instrutor<select value={instructorId} onChange={(event) => setInstructorId(event.target.value)}><option value="">Selecione</option>{instructors.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.displayName}</option>)}</select></label>
+            <label>Veículo<select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}><option value="">Selecione</option>{vehicles.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.label} · {candidate.plate}</option>)}</select></label>
+          </div>
+          <label>Observação<textarea rows={2} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
+          {error && <p className="admin-error" role="alert">{error}</p>}
+          <div className="admin-ops-form-actions"><button className="admin-secondary" type="button" onClick={onClose}>Cancelar</button><button className="admin-primary" disabled={busy || !options || !startsAtLocal || !instructorId || !vehicleId}>{busy ? 'Agendando…' : 'Confirmar aula'}</button></div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+function EventRow({ event, onOpen }: { event: HomeEvent; onOpen: () => void }) {
+  return (
+    <button className="admin-home-event" type="button" onClick={onOpen}>
+      <time>{time(event.startsAt)}</time>
+      <div><strong>{event.studentName}</strong><small>{event.studentPublicId}</small></div>
+      <div><strong>{event.title}</strong><small>{event.detail}</small></div>
+      <span>{event.kind === 'LESSON' ? 'AULA' : event.kind === 'THEORY_EXAM' ? 'TEORIA' : 'EXAME'}</span>
+    </button>
+  );
 }
 
 export function AdminToday() {
   const navigate = useNavigate();
-  const [payload, setPayload] = useState<TodayPayload | null>(null);
+  const [payload, setPayload] = useState<HomePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeItem, setActiveItem] = useState<AttentionItem | null>(null);
+  const [activeCommand, setActiveCommand] = useState<OperationalCommand | null>(null);
+  const [lessonItem, setLessonItem] = useState<AttentionItem | null>(null);
 
-  useEffect(() => {
-    let alive = true;
-    setLoading(true);
+  const load = useCallback(async () => {
     setError('');
-    void loadToday()
-      .then((value) => { if (alive) setPayload(value); })
-      .catch((candidate) => { if (alive) setError(candidate instanceof Error ? candidate.message : 'Não foi possível abrir o Hoje.'); })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
+    try { setPayload(await api<HomePayload>('/api/admin/home')); }
+    catch (candidate) { setError(candidate instanceof Error ? candidate.message : 'Não foi possível abrir a operação.'); }
+    finally { setLoading(false); }
   }, []);
 
-  if (loading) {
-    return <section className="admin-work-card"><p className="admin-empty">Derivando operação de hoje…</p></section>;
+  useEffect(() => {
+    setLoading(true); void load();
+    const interval = window.setInterval(() => { void load(); }, 60_000);
+    const refresh = () => { void load(); };
+    window.addEventListener('centro:process-changed', refresh);
+    return () => { window.clearInterval(interval); window.removeEventListener('centro:process-changed', refresh); };
+  }, [load]);
+
+  function execute(item: AttentionItem, command: OperationalCommand | null) {
+    if (!command) return navigate(`/admin/alunos/${item.studentId}`);
+    if (command.kind === 'OPEN_URL') return navigate(command.href);
+    if (command.kind === 'SCHEDULE_LESSON') { setLessonItem(item); return; }
+    setActiveItem(item); setActiveCommand(command);
   }
 
-  if (error || !payload) {
-    return (
-      <section className="admin-work-card">
-        <p className="admin-error" role="alert">{error || 'Hoje indisponível.'}</p>
-        <button className="admin-secondary" type="button" onClick={() => window.location.reload()}>Tentar novamente</button>
-      </section>
-    );
-  }
+  if (loading) return <section className="admin-work-card"><p className="admin-empty">Derivando operação da escola…</p></section>;
+  if (error || !payload) return <section className="admin-work-card"><p className="admin-error" role="alert">{error || 'Operação indisponível.'}</p><button className="admin-secondary" type="button" onClick={() => void load()}>Tentar novamente</button></section>;
 
-  const attentionTotal = payload.summary.withoutNextLesson
-    + payload.summary.pendingFirstAccess
-    + payload.summary.withoutGuide
-    + payload.summary.recentNoShows;
+  const attention = [...payload.attention.blocking, ...payload.attention.actionRequired, ...payload.attention.waiting];
 
   return (
-    <section className="admin-today" aria-labelledby="admin-today-title">
-      <header className="admin-today-hero">
-        <div>
-          <p className="admin-eyebrow">HOJE · {todayLabel(payload.generatedAt).toUpperCase()}</p>
-          <h1 id="admin-today-title">O que precisa acontecer agora.</h1>
-          <p>Uma projeção operacional sobre aulas, processos, acessos e guias já existentes. Nenhum estado paralelo é criado aqui.</p>
-        </div>
-        <button className="admin-primary" type="button" onClick={() => navigate('/admin/agenda')}>Abrir agenda</button>
+    <section className="admin-home" aria-labelledby="admin-home-title">
+      <header className="admin-home-hero">
+        <div><p className="admin-eyebrow">CENTRO · OPERAÇÃO · {dateLabel(payload.generatedAt).toUpperCase()}</p><h1 id="admin-home-title">Agora.</h1><p>O que está acontecendo, o que vem em seguida e o que a escola precisa resolver — tudo derivado dos domínios institucionais.</p></div>
+        <div className="admin-home-clock"><strong>{time(payload.generatedAt)}</strong><span>America/São Paulo</span></div>
       </header>
 
-      <div className="admin-today-metrics" aria-label="Resumo operacional">
-        <div><span>Aulas hoje</span><strong>{payload.summary.lessonsToday}</strong><small>{payload.summary.scheduledRemaining} ainda agendada(s)</small></div>
-        <div><span>Sem próxima aula</span><strong>{payload.summary.withoutNextLesson}</strong><small>matrícula(s) ativa(s)</small></div>
-        <div><span>Próximas provas</span><strong>{payload.summary.upcomingExams}</strong><small>nos próximos 7 dias</small></div>
-        <div><span>Pendências</span><strong>{attentionTotal}</strong><small>acesso, guia ou falta</small></div>
+      <div className="admin-home-metrics" aria-label="Resumo operacional">
+        <div><span>Agora</span><strong>{payload.summary.activeNow}</strong><small>em andamento</small></div>
+        <div><span>Próximas 24h</span><strong>{payload.summary.upcoming24h}</strong><small>aulas e provas</small></div>
+        <div className="is-blocking"><span>Bloqueios</span><strong>{payload.summary.blocking}</strong><small>impedem avanço</small></div>
+        <div><span>Ações</span><strong>{payload.summary.actionRequired}</strong><small>exigem decisão</small></div>
+        <div><span>Aguardando</span><strong>{payload.summary.waiting}</strong><small>dependência aberta</small></div>
       </div>
 
-      <div className="admin-today-grid">
-        <section className="admin-detail-card admin-today-agenda">
-          <div className="admin-card-title"><span>AGENDA DE HOJE</span><strong>{payload.lessons.length}</strong></div>
-          {payload.lessons.length === 0 ? <Empty>Nenhuma aula ocupa o calendário de hoje.</Empty> : (
-            <div className="admin-today-timeline">
-              {payload.lessons.map((lesson) => (
-                <button key={lesson.id} type="button" onClick={() => navigate('/admin/agenda')}>
-                  <time>{time(lesson.startsAt)}</time>
-                  <span className="admin-today-lesson-main">
-                    <strong>{lesson.studentName}</strong>
-                    <small>{lesson.studentPublicId} · Categoria {lesson.category}</small>
-                  </span>
-                  <span className="admin-today-resource">
-                    <strong>{lesson.instructorName}</strong>
-                    <small>{lesson.vehicleLabel}</small>
-                  </span>
-                  <span className={`admin-today-status is-${lesson.status.toLowerCase()}`}>{lessonStatusLabel[lesson.status]}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
+      <section className="admin-home-now">
+        <div className="admin-section-head"><div><p className="admin-eyebrow">AGORA</p><h2>Operação em curso.</h2></div><button className="admin-secondary" type="button" onClick={() => navigate('/admin/agenda')}>Abrir agenda</button></div>
+        <div className="admin-detail-card admin-home-list">{payload.now.length === 0 ? <p className="admin-home-empty">Nenhuma operação com janela ativa neste instante.</p> : payload.now.map((event) => <EventRow key={`${event.kind}:${event.id}`} event={event} onOpen={() => navigate(event.href)} />)}</div>
+      </section>
 
-        <section className="admin-detail-card admin-today-exams">
-          <div className="admin-card-title"><span>PRÓXIMAS PROVAS</span><strong>7 dias</strong></div>
-          {payload.upcomingExams.length === 0 ? <Empty>Nenhuma prova teórica ou prática agendada.</Empty> : (
-            <div className="admin-today-list">
-              {payload.upcomingExams.map((exam) => (
-                <button key={`${exam.enrollmentId}:${exam.code}`} type="button" onClick={() => navigate(`/admin/alunos/${exam.studentId}`)}>
-                  <div><strong>{exam.studentName}</strong><small>{exam.studentPublicId}</small></div>
-                  <div><strong>{exam.code === 'THEORY_PASSED' ? 'Prova teórica' : 'Exame prático'}</strong><small>{dateTime(exam.scheduledFor)}</small></div>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+      <section className="admin-home-upcoming">
+        <div className="admin-section-head"><div><p className="admin-eyebrow">PRÓXIMOS</p><h2>As próximas 24 horas.</h2></div></div>
+        <div className="admin-detail-card admin-home-list">{payload.upcoming.length === 0 ? <p className="admin-home-empty">Nenhuma aula ou prova futura nas próximas 24 horas.</p> : payload.upcoming.slice(0, 12).map((event) => <EventRow key={`${event.kind}:${event.id}`} event={event} onOpen={() => navigate(event.href)} />)}</div>
+      </section>
 
-      <section className="admin-today-attention" aria-labelledby="admin-attention-title">
-        <div className="admin-section-head">
-          <div><p className="admin-eyebrow">ATENÇÃO</p><h2 id="admin-attention-title">Pendências derivadas.</h2></div>
-          <p>São sinais produzidos pelos fatos atuais; resolva a causa no workspace do aluno ou na agenda.</p>
-        </div>
-
-        <div className="admin-today-attention-grid">
-          <div className="admin-detail-card">
-            <div className="admin-card-title"><span>SEM PRÓXIMA AULA</span><strong>{payload.withoutNextLesson.length}</strong></div>
-            {payload.withoutNextLesson.length === 0 ? <Empty>Todas as matrículas ativas têm aula futura.</Empty> : payload.withoutNextLesson.map((item) => (
-              <button className="admin-today-attention-row" key={item.enrollmentId} type="button" onClick={() => navigate(`/admin/alunos/${item.studentId}`)}>
-                <strong>{item.studentName}</strong><span>{item.studentPublicId} · {item.category}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="admin-detail-card">
-            <div className="admin-card-title"><span>PRIMEIRO ACESSO</span><strong>{payload.pendingFirstAccess.length}</strong></div>
-            {payload.pendingFirstAccess.length === 0 ? <Empty>Nenhum aluno aguardando troca da senha inicial.</Empty> : payload.pendingFirstAccess.map((item) => (
-              <button className="admin-today-attention-row" key={item.studentId} type="button" onClick={() => navigate(`/admin/alunos/${item.studentId}`)}>
-                <strong>{item.studentName}</strong><span>{item.studentPublicId} · acesso ainda não ativado pelo aluno</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="admin-detail-card">
-            <div className="admin-card-title"><span>GUIA AINDA NÃO GERADO</span><strong>{payload.withoutGuide.length}</strong></div>
-            {payload.withoutGuide.length === 0 ? <Empty>Todas as matrículas ativas têm ao menos uma versão de guia.</Empty> : payload.withoutGuide.map((item) => (
-              <button className="admin-today-attention-row" key={item.enrollmentId} type="button" onClick={() => navigate(`/admin/alunos/${item.studentId}`)}>
-                <strong>{item.studentName}</strong><span>{item.studentPublicId} · {item.category}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="admin-detail-card">
-            <div className="admin-card-title"><span>FALTAS RECENTES</span><strong>{payload.recentNoShows.length}</strong></div>
-            {payload.recentNoShows.length === 0 ? <Empty>Nenhuma falta registrada nos últimos 7 dias.</Empty> : payload.recentNoShows.map((item) => (
-              <button className="admin-today-attention-row" key={item.lessonId} type="button" onClick={() => navigate(`/admin/alunos/${item.studentId}`)}>
-                <strong>{item.studentName}</strong><span>{dateTime(item.startsAt)} · {item.instructorName}</span>
-              </button>
-            ))}
-          </div>
+      <section className="admin-home-attention">
+        <div className="admin-section-head"><div><p className="admin-eyebrow">PRECISA DE AÇÃO</p><h2>Fila operacional derivada.</h2></div><p>Não existe tabela de tarefas. Cada linha nasce do estado institucional atual e desaparece quando o domínio proprietário muda.</p></div>
+        <div className="admin-home-attention-summary"><strong>{payload.summary.blocking} bloqueios</strong><strong>{payload.summary.actionRequired} ações</strong><strong>{payload.summary.waiting} aguardando</strong></div>
+        <div className="admin-detail-card admin-home-list">
+          {attention.length === 0 ? <p className="admin-home-empty">Nenhuma ação operacional pendente.</p> : attention.slice(0, 24).map((item) => (
+            <article className={`admin-home-action severity-${item.action.severity.toLowerCase()}`} key={`${item.studentId}:${item.action.enrollmentId}:${item.action.code}`}>
+              <div className="admin-home-action-kicker"><span>{severityLabel[item.action.severity as 'BLOCKING' | 'ACTION_REQUIRED' | 'WAITING']}</span><small>{item.studentPublicId}</small></div>
+              <div className="admin-home-action-main"><strong>{item.studentName}</strong><h3>{item.action.title}</h3><p>{item.action.detail}</p><small>{item.action.serviceType} · Categoria {item.action.category} · {item.action.processStateCode}</small></div>
+              <div className="admin-home-action-controls">
+                {item.action.secondaryCommands.slice(0, 1).map((command, index) => <button className="admin-secondary" key={`${command.kind}:${index}`} type="button" onClick={() => execute(item, command)}>{command.label}</button>)}
+                <button className="admin-primary" type="button" onClick={() => execute(item, item.action.primaryCommand)}>{item.action.primaryCommand?.label ?? 'Abrir aluno'}</button>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
+
+      <section className="admin-home-access">
+        <div className="admin-section-head"><div><p className="admin-eyebrow">ACESSO DO ALUNO</p><h2>{payload.summary.pendingFirstAccess} aguardando ativação.</h2></div></div>
+        {payload.pendingFirstAccess.length > 0 && <div className="admin-home-access-strip">{payload.pendingFirstAccess.slice(0, 8).map((item) => <button key={item.studentId} type="button" onClick={() => navigate(`/admin/alunos/${item.studentId}`)}><strong>{item.studentName}</strong><span>{item.studentPublicId}</span></button>)}</div>}
+      </section>
+
+      {lessonItem && <HomeLessonScheduler item={lessonItem} onClose={() => setLessonItem(null)} onChanged={() => { setLessonItem(null); void load(); }} />}
+      {activeItem && activeCommand && <OperationalCommandDialog studentId={activeItem.studentId} action={activeItem.action} command={activeCommand} onClose={() => { setActiveItem(null); setActiveCommand(null); }} onChanged={() => { setActiveItem(null); setActiveCommand(null); void load(); }} />}
     </section>
   );
 }
