@@ -1,0 +1,105 @@
+.admin-operational-guidance {
+  max-width: 1080px;
+  margin: 0 auto 22px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  border: 1px solid var(--admin-line);
+  background: var(--admin-paper);
+  padding: 24px 26px;
+}
+
+.admin-operational-copy {
+  min-width: 0;
+}
+
+.admin-operational-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.admin-operational-kicker > span,
+.admin-operational-guidance > span {
+  color: var(--admin-muted);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.admin-operational-kicker > strong {
+  border: 1px solid var(--admin-line);
+  padding: 4px 7px;
+  background: #f3f2ed;
+  color: var(--admin-muted);
+  font-size: 8px;
+  letter-spacing: .08em;
+}
+
+.admin-operational-guidance h2 {
+  margin: 0;
+  font-size: clamp(24px, 4vw, 38px);
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+
+.admin-operational-guidance p {
+  max-width: 760px;
+  margin: 10px 0 8px;
+  color: var(--admin-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.admin-operational-guidance small {
+  color: var(--admin-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.admin-operational-guidance > .admin-primary {
+  flex-shrink: 0;
+}
+
+.admin-operational-guidance.severity-action_required {
+  border-left: 4px solid var(--admin-blue);
+}
+
+.admin-operational-guidance.severity-blocking {
+  border-left: 4px solid #b84a3c;
+}
+
+.admin-operational-guidance.severity-scheduled {
+  border-left: 4px solid #5b7c66;
+}
+
+.admin-operational-guidance.severity-waiting,
+.admin-operational-guidance.severity-complete {
+  border-left: 4px solid #b4afa3;
+}
+
+.admin-operational-guidance.is-loading,
+.admin-operational-guidance.is-error {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-operational-guidance.is-error {
+  border-color: #d7a49b;
+  background: #fff7f4;
+}
+
+@media (max-width: 680px) {
+  .admin-operational-guidance {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-operational-kicker {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
