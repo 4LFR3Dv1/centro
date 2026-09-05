@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
 
 const roots = ['src'];
 const explicitFiles = ['server/admin/student-operations.ts'];
@@ -33,32 +34,55 @@ function listFiles(root) {
   return out;
 }
 
-function uiTextSegments(source) {
-  const segments = [];
-  const literal = /(['"`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
-  let match;
-  while ((match = literal.exec(source))) segments.push({ text: match[2], index: match.index });
+function isStructuralLiteral(node) {
+  const parent = node.parent;
+  if (!parent) return false;
+  if (ts.isLiteralTypeNode(parent)) return true;
+  if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent)) return true;
+  if (ts.isExternalModuleReference(parent)) return true;
+  if ((ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent) || ts.isMethodDeclaration(parent)) && parent.name === node) return true;
+  if (ts.isElementAccessExpression(parent) && parent.argumentExpression === node) return true;
+  return false;
+}
 
-  const jsxText = />\s*([^<{][^<]*)\s*</g;
-  while ((match = jsxText.exec(source))) segments.push({ text: match[1], index: match.index });
+function uiTextSegments(file, source) {
+  const kind = file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, kind);
+  const segments = [];
+
+  function add(text, node) {
+    if (!text || !text.trim()) return;
+    const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    segments.push({ text, line: line + 1 });
+  }
+
+  function visit(node) {
+    if (ts.isJsxText(node)) {
+      add(node.getText(sourceFile), node);
+    } else if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) && !isStructuralLiteral(node)) {
+      add(node.text, node);
+    } else if (ts.isTemplateExpression(node)) {
+      add(node.head.text, node.head);
+      for (const span of node.templateSpans) add(span.literal.text, span.literal);
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
   return segments;
 }
 
-function lineAt(source, index) {
-  return source.slice(0, index).split('\n').length;
-}
-
-const files = [...roots.flatMap(listFiles), ...explicitFiles.filter(fs.existsSync)];
+const files = [...new Set([...roots.flatMap(listFiles), ...explicitFiles.filter(fs.existsSync)])];
 const violations = [];
 
 for (const file of files) {
   const source = fs.readFileSync(file, 'utf8');
-  for (const segment of uiTextSegments(source)) {
+  for (const segment of uiTextSegments(file, source)) {
     for (const rule of forbidden) {
-      if (rule.pattern.test(segment.text)) {
-        violations.push(`${file}:${lineAt(source, segment.index)} — ${rule.label}: ${JSON.stringify(segment.text.trim().slice(0, 160))}`);
-      }
       rule.pattern.lastIndex = 0;
+      if (rule.pattern.test(segment.text)) {
+        violations.push(`${file}:${segment.line} — ${rule.label}: ${JSON.stringify(segment.text.trim().slice(0, 160))}`);
+      }
     }
   }
 }
@@ -70,4 +94,4 @@ if (violations.length) {
   process.exit(1);
 }
 
-console.log(`Zero-training language guard passed across ${files.length} source files.`);
+console.log(`Zero-training language guard passed across ${files.length} source files using the TypeScript AST.`);
