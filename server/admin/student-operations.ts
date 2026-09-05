@@ -66,8 +66,22 @@ const severityRank: Record<SchoolOperationalSeverity, number> = {
   COMPLETE: 4,
 };
 
+const resultLabels = {
+  APPROVED: 'aprovado',
+  FAILED: 'reprovado',
+  PENDING: 'pendente',
+} as const;
+
 function processHref(studentId: string): string {
   return `/admin/alunos/${studentId}#processo`;
+}
+
+function operationalDate(value: Date): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(value);
 }
 
 function compat(command: SchoolOperationalCommand | null): Pick<SchoolOperationalAction, 'actionLabel' | 'href'> {
@@ -116,37 +130,106 @@ async function actionForProcess(pool: pg.Pool, studentId: string, process: Enrol
   };
 
   if (process.enrollment.status === 'PAUSED') {
-    const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Abrir processo', href: processHref(studentId) };
-    return { ...common, code: 'ENROLLMENT_PAUSED', title: 'Matrícula pausada', detail: 'O processo não pode avançar enquanto a matrícula estiver pausada.', severity: 'BLOCKING', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+    const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Ver matrícula', href: processHref(studentId) };
+    return {
+      ...common,
+      code: 'ENROLLMENT_PAUSED',
+      title: 'Matrícula pausada',
+      detail: 'Nenhuma etapa pode avançar enquanto a matrícula estiver pausada. Reative a matrícula antes de continuar.',
+      severity: 'BLOCKING',
+      primaryCommand,
+      secondaryCommands: [],
+      ...compat(primaryCommand),
+    };
   }
 
   if (!process.modeled) {
-    return { ...common, code: 'UNMODELED_SERVICE', title: 'Serviço ainda não modelado', detail: 'Este tipo de matrícula ainda não possui orientação processual institucional admitida.', severity: 'WAITING', primaryCommand: null, secondaryCommands: [], actionLabel: null, href: null };
+    return {
+      ...common,
+      code: 'UNMODELED_SERVICE',
+      title: 'Acompanhamento ainda não disponível',
+      detail: 'O Centro ainda não orienta automaticamente este tipo de matrícula. Nenhuma ação será feita por conta própria.',
+      severity: 'WAITING',
+      primaryCommand: null,
+      secondaryCommands: [],
+      actionLabel: null,
+      href: null,
+    };
   }
 
   if (process.currentState.code === 'COMPLETE') {
-    const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Ver processo', href: processHref(studentId) };
-    return { ...common, code: 'PROCESS_COMPLETE', title: 'Processo concluído', detail: 'Nenhuma ação operacional está pendente nesta matrícula.', severity: 'COMPLETE', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+    const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Ver histórico', href: processHref(studentId) };
+    return {
+      ...common,
+      code: 'PROCESS_COMPLETE',
+      title: 'Matrícula sem pendências',
+      detail: 'Todas as etapas acompanhadas pelo Centro estão concluídas. Nenhuma ação é necessária agora.',
+      severity: 'COMPLETE',
+      primaryCommand,
+      secondaryCommands: [],
+      ...compat(primaryCommand),
+    };
   }
 
   switch (process.currentState.code as ProcessMilestoneCode) {
     case 'REGISTRATION_DONE': {
-      const primaryCommand = milestoneCommand('REGISTRATION_DONE', 'Registrar conclusão', 'Concluir cadastro e biometria', 'Confirme somente quando houver evidência institucional suficiente de que RENACH/cadastro e biometria foram resolvidos.');
-      return { ...common, code: 'REGISTER_REGISTRATION_DONE', title: 'Concluir cadastro e biometria', detail: 'A escola precisa registrar a conclusão institucional desta etapa quando houver evidência suficiente.', severity: 'ACTION_REQUIRED', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+      const primaryCommand = milestoneCommand(
+        'REGISTRATION_DONE',
+        'Registrar conclusão',
+        'Concluir cadastro e biometria',
+        'Confirme apenas quando RENACH, cadastro e biometria estiverem concluídos e você conseguir comprovar essa informação.',
+      );
+      return {
+        ...common,
+        code: 'REGISTER_REGISTRATION_DONE',
+        title: 'Confirmar cadastro e biometria',
+        detail: 'Quando cadastro, RENACH e biometria estiverem resolvidos, registre a conclusão para liberar a próxima etapa.',
+        severity: 'ACTION_REQUIRED',
+        primaryCommand,
+        secondaryCommands: [],
+        ...compat(primaryCommand),
+      };
     }
     case 'HEALTH_DONE': {
-      const primaryCommand = milestoneCommand('HEALTH_DONE', 'Registrar conclusão', 'Concluir avaliações de saúde', 'Confirme somente quando as avaliações psicológica e de aptidão física/mental aplicáveis estiverem concluídas.');
-      return { ...common, code: 'REGISTER_HEALTH_DONE', title: 'Concluir avaliações de saúde', detail: 'A próxima ação da escola é admitir a conclusão das avaliações aplicáveis quando o resultado estiver disponível.', severity: 'ACTION_REQUIRED', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+      const primaryCommand = milestoneCommand(
+        'HEALTH_DONE',
+        'Registrar conclusão',
+        'Concluir avaliações de saúde',
+        'Confirme apenas quando as avaliações psicológica e de aptidão física e mental aplicáveis estiverem concluídas.',
+      );
+      return {
+        ...common,
+        code: 'REGISTER_HEALTH_DONE',
+        title: 'Confirmar avaliações de saúde',
+        detail: 'Quando as avaliações aplicáveis estiverem concluídas, registre essa informação para liberar a próxima etapa.',
+        severity: 'ACTION_REQUIRED',
+        primaryCommand,
+        secondaryCommands: [],
+        ...compat(primaryCommand),
+      };
     }
     case 'THEORY_PASSED': {
       const attempt = await getOpenTheoryExamAttempt(pool, process.enrollment.id);
       if (!attempt) {
         const primaryCommand: SchoolOperationalCommand = { kind: 'SCHEDULE_THEORY_EXAM', label: 'Agendar prova' };
-        return { ...common, code: 'SCHEDULE_THEORY_EXAM', title: 'Agendar prova teórica', detail: 'Nenhuma tentativa de prova teórica está aberta para esta matrícula.', severity: 'ACTION_REQUIRED', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+        return {
+          ...common,
+          code: 'SCHEDULE_THEORY_EXAM',
+          title: 'Aluno pronto para a prova teórica',
+          detail: 'Ainda não há uma prova teórica marcada para esta matrícula.',
+          severity: 'ACTION_REQUIRED',
+          primaryCommand,
+          secondaryCommands: [],
+          ...compat(primaryCommand),
+        };
       }
       const primaryCommand: SchoolOperationalCommand = {
         kind: 'MANAGE_THEORY_EXAM',
-        label: attempt.attendanceStatus === 'PENDING' ? 'Gerenciar prova' : attempt.observedResult === 'PENDING' ? 'Registrar resultado' : 'Reconciliar resultado',
+        label: attempt.attendanceStatus === 'PENDING'
+          ? 'Registrar presença'
+          : attempt.observedResult === 'PENDING'
+            ? 'Registrar resultado'
+            : 'Confirmar resultado oficial',
         attemptId: attempt.id,
         scheduledFor: attempt.scheduledFor,
         attendanceStatus: attempt.attendanceStatus === 'ABSENT' ? 'PENDING' : attempt.attendanceStatus,
@@ -154,53 +237,195 @@ async function actionForProcess(pool: pg.Pool, studentId: string, process: Enrol
         officialResult: attempt.officialResult,
       };
       if (attempt.attendanceStatus === 'PENDING') {
-        return { ...common, code: 'THEORY_EXAM_SCHEDULED', title: 'Prova teórica agendada', detail: `Tentativa registrada para ${attempt.scheduledFor.toISOString()}. A escola ainda precisa registrar presença ou ausência.`, severity: 'SCHEDULED', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+        return {
+          ...common,
+          code: 'THEORY_EXAM_SCHEDULED',
+          title: 'Prova teórica marcada',
+          detail: `Prova marcada para ${operationalDate(attempt.scheduledFor)}. Depois da prova, registre presença ou ausência.`,
+          severity: 'SCHEDULED',
+          primaryCommand,
+          secondaryCommands: [],
+          ...compat(primaryCommand),
+        };
       }
       if (attempt.observedResult === 'PENDING') {
-        return { ...common, code: 'THEORY_EXAM_RESULT_REQUIRED', title: 'Registrar resultado observado da prova teórica', detail: 'A presença já foi registrada. Falta registrar o resultado observado pela escola.', severity: 'ACTION_REQUIRED', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+        return {
+          ...common,
+          code: 'THEORY_EXAM_RESULT_REQUIRED',
+          title: 'Falta registrar o resultado da prova teórica',
+          detail: 'A presença já foi registrada. Informe o resultado recebido pela escola.',
+          severity: 'ACTION_REQUIRED',
+          primaryCommand,
+          secondaryCommands: [],
+          ...compat(primaryCommand),
+        };
       }
-      return { ...common, code: 'THEORY_EXAM_RECONCILIATION_REQUIRED', title: 'Reconciliar resultado oficial da prova teórica', detail: `Resultado observado: ${attempt.observedResult}. O processo só avança depois da reconciliação oficial.`, severity: 'ACTION_REQUIRED', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+      return {
+        ...common,
+        code: 'THEORY_EXAM_RECONCILIATION_REQUIRED',
+        title: 'Falta confirmar o resultado oficial da prova teórica',
+        detail: `A escola registrou o aluno como ${resultLabels[attempt.observedResult]}. Agora falta confirmar o resultado oficial.`,
+        severity: 'ACTION_REQUIRED',
+        primaryCommand,
+        secondaryCommands: [],
+        ...compat(primaryCommand),
+      };
     }
     case 'PRACTICE_DONE': {
-      const completePractice = milestoneCommand('PRACTICE_DONE', 'Registrar prática concluída', 'Concluir preparação prática', `O Centro registrou ${process.progress.completedLessons} aula(s) e ${process.progress.completedMinutes} minuto(s). A conclusão não é inferida automaticamente; confirme somente com evidência institucional suficiente.`);
+      const completePractice = milestoneCommand(
+        'PRACTICE_DONE',
+        'Concluir aulas práticas',
+        'Concluir aulas práticas',
+        `O Centro registra ${process.progress.completedLessons} aula(s) concluída(s), somando ${process.progress.completedMinutes} minuto(s). Confirme apenas quando a preparação prática realmente estiver concluída.`,
+      );
       if (process.progress.nextLessonAt) {
-        const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Abrir agenda', href: '/admin/agenda' };
-        return { ...common, code: 'LESSON_ALREADY_SCHEDULED', title: 'Próxima aula prática já agendada', detail: `Existe aula futura em ${process.progress.nextLessonAt.toISOString()}.`, severity: 'SCHEDULED', primaryCommand, secondaryCommands: [completePractice], ...compat(primaryCommand) };
+        const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Ver agenda', href: '/admin/agenda' };
+        return {
+          ...common,
+          code: 'LESSON_ALREADY_SCHEDULED',
+          title: 'Aula prática já agendada',
+          detail: `Próxima aula em ${operationalDate(process.progress.nextLessonAt)}. Nenhuma ação de agendamento é necessária agora.`,
+          severity: 'SCHEDULED',
+          primaryCommand,
+          secondaryCommands: [completePractice],
+          ...compat(primaryCommand),
+        };
       }
       const primaryCommand: SchoolOperationalCommand = { kind: 'SCHEDULE_LESSON', label: 'Agendar aula' };
-      return { ...common, code: process.progress.completedLessons > 0 ? 'SCHEDULE_NEXT_LESSON' : 'SCHEDULE_FIRST_LESSON', title: process.progress.completedLessons > 0 ? 'Agendar próxima aula prática' : 'Agendar primeira aula prática', detail: process.progress.completedLessons > 0 ? `${process.progress.completedLessons} aula(s) concluída(s), ${process.progress.completedMinutes} minuto(s) registrados e nenhuma aula futura.` : 'A preparação prática está aberta e nenhuma aula futura está registrada.', severity: 'ACTION_REQUIRED', primaryCommand, secondaryCommands: [completePractice], ...compat(primaryCommand) };
+      return {
+        ...common,
+        code: process.progress.completedLessons > 0 ? 'SCHEDULE_NEXT_LESSON' : 'SCHEDULE_FIRST_LESSON',
+        title: process.progress.completedLessons > 0 ? 'Agendar próxima aula prática' : 'Agendar primeira aula prática',
+        detail: process.progress.completedLessons > 0
+          ? `${process.progress.completedLessons} aula(s) concluída(s). Não há nenhuma aula futura marcada.`
+          : 'O aluno já pode iniciar as aulas práticas e ainda não há aula futura marcada.',
+        severity: 'ACTION_REQUIRED',
+        primaryCommand,
+        secondaryCommands: [completePractice],
+        ...compat(primaryCommand),
+      };
     }
     case 'PRACTICAL_EXAM_PASSED': {
       const candidate = await loadOpenPracticalCandidate(pool, process.enrollment.id);
       if (!candidate) {
-        const primaryCommand: SchoolOperationalCommand = { kind: 'ADD_TO_PRACTICAL_EXAM', label: 'Encaminhar para exame' };
-        return { ...common, code: 'SCHEDULE_PRACTICAL_EXAM', title: 'Encaminhar para exame prático', detail: 'A preparação prática está concluída e não existe candidato aberto em uma lista de exame.', severity: 'ACTION_REQUIRED', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+        const primaryCommand: SchoolOperationalCommand = { kind: 'ADD_TO_PRACTICAL_EXAM', label: 'Marcar exame prático' };
+        return {
+          ...common,
+          code: 'SCHEDULE_PRACTICAL_EXAM',
+          title: 'Aluno pronto para o exame prático',
+          detail: 'As aulas práticas estão concluídas e ainda não há exame prático marcado.',
+          severity: 'ACTION_REQUIRED',
+          primaryCommand,
+          secondaryCommands: [],
+          ...compat(primaryCommand),
+        };
       }
       if (candidate.attendance_status === 'ABSENT') {
-        const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Abrir lista de exame', href: '/admin/exames' };
-        return { ...common, code: 'PRACTICAL_EXAM_ABSENCE_RECORDED', title: 'Ausência registrada no exame prático', detail: 'A ausência já está preservada na lista atual. Encerre ou resolva essa lista antes de encaminhar o aluno para uma nova tentativa.', severity: 'WAITING', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+        const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Ver lista de exame', href: '/admin/exames' };
+        return {
+          ...common,
+          code: 'PRACTICAL_EXAM_ABSENCE_RECORDED',
+          title: 'Ausência registrada no exame prático',
+          detail: 'Resolva a lista de exame atual antes de marcar uma nova tentativa para este aluno.',
+          severity: 'WAITING',
+          primaryCommand,
+          secondaryCommands: [],
+          ...compat(primaryCommand),
+        };
       }
-      const primaryCommand: SchoolOperationalCommand = { kind: 'MANAGE_PRACTICAL_EXAM', label: candidate.attendance_status === 'PENDING' ? 'Gerenciar exame' : candidate.observed_result === 'PENDING' ? 'Registrar resultado' : 'Reconciliar resultado', sessionId: candidate.session_id, candidateId: candidate.id, officialScheduledFor: candidate.official_scheduled_for, attendanceStatus: candidate.attendance_status, observedResult: candidate.observed_result, officialResult: candidate.official_result };
+      const primaryCommand: SchoolOperationalCommand = {
+        kind: 'MANAGE_PRACTICAL_EXAM',
+        label: candidate.attendance_status === 'PENDING'
+          ? 'Registrar presença'
+          : candidate.observed_result === 'PENDING'
+            ? 'Registrar resultado'
+            : 'Confirmar resultado oficial',
+        sessionId: candidate.session_id,
+        candidateId: candidate.id,
+        officialScheduledFor: candidate.official_scheduled_for,
+        attendanceStatus: candidate.attendance_status,
+        observedResult: candidate.observed_result,
+        officialResult: candidate.official_result,
+      };
       if (candidate.attendance_status === 'PENDING') {
-        return { ...common, code: 'PRACTICAL_EXAM_SCHEDULED', title: 'Exame prático já agendado', detail: `Horário oficial: ${candidate.official_scheduled_for.toISOString()}. A escola ainda precisa registrar presença ou ausência.`, severity: 'SCHEDULED', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+        return {
+          ...common,
+          code: 'PRACTICAL_EXAM_SCHEDULED',
+          title: 'Exame prático marcado',
+          detail: `Exame marcado para ${operationalDate(candidate.official_scheduled_for)}. Depois do exame, registre presença ou ausência.`,
+          severity: 'SCHEDULED',
+          primaryCommand,
+          secondaryCommands: [],
+          ...compat(primaryCommand),
+        };
       }
       if (candidate.observed_result === 'PENDING') {
-        return { ...common, code: 'PRACTICAL_EXAM_RESULT_REQUIRED', title: 'Registrar resultado observado do exame prático', detail: 'A presença já foi registrada. Falta registrar o resultado observado pela escola.', severity: 'ACTION_REQUIRED', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+        return {
+          ...common,
+          code: 'PRACTICAL_EXAM_RESULT_REQUIRED',
+          title: 'Falta registrar o resultado do exame prático',
+          detail: 'A presença já foi registrada. Informe o resultado recebido pela escola.',
+          severity: 'ACTION_REQUIRED',
+          primaryCommand,
+          secondaryCommands: [],
+          ...compat(primaryCommand),
+        };
       }
-      return { ...common, code: 'PRACTICAL_EXAM_RECONCILIATION_REQUIRED', title: 'Reconciliar resultado oficial do exame prático', detail: `Resultado observado: ${candidate.observed_result}. O processo só avança depois da reconciliação oficial.`, severity: 'ACTION_REQUIRED', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+      return {
+        ...common,
+        code: 'PRACTICAL_EXAM_RECONCILIATION_REQUIRED',
+        title: 'Falta confirmar o resultado oficial do exame prático',
+        detail: `A escola registrou o aluno como ${resultLabels[candidate.observed_result]}. Agora falta confirmar o resultado oficial.`,
+        severity: 'ACTION_REQUIRED',
+        primaryCommand,
+        secondaryCommands: [],
+        ...compat(primaryCommand),
+      };
     }
     case 'LICENSE_AVAILABLE': {
-      const primaryCommand = milestoneCommand('LICENSE_AVAILABLE', 'Registrar disponibilidade', 'Confirmar CNH disponível', 'Confirme somente quando houver evidência de que a habilitação foi emitida/disponibilizada ao aluno.');
-      return { ...common, code: 'CONFIRM_LICENSE_AVAILABLE', title: 'Confirmar disponibilidade da CNH', detail: 'O exame prático foi aprovado. O processo conclui quando a disponibilização da habilitação for confirmada.', severity: 'ACTION_REQUIRED', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+      const primaryCommand = milestoneCommand(
+        'LICENSE_AVAILABLE',
+        'Confirmar CNH disponível',
+        'Confirmar CNH disponível',
+        'Confirme apenas quando a habilitação tiver sido emitida ou disponibilizada ao aluno.',
+      );
+      return {
+        ...common,
+        code: 'CONFIRM_LICENSE_AVAILABLE',
+        title: 'Confirmar que a CNH está disponível',
+        detail: 'O aluno foi aprovado no exame prático. Confirme quando a habilitação estiver disponível para concluir o acompanhamento.',
+        severity: 'ACTION_REQUIRED',
+        primaryCommand,
+        secondaryCommands: [],
+        ...compat(primaryCommand),
+      };
     }
     case 'PROCESS_STARTED': {
-      const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Abrir processo', href: processHref(studentId) };
-      return { ...common, code: 'PROCESS_START_PENDING', title: 'Confirmar início operacional', detail: 'A matrícula ainda não produziu uma próxima etapa institucional operável.', severity: 'BLOCKING', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+      const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Revisar matrícula', href: processHref(studentId) };
+      return {
+        ...common,
+        code: 'PROCESS_START_PENDING',
+        title: 'Falta informação para indicar o próximo passo',
+        detail: 'Revise os dados da matrícula para confirmar em que ponto o aluno está.',
+        severity: 'BLOCKING',
+        primaryCommand,
+        secondaryCommands: [],
+        ...compat(primaryCommand),
+      };
     }
   }
 
-  const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Abrir processo', href: processHref(studentId) };
-  return { ...common, code: 'PROCESS_STATE_UNAVAILABLE', title: 'Estado processual sem projeção operacional', detail: 'O Process Kernel derivou um estado que ainda não possui orientação específica para a escola.', severity: 'WAITING', primaryCommand, secondaryCommands: [], ...compat(primaryCommand) };
+  const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Revisar situação', href: processHref(studentId) };
+  return {
+    ...common,
+    code: 'PROCESS_STATE_UNAVAILABLE',
+    title: 'Próximo passo indisponível',
+    detail: 'O Centro ainda não consegue indicar uma ação para esta situação. Revise os dados do aluno antes de continuar.',
+    severity: 'WAITING',
+    primaryCommand,
+    secondaryCommands: [],
+    ...compat(primaryCommand),
+  };
 }
 
 export async function resolveStudentOperationalContext(pool: pg.Pool, studentId: string): Promise<StudentOperationalContext> {
