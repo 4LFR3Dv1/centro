@@ -1,11 +1,11 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OperationalCommandDialog, type OperationalCommand } from './admin-operational-execution';
+import { ContextualLessonScheduler } from './contextual-lesson-scheduler';
 import './admin-today.css';
 
 type Severity = 'BLOCKING' | 'ACTION_REQUIRED' | 'SCHEDULED' | 'WAITING' | 'COMPLETE';
 type Category = 'A' | 'B' | 'AB' | 'D';
-type PhysicalCategory = 'A' | 'B' | 'D';
 type ServiceType = 'FIRST_LICENSE' | 'CATEGORY_ADDITION' | 'CATEGORY_CHANGE' | 'LICENSED_TRAINING';
 
 type OperationalAction = {
@@ -72,13 +72,6 @@ type HomePayload = {
   }>;
 };
 
-type ScheduleOptions = {
-  policy: { slotMinutes: number; lessonMinMinutes: number; lessonMaxMinutes: number };
-  instructors: Array<{ id: string; displayName: string; active: boolean; categories: PhysicalCategory[] }>;
-  vehicles: Array<{ id: string; plate: string; label: string; category: PhysicalCategory; active: boolean }>;
-  enrollments: Array<{ id: string; studentId: string; studentName: string; category: Category }>;
-};
-
 const severityLabel: Record<'BLOCKING' | 'ACTION_REQUIRED' | 'WAITING', string> = {
   BLOCKING: 'PRECISA RESOLVER',
   ACTION_REQUIRED: 'PRECISA DE AÇÃO',
@@ -116,107 +109,6 @@ function dateLabel(value: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Sao_Paulo', weekday: 'long', day: '2-digit', month: 'long',
   }).format(new Date(value));
-}
-
-function localInput(value: Date): string {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-  const hour = String(value.getHours()).padStart(2, '0');
-  const minute = String(value.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day}T${hour}:${minute}`;
-}
-
-function HomeLessonScheduler({ item, onClose, onChanged }: { item: AttentionItem; onClose: () => void; onChanged: () => void }) {
-  const [options, setOptions] = useState<ScheduleOptions | null>(null);
-  const [category, setCategory] = useState<PhysicalCategory>(item.action.category === 'AB' ? 'B' : item.action.category as PhysicalCategory);
-  const [instructorId, setInstructorId] = useState('');
-  const [vehicleId, setVehicleId] = useState('');
-  const [startsAtLocal, setStartsAtLocal] = useState('');
-  const [durationMinutes, setDurationMinutes] = useState(60);
-  const [notes, setNotes] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-
-  const allowed = useMemo<PhysicalCategory[]>(() => item.action.category === 'AB' ? ['A', 'B'] : [item.action.category as PhysicalCategory], [item.action.category]);
-  const instructors = useMemo(() => options?.instructors.filter((candidate) => candidate.active && candidate.categories.includes(category)) ?? [], [options, category]);
-  const vehicles = useMemo(() => options?.vehicles.filter((candidate) => candidate.active && candidate.category === category) ?? [], [options, category]);
-
-  useEffect(() => {
-    let alive = true;
-    void api<ScheduleOptions>('/api/admin/schedule/options').then((value) => {
-      if (!alive) return;
-      if (!value.enrollments.some((enrollment) => enrollment.id === item.action.enrollmentId && enrollment.studentId === item.studentId)) {
-        throw new Error('Esta matrícula não está disponível para agendamento.');
-      }
-      setOptions(value);
-      const date = new Date(Date.now() + 60 * 60_000);
-      const slotMs = value.policy.slotMinutes * 60_000;
-      date.setTime(Math.ceil(date.getTime() / slotMs) * slotMs);
-      date.setSeconds(0, 0);
-      setStartsAtLocal(localInput(date));
-      setDurationMinutes(Math.max(value.policy.lessonMinMinutes, Math.min(60, value.policy.lessonMaxMinutes)));
-    }).catch((candidate) => { if (alive) setError(candidate instanceof Error ? candidate.message : 'Não foi possível abrir o agendamento.'); });
-    return () => { alive = false; };
-  }, [item.action.enrollmentId, item.studentId]);
-
-  useEffect(() => {
-    setInstructorId(instructors[0]?.id ?? '');
-    setVehicleId(vehicles[0]?.id ?? '');
-  }, [category, instructors.map((candidate) => candidate.id).join('|'), vehicles.map((candidate) => candidate.id).join('|')]);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    const startsAt = new Date(startsAtLocal);
-    if (!Number.isFinite(startsAt.getTime())) return setError('Informe uma data e hora válidas.');
-    setBusy(true); setError('');
-    try {
-      await api('/api/admin/schedule/lessons', {
-        method: 'POST',
-        body: JSON.stringify({
-          enrollmentId: item.action.enrollmentId,
-          studentId: item.studentId,
-          instructorId,
-          vehicleId,
-          category,
-          startsAt: startsAt.toISOString(),
-          endsAt: new Date(startsAt.getTime() + durationMinutes * 60_000).toISOString(),
-          notes: notes || null,
-        }),
-      });
-      window.dispatchEvent(new CustomEvent('centro:process-changed', { detail: { studentId: item.studentId, enrollmentId: item.action.enrollmentId } }));
-      onChanged();
-    } catch (candidate) {
-      setError(candidate instanceof Error ? candidate.message : 'Não foi possível agendar a aula. Revise os dados e tente novamente.');
-    } finally { setBusy(false); }
-  }
-
-  return (
-    <div className="admin-ops-modal-backdrop" role="presentation">
-      <section className="admin-ops-modal" role="dialog" aria-modal="true" aria-labelledby="home-lesson-title">
-        <div className="admin-card-title">
-          <div><span>AGENDAR AULA</span><h2 id="home-lesson-title">{item.studentName}</h2></div>
-          <button className="admin-ops-close" type="button" onClick={onClose} aria-label="Fechar agendamento">×</button>
-        </div>
-        <p>Escolha o horário, o instrutor e o veículo. O Centro avisa se houver conflito ou combinação incompatível.</p>
-        <form className="admin-ops-form" onSubmit={submit}>
-          {allowed.length > 1 && <label>Categoria<select value={category} onChange={(event) => setCategory(event.target.value as PhysicalCategory)}>{allowed.map((value) => <option key={value}>{value}</option>)}</select></label>}
-          <div className="admin-ops-form-grid">
-            <label>Data e hora<input type="datetime-local" required value={startsAtLocal} onChange={(event) => setStartsAtLocal(event.target.value)} /></label>
-            <label>Duração<select value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))}>{options && Array.from({ length: Math.floor((options.policy.lessonMaxMinutes - options.policy.lessonMinMinutes) / options.policy.slotMinutes) + 1 }, (_, index) => options.policy.lessonMinMinutes + index * options.policy.slotMinutes).map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}</select></label>
-          </div>
-          <div className="admin-ops-form-grid">
-            <label>Instrutor<select value={instructorId} onChange={(event) => setInstructorId(event.target.value)}><option value="">Selecione</option>{instructors.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.displayName}</option>)}</select></label>
-            <label>Veículo<select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}><option value="">Selecione</option>{vehicles.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.label} · {candidate.plate}</option>)}</select></label>
-          </div>
-          <label>Observação opcional<textarea rows={2} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
-          {options && (!instructors.length || !vehicles.length) && <p className="admin-ops-warning" role="status">Antes de agendar, é preciso ter instrutor autorizado e veículo ativo para a categoria {category}.</p>}
-          {error && <p className="admin-error" role="alert">{error}</p>}
-          <div className="admin-ops-form-actions"><button className="admin-secondary" type="button" onClick={onClose}>Cancelar</button><button className="admin-primary" disabled={busy || !options || !startsAtLocal || !instructorId || !vehicleId}>{busy ? 'Agendando…' : 'Agendar aula'}</button></div>
-        </form>
-      </section>
-    </div>
-  );
 }
 
 function EventRow({ event, onOpen }: { event: HomeEvent; onOpen: () => void }) {
@@ -313,7 +205,16 @@ export function AdminToday() {
         {payload.pendingFirstAccess.length > 0 && <div className="admin-home-access-strip">{payload.pendingFirstAccess.slice(0, 8).map((item) => <button key={item.studentId} type="button" onClick={() => navigate(`/admin/alunos/${item.studentId}`)} aria-label={`Ver acesso de ${item.studentName}`}><strong>{item.studentName}</strong><span>{item.studentPublicId}</span></button>)}</div>}
       </section>
 
-      {lessonItem && <HomeLessonScheduler item={lessonItem} onClose={() => setLessonItem(null)} onChanged={() => { setLessonItem(null); void load(); }} />}
+      {lessonItem && (
+        <ContextualLessonScheduler
+          studentId={lessonItem.studentId}
+          studentName={lessonItem.studentName}
+          enrollmentId={lessonItem.action.enrollmentId}
+          enrollmentCategory={lessonItem.action.category}
+          onClose={() => setLessonItem(null)}
+          onScheduled={() => { setLessonItem(null); void load(); }}
+        />
+      )}
       {activeItem && activeCommand && <OperationalCommandDialog studentId={activeItem.studentId} action={activeItem.action} command={activeCommand} onClose={() => { setActiveItem(null); setActiveCommand(null); }} onChanged={() => { setActiveItem(null); setActiveCommand(null); void load(); }} />}
     </section>
   );
