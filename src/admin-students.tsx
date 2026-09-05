@@ -4,6 +4,8 @@ import { AccessQr, studentAccessUrl } from './access-qr';
 import { AdminOperationalGuidance } from './admin-operational-guidance';
 import { AdminProcessPanel } from './admin-process';
 import { AdminQrScanner } from './admin-qr-scanner';
+import { AdminStudentGuides } from './admin-student-guides';
+import './admin-student-workspace.css';
 
 type IdentityDocument = {
   type: 'CIN' | 'RG' | 'RNE' | 'CRNM';
@@ -281,10 +283,10 @@ export function AdminStudents() {
       {scannerOpen && (
         <AdminQrScanner
           onClose={() => setScannerOpen(false)}
-          onResolved={(studentId, meta) => {
+          onResolved={(resolvedStudentId, meta) => {
             setScannerOpen(false);
             if (!meta.active) window.alert(`QR antigo de ${meta.fullName}. Abrindo o cadastro atual.`);
-            navigate(`/admin/alunos/${studentId}`);
+            navigate(`/admin/alunos/${resolvedStudentId}`);
           }}
         />
       )}
@@ -355,6 +357,8 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
   const access = accessQr?.activationRequired
     ? { title: 'Aguardando ativação', detail: 'O aluno ainda não criou a própria senha. Entregue o QR ativo para concluir o primeiro acesso.', tone: 'pending' }
     : credentialState(credential);
+  const operationalEnrollments = enrollments.filter((enrollment) => enrollment.status === 'ACTIVE' || enrollment.status === 'PAUSED');
+  const currentEnrollment = operationalEnrollments.find((enrollment) => enrollment.status === 'ACTIVE') ?? operationalEnrollments[0] ?? null;
 
   return (
     <section className="admin-student-detail" aria-labelledby="student-detail-title">
@@ -393,44 +397,69 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
         </dl>
       </div>
 
-      <div className="admin-student-columns">
-        <div className="admin-detail-card admin-access-card">
-          <div className="admin-card-title"><span>ACESSO</span><strong className={`admin-state admin-state-${access.tone}`}>{access.title}</strong></div>
-          <p>{access.detail}</p>
-          <div className="admin-access-qr-layout">
-            {accessQr && <AccessQr publicToken={accessQr.publicToken} size={190} />}
-            <div>
-              <strong>{student.publicId}</strong>
-              {accessQr && <small>QR atual emitido em {dateTime(accessQr.createdAt)}</small>}
-              {accessQr?.activatedAt && <small>Acesso ativado em {dateTime(accessQr.activatedAt)}</small>}
-              <small>
-                {accessQr?.activationRequired
-                  ? 'No primeiro scan deste QR, o aluno cria a própria senha.'
-                  : 'O QR localiza esta identidade. A senha continua obrigatória no portal.'}
-              </small>
+      <div className="admin-student-workspace-grid">
+        <aside className="admin-student-context-rail" aria-label="Contexto do aluno">
+          <div className="admin-detail-card admin-access-card">
+            <div className="admin-card-title"><span>ACESSO</span><strong className={`admin-state admin-state-${access.tone}`}>{access.title}</strong></div>
+            <p>{access.detail}</p>
+            <div className="admin-access-qr-layout">
+              {accessQr && <AccessQr publicToken={accessQr.publicToken} size={190} />}
+              <div>
+                <strong>{student.publicId}</strong>
+                {accessQr && <small>QR atual emitido em {dateTime(accessQr.createdAt)}</small>}
+                {accessQr?.activatedAt && <small>Acesso ativado em {dateTime(accessQr.activatedAt)}</small>}
+                <small>
+                  {accessQr?.activationRequired
+                    ? 'No primeiro scan deste QR, o aluno cria a própria senha.'
+                    : 'O QR localiza esta identidade. A senha continua obrigatória no portal.'}
+                </small>
+              </div>
             </div>
+            {credential.exists ? (
+              <dl className="admin-detail-list">
+                <div><dt>Credencial</dt><dd>Materializada</dd></div>
+                <div><dt>Versão da senha</dt><dd>{credential.passwordVersion ?? '—'}</dd></div>
+                <div><dt>Tentativas inválidas</dt><dd>{credential.failedAttempts}</dd></div>
+              </dl>
+            ) : (
+              <dl className="admin-detail-list">
+                <div><dt>Credencial</dt><dd>Aguardando ativação</dd></div>
+                <div><dt>Senha</dt><dd>Não existe ainda</dd></div>
+              </dl>
+            )}
+            <div className="admin-access-actions">
+              {accessQr && <button className="admin-secondary" type="button" onClick={() => void navigator.clipboard.writeText(studentAccessUrl(accessQr.publicToken))}>Copiar link</button>}
+              {accessQr && <button className="admin-secondary" type="button" onClick={() => window.print()}>Imprimir QR</button>}
+              <button className="admin-secondary" type="button" onClick={() => void rotateQr()} disabled={rotating}>{rotating ? 'Substituindo…' : 'Girar QR'}</button>
+            </div>
+            <small>A escola nunca cria, recebe ou recupera a senha escolhida pelo aluno.</small>
           </div>
-          {credential.exists ? (
-            <dl className="admin-detail-list">
-              <div><dt>Credencial</dt><dd>Materializada</dd></div>
-              <div><dt>Versão da senha</dt><dd>{credential.passwordVersion ?? '—'}</dd></div>
-              <div><dt>Tentativas inválidas</dt><dd>{credential.failedAttempts}</dd></div>
-            </dl>
-          ) : (
-            <dl className="admin-detail-list">
-              <div><dt>Credencial</dt><dd>Aguardando ativação</dd></div>
-              <div><dt>Senha</dt><dd>Não existe ainda</dd></div>
-            </dl>
-          )}
-          <div className="admin-access-actions">
-            {accessQr && <button className="admin-secondary" type="button" onClick={() => void navigator.clipboard.writeText(studentAccessUrl(accessQr.publicToken))}>Copiar link</button>}
-            {accessQr && <button className="admin-secondary" type="button" onClick={() => window.print()}>Imprimir QR</button>}
-            <button className="admin-secondary" type="button" onClick={() => void rotateQr()} disabled={rotating}>{rotating ? 'Substituindo…' : 'Girar QR'}</button>
-          </div>
-          <small>A escola nunca cria, recebe ou recupera a senha escolhida pelo aluno.</small>
-        </div>
 
-        <div id="processo">
+          {currentEnrollment && (
+            <div className="admin-detail-card admin-current-enrollment-card">
+              <div className="admin-card-title">
+                <span>MATRÍCULA ATUAL</span>
+                <strong className={`admin-state admin-state-${currentEnrollment.status === 'ACTIVE' ? 'ok' : 'pending'}`}>
+                  {enrollmentStatusLabels[currentEnrollment.status]}
+                </strong>
+              </div>
+              <div className="admin-current-enrollment-title">
+                <strong>{serviceLabels[currentEnrollment.serviceType]}</strong>
+                <span>Categoria {currentEnrollment.category}</span>
+              </div>
+              <dl className="admin-detail-list admin-current-enrollment-facts">
+                <div><dt>RENACH</dt><dd>{currentEnrollment.renach || 'Não informado'}</dd></div>
+                <div><dt>Aberta em</dt><dd>{dateOnly(currentEnrollment.openedAt)}</dd></div>
+              </dl>
+            </div>
+          )}
+
+          {operationalEnrollments.length > 0 && (
+            <AdminStudentGuides studentId={studentId} enrollments={operationalEnrollments} />
+          )}
+        </aside>
+
+        <div className="admin-student-operation-column" id="processo">
           <AdminProcessPanel enrollments={enrollments} />
         </div>
       </div>
