@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import * as tsNamespace from 'typescript';
+import { createRequire } from 'node:module';
 
-const ts = tsNamespace.default ?? tsNamespace;
+const require = createRequire(import.meta.url);
+const ts = require('typescript');
 
 const roots = ['src'];
 const explicitFiles = ['server/admin/student-operations.ts'];
