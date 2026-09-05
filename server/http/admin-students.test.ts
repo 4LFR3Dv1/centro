@@ -12,7 +12,7 @@ const ADMIN_USER = 'admin-students-test';
 const ADMIN_PASSWORD = `Admin-${randomUUID()}-Test`;
 const TEST_DOCUMENT = '98765432100';
 const TEST_IDENTITY = 'RG-STUDENT-DETAIL-002';
-const TEST_RENACH = 'RENACH-STUDENT-DETAIL-002';
+const TEST_RENACH = 'RENACHSTUD002';
 
 function cookieValue(setCookie: string | null): string {
   assert.ok(setCookie, 'login must return Set-Cookie');
