@@ -160,7 +160,12 @@ test('ADMIN-HOME-002 derives global actions and reconciles them into scheduled e
       actorStaffUserId: admin.staffUserId,
     });
     const lessonStartsAt = new Date(Date.now() + 60 * 60_000);
-    lessonStartsAt.setSeconds(0, 0);
+    lessonStartsAt.setUTCSeconds(0, 0);
+    if (lessonStartsAt.getUTCMinutes() < 30) {
+      lessonStartsAt.setUTCMinutes(30, 0, 0);
+    } else {
+      lessonStartsAt.setUTCHours(lessonStartsAt.getUTCHours() + 1, 0, 0, 0);
+    }
     const lesson = await createScheduleLesson(pool, {
       enrollmentId: practice.enrollmentId,
       studentId: practice.studentId,
