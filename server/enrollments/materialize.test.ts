@@ -28,6 +28,11 @@ async function cleanupStudents(pool: ReturnType<typeof createDatabasePool>, staf
           FROM enrollments e
           JOIN students s ON s.id = e.student_id
           WHERE s.document_normalized IN ($1, $2)
+          UNION
+          SELECT q.id
+          FROM student_access_qrs q
+          JOIN students s ON s.id = q.student_id
+          WHERE s.document_normalized IN ($1, $2)
         )`,
     [TEST_DOCUMENT, ROLLBACK_DOCUMENT, staffId ?? null],
   );
@@ -44,7 +49,7 @@ async function cleanupStudents(pool: ReturnType<typeof createDatabasePool>, staf
   );
 }
 
-test('ADMIN-002 materializes Student + Credential + Enrollment atomically and reuses Student identity', async () => {
+test('ACCESS-002 materializes Student + Enrollment + persistent QR atomically without inventing a password', async () => {
   const pool = createDatabasePool();
   const staffId = await seedStaff(pool);
 
@@ -62,8 +67,12 @@ test('ADMIN-002 materializes Student + Credential + Enrollment atomically and re
     });
 
     assert.match(first.studentPublicId, /^CEN-\d{2}-\d{5,}$/);
-    assert.match(first.initialPassword ?? '', /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
-    assert.equal(first.credentialCreated, true);
+    assert.equal(first.credentialCreated, false);
+    assert.equal(first.initialPassword, null);
+    assert.equal(first.credentialExists, false);
+    assert.equal(first.activationRequired, true);
+    assert.equal(first.accessQr.created, true);
+    assert.ok(first.accessQr.publicToken.length >= 20);
 
     const studentRows = await pool.query<{ public_id: string }>(
       'SELECT public_id FROM students WHERE id = $1',
@@ -71,13 +80,11 @@ test('ADMIN-002 materializes Student + Credential + Enrollment atomically and re
     );
     assert.equal(studentRows.rows[0]?.public_id, first.studentPublicId);
 
-    const credentialRows = await pool.query<{ password_hash: string; must_change_password: boolean }>(
-      'SELECT password_hash, must_change_password FROM student_credentials WHERE student_id = $1',
+    const credentialRows = await pool.query<{ count: string }>(
+      'SELECT count(*)::text AS count FROM student_credentials WHERE student_id = $1',
       [first.studentId],
     );
-    assert.match(credentialRows.rows[0]?.password_hash ?? '', /^\$argon2id\$/);
-    assert.equal(credentialRows.rows[0]?.password_hash.includes(first.initialPassword ?? ''), false);
-    assert.equal(credentialRows.rows[0]?.must_change_password, true);
+    assert.equal(credentialRows.rows[0]?.count, '0', 'enrollment must not create StudentCredential');
 
     const second = await materializeEnrollment(pool, {
       fullName: 'João da Silva',
@@ -90,8 +97,10 @@ test('ADMIN-002 materializes Student + Credential + Enrollment atomically and re
 
     assert.equal(second.studentId, first.studentId);
     assert.equal(second.studentPublicId, first.studentPublicId);
-    assert.equal(second.credentialCreated, false);
-    assert.equal(second.initialPassword, null);
+    assert.equal(second.credentialExists, false);
+    assert.equal(second.activationRequired, true);
+    assert.equal(second.accessQr.created, false);
+    assert.equal(second.accessQr.publicToken, first.accessQr.publicToken);
 
     const enrollmentCount = await pool.query<{ count: string }>(
       'SELECT count(*)::text AS count FROM enrollments WHERE student_id = $1',
@@ -99,17 +108,17 @@ test('ADMIN-002 materializes Student + Credential + Enrollment atomically and re
     );
     assert.equal(enrollmentCount.rows[0]?.count, '2');
 
-    const audit = await pool.query<{ metadata: unknown; action: string }>(
-      `SELECT action, metadata
+    const audit = await pool.query<{ action: string }>(
+      `SELECT action
        FROM audit_events
        WHERE entity_id IN ($1, $2, $3)
+          OR (action = 'STUDENT_ACCESS_QR_CREATED' AND metadata ->> 'studentId' = $1::text)
        ORDER BY occurred_at`,
       [first.studentId, first.enrollmentId, second.enrollmentId],
     );
-    const auditJson = JSON.stringify(audit.rows);
-    assert.equal(auditJson.includes(first.initialPassword ?? '__never__'), false);
     assert.ok(audit.rows.some((row) => row.action === 'STUDENT_CREATED'));
-    assert.ok(audit.rows.some((row) => row.action === 'STUDENT_CREDENTIAL_CREATED'));
+    assert.ok(audit.rows.some((row) => row.action === 'STUDENT_ACCESS_QR_CREATED'));
+    assert.equal(audit.rows.some((row) => row.action === 'STUDENT_CREDENTIAL_CREATED'), false);
     assert.equal(audit.rows.filter((row) => row.action === 'ENROLLMENT_CREATED').length, 2);
 
     await assert.rejects(
