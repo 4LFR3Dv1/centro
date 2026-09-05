@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AccessQr, studentAccessUrl } from './access-qr';
+import { AdminOperationalGuidance } from './admin-operational-guidance';
 import { AdminProcessPanel } from './admin-process';
 import { AdminQrScanner } from './admin-qr-scanner';
 
@@ -371,6 +372,8 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
         </div>
       </div>
 
+      <AdminOperationalGuidance studentId={studentId} />
+
       <div className="admin-student-facts">
         <div><span>CPF</span><strong>{documentLabel(student.cpf)}</strong></div>
         <div><span>Nascimento</span><strong>{birthDateLabel(student.birthDate)}</strong></div>
@@ -427,7 +430,9 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
           <small>A escola nunca cria, recebe ou recupera a senha escolhida pelo aluno.</small>
         </div>
 
-        <AdminProcessPanel enrollments={enrollments} />
+        <div id="processo">
+          <AdminProcessPanel enrollments={enrollments} />
+        </div>
       </div>
 
       <div className="admin-detail-card admin-enrollment-history">
@@ -441,7 +446,7 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
             <span className={`admin-state admin-state-${enrollment.status === 'ACTIVE' ? 'ok' : enrollment.status === 'PAUSED' ? 'pending' : 'neutral'}`}>{enrollmentStatusLabels[enrollment.status]}</span>
             {enrollment.notes && <p>{enrollment.notes}</p>}
             {enrollment.intakeObservations.length > 0 && (
-              <div className="admin-detail-list">
+              <dl className="admin-detail-list">
                 {enrollment.intakeObservations.map((observation) => (
                   <div key={observation.id}>
                     <dt>{dateTime(observation.observedAt)}</dt>
@@ -451,7 +456,7 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
                     </dd>
                   </div>
                 ))}
-              </div>
+              </dl>
             )}
           </article>
         ))}
