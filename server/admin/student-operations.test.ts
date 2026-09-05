@@ -193,6 +193,7 @@ test('PROCESS-OPS-002 derives theory commands from the THEORY-EXAM-001 attempt l
       cpf: THEORY_CPF,
       birthDate: '1998-08-08',
       identityDocument: { type: 'RG', number: `THEORY-${SUFFIX}`, uf: 'SP' },
+      intake: { situation: 'PROCESS_STARTED' },
       serviceType: 'FIRST_LICENSE',
       category: 'B',
       actorStaffUserId: bootstrap.staffUserId,
