@@ -5,12 +5,14 @@ import test from 'node:test';
 import { createDatabasePool } from '../db/pool.js';
 import { materializeEnrollment } from '../enrollments/materialize.js';
 import { authenticateStaff, bootstrapFirstAdmin } from '../staff/auth.js';
+import { authenticateStudent, resolveStudentSession } from '../student/auth.js';
 import { createStudentAccessApiHandler } from './student-access-api.js';
 
 const ORIGIN = 'https://centro.test';
 const suffix = randomBytes(5).toString('hex');
 const ADMIN_USER = `access-qr-${suffix}`;
 const ADMIN_PASSWORD = `Acesso-${randomBytes(12).toString('base64url')}!9`;
+const STUDENT_PASSWORD = `Aluno-${randomBytes(15).toString('base64url')}!7`;
 const DOCUMENT = `77${String(Date.now()).slice(-9)}`;
 
 async function cleanup(pool: ReturnType<typeof createDatabasePool>) {
@@ -33,11 +35,18 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>) {
   }
 }
 
-function cookie(token: string) {
+function adminCookie(token: string) {
   return `centro_admin_session=${encodeURIComponent(token)}`;
 }
 
-test('ACCESS-001 persists one Student QR, resolves public identity, supports Staff lookup and rotation', async () => {
+function cookieValue(setCookie: string | null, name: string): string {
+  assert.ok(setCookie);
+  const match = setCookie.match(new RegExp(`${name}=([^;]+)`));
+  assert.ok(match);
+  return decodeURIComponent(match[1]);
+}
+
+test('ACCESS-002 enrollment has no password; first active QR creates credential + session exactly once', async () => {
   const pool = createDatabasePool();
   await cleanup(pool);
 
@@ -58,33 +67,18 @@ test('ACCESS-001 persists one Student QR, resolves public identity, supports Sta
     category: 'B',
     actorStaffUserId: bootstrap.staffUserId,
   });
-  assert.equal(first.credentialCreated, true);
-  assert.ok(first.initialPassword);
+  assert.equal(first.credentialExists, false);
+  assert.equal(first.activationRequired, true);
+  assert.equal(first.initialPassword, null);
   assert.equal(first.accessQr.created, true);
-  assert.ok(first.accessQr.publicToken.length >= 20);
 
-  const second = await materializeEnrollment(pool, {
-    fullName: 'Aluno QR Persistente',
-    phone: '11999990001',
-    email: 'qr@example.test',
-    document: DOCUMENT,
-    serviceType: 'LICENSED_TRAINING',
-    category: 'B',
-    actorStaffUserId: bootstrap.staffUserId,
-  });
-  assert.equal(second.studentId, first.studentId);
-  assert.equal(second.credentialCreated, false);
-  assert.equal(second.initialPassword, null);
-  assert.equal(second.accessQr.created, false);
-  assert.equal(second.accessQr.publicToken, first.accessQr.publicToken);
-
-  const activeBefore = await pool.query<{ count: string }>(
-    'SELECT count(*)::text AS count FROM student_access_qrs WHERE student_id = $1 AND revoked_at IS NULL',
+  const credentialBefore = await pool.query<{ count: string }>(
+    'SELECT count(*)::text AS count FROM student_credentials WHERE student_id = $1',
     [first.studentId],
   );
-  assert.equal(Number(activeBefore.rows[0].count), 1);
+  assert.equal(credentialBefore.rows[0]?.count, '0');
 
-  const handler = createStudentAccessApiHandler(pool, { publicOrigin: ORIGIN });
+  const handler = createStudentAccessApiHandler(pool, { publicOrigin: ORIGIN, secureCookies: false });
   const server = createServer((req, res) => {
     void handler(req, res).then((handled) => {
       if (!handled && !res.writableEnded) { res.statusCode = 404; res.end(); }
@@ -98,54 +92,138 @@ test('ACCESS-001 persists one Student QR, resolves public identity, supports Sta
   try {
     const publicResolve = await fetch(`${base}/api/student/access/${first.accessQr.publicToken}`);
     assert.equal(publicResolve.status, 200);
-    assert.equal(publicResolve.headers.get('set-cookie'), null, 'QR resolution must not authenticate');
-    assert.deepEqual(await publicResolve.json(), { publicId: first.studentPublicId });
+    assert.equal(publicResolve.headers.get('set-cookie'), null, 'GET QR resolution must never authenticate');
+    const initialResolution = await publicResolve.json() as { publicId: string; firstName: string; activationRequired: boolean };
+    assert.equal(initialResolution.publicId, first.studentPublicId);
+    assert.equal(initialResolution.firstName, 'Aluno');
+    assert.equal(initialResolution.activationRequired, true);
 
-    const anonymousAdmin = await fetch(`${base}/api/admin/students/${first.studentId}/access-qr`);
-    assert.equal(anonymousAdmin.status, 401);
+    const directLoginBefore = await authenticateStudent(pool, first.studentPublicId, STUDENT_PASSWORD);
+    assert.equal(directLoginBefore, null, 'a password cannot authenticate before activation because no credential exists');
 
     const auth = await authenticateStaff(pool, ADMIN_USER, ADMIN_PASSWORD);
     assert.ok(auth);
-    const adminCookie = cookie(auth.token);
+    const staffCookie = adminCookie(auth.token);
 
-    const current = await fetch(`${base}/api/admin/students/${first.studentId}/access-qr`, { headers: { Cookie: adminCookie } });
-    assert.equal(current.status, 200);
-    const currentBody = await current.json() as { qr: { publicToken: string } };
-    assert.equal(currentBody.qr.publicToken, first.accessQr.publicToken);
-
-    const lookup = await fetch(`${base}/api/admin/student-access/lookup`, {
+    // Staff may rotate a card before activation; the new QR remains an activation capability.
+    const rotateBefore = await fetch(`${base}/api/admin/students/${first.studentId}/access-qr/rotate`, {
       method: 'POST',
-      headers: { Cookie: adminCookie, Origin: ORIGIN, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: `${ORIGIN}/aluno/acesso/${first.accessQr.publicToken}` }),
-    });
-    assert.equal(lookup.status, 200);
-    const lookupBody = await lookup.json() as { student: { id: string; publicId: string }; qr: { active: boolean } };
-    assert.equal(lookupBody.student.id, first.studentId);
-    assert.equal(lookupBody.student.publicId, first.studentPublicId);
-    assert.equal(lookupBody.qr.active, true);
-
-    const wrongOrigin = await fetch(`${base}/api/admin/students/${first.studentId}/access-qr/rotate`, {
-      method: 'POST',
-      headers: { Cookie: adminCookie, Origin: 'https://evil.test', 'Content-Type': 'application/json' },
+      headers: { Cookie: staffCookie, Origin: ORIGIN, 'Content-Type': 'application/json' },
       body: '{}',
+    });
+    assert.equal(rotateBefore.status, 200);
+    const rotateBeforeBody = await rotateBefore.json() as { qr: { publicToken: string; activationRequired: boolean; activatedAt: string | null } };
+    assert.notEqual(rotateBeforeBody.qr.publicToken, first.accessQr.publicToken);
+    assert.equal(rotateBeforeBody.qr.activationRequired, true);
+    assert.equal(rotateBeforeBody.qr.activatedAt, null);
+
+    const oldBeforeActivation = await fetch(`${base}/api/student/access/${first.accessQr.publicToken}`);
+    assert.equal(oldBeforeActivation.status, 410);
+
+    const activeToken = rotateBeforeBody.qr.publicToken;
+    const activeResolve = await fetch(`${base}/api/student/access/${activeToken}`);
+    assert.equal(activeResolve.status, 200);
+    assert.equal((await activeResolve.json() as { activationRequired: boolean }).activationRequired, true);
+
+    const wrongOrigin = await fetch(`${base}/api/student/access/${activeToken}/activate`, {
+      method: 'POST',
+      headers: { Origin: 'https://evil.test', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: STUDENT_PASSWORD }),
     });
     assert.equal(wrongOrigin.status, 403);
 
-    const rotate = await fetch(`${base}/api/admin/students/${first.studentId}/access-qr/rotate`, {
+    const shortPassword = await fetch(`${base}/api/student/access/${activeToken}/activate`, {
       method: 'POST',
-      headers: { Cookie: adminCookie, Origin: ORIGIN, 'Content-Type': 'application/json' },
+      headers: { Origin: ORIGIN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'curta' }),
+    });
+    assert.equal(shortPassword.status, 400);
+
+    const activation = await fetch(`${base}/api/student/access/${activeToken}/activate`, {
+      method: 'POST',
+      headers: { Origin: ORIGIN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: STUDENT_PASSWORD }),
+    });
+    assert.equal(activation.status, 201);
+    const activationBody = await activation.json() as {
+      student: { id: string; publicId: string };
+      credential: { mustChangePassword: boolean };
+      nextAction: null;
+    };
+    assert.equal(activationBody.student.id, first.studentId);
+    assert.equal(activationBody.student.publicId, first.studentPublicId);
+    assert.equal(activationBody.credential.mustChangePassword, false);
+    assert.equal(activationBody.nextAction, null);
+
+    const studentToken = cookieValue(activation.headers.get('set-cookie'), 'centro_student_session');
+    const resolvedSession = await resolveStudentSession(pool, studentToken);
+    assert.ok(resolvedSession);
+    assert.equal(resolvedSession.studentId, first.studentId);
+    assert.equal(resolvedSession.mustChangePassword, false);
+
+    const credentialAfter = await pool.query<{ password_hash: string; must_change_password: boolean }>(
+      'SELECT password_hash, must_change_password FROM student_credentials WHERE student_id = $1',
+      [first.studentId],
+    );
+    assert.match(credentialAfter.rows[0]?.password_hash ?? '', /^\$argon2id\$/);
+    assert.equal(credentialAfter.rows[0]?.password_hash.includes(STUDENT_PASSWORD), false);
+    assert.equal(credentialAfter.rows[0]?.must_change_password, false);
+
+    const qrAfter = await pool.query<{ activated_at: Date | null }>(
+      'SELECT activated_at FROM student_access_qrs WHERE public_token = $1',
+      [activeToken],
+    );
+    assert.ok(qrAfter.rows[0]?.activated_at);
+
+    const resolvedAfter = await fetch(`${base}/api/student/access/${activeToken}`);
+    assert.equal(resolvedAfter.status, 200);
+    assert.equal((await resolvedAfter.json() as { activationRequired: boolean }).activationRequired, false);
+
+    const duplicateActivation = await fetch(`${base}/api/student/access/${activeToken}/activate`, {
+      method: 'POST',
+      headers: { Origin: ORIGIN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: STUDENT_PASSWORD }),
+    });
+    assert.equal(duplicateActivation.status, 409);
+
+    const normalLogin = await authenticateStudent(pool, first.studentPublicId, STUDENT_PASSWORD);
+    assert.ok(normalLogin, 'password chosen during activation becomes the normal portal credential');
+
+    const second = await materializeEnrollment(pool, {
+      fullName: 'Aluno QR Persistente',
+      phone: '11999990001',
+      email: 'qr@example.test',
+      document: DOCUMENT,
+      serviceType: 'LICENSED_TRAINING',
+      category: 'B',
+      actorStaffUserId: bootstrap.staffUserId,
+    });
+    assert.equal(second.studentId, first.studentId);
+    assert.equal(second.credentialExists, true);
+    assert.equal(second.activationRequired, false);
+    assert.equal(second.initialPassword, null);
+    assert.equal(second.accessQr.publicToken, activeToken);
+
+    // Rotation after activation produces a locator-only QR; it must never ask the Student to set another password.
+    const rotateAfter = await fetch(`${base}/api/admin/students/${first.studentId}/access-qr/rotate`, {
+      method: 'POST',
+      headers: { Cookie: staffCookie, Origin: ORIGIN, 'Content-Type': 'application/json' },
       body: '{}',
     });
-    assert.equal(rotate.status, 200);
-    const rotateBody = await rotate.json() as { qr: { publicToken: string } };
-    assert.notEqual(rotateBody.qr.publicToken, first.accessQr.publicToken);
+    assert.equal(rotateAfter.status, 200);
+    const rotateAfterBody = await rotateAfter.json() as { qr: { publicToken: string; activationRequired: boolean; activatedAt: string | null } };
+    assert.equal(rotateAfterBody.qr.activationRequired, false);
+    assert.ok(rotateAfterBody.qr.activatedAt);
 
-    const oldPublic = await fetch(`${base}/api/student/access/${first.accessQr.publicToken}`);
-    assert.equal(oldPublic.status, 410);
+    const oldActivePublic = await fetch(`${base}/api/student/access/${activeToken}`);
+    assert.equal(oldActivePublic.status, 410);
+    const finalPublic = await fetch(`${base}/api/student/access/${rotateAfterBody.qr.publicToken}`);
+    assert.equal(finalPublic.status, 200);
+    assert.equal((await finalPublic.json() as { activationRequired: boolean }).activationRequired, false);
 
     const oldStaffLookup = await fetch(`${base}/api/admin/student-access/lookup`, {
       method: 'POST',
-      headers: { Cookie: adminCookie, Origin: ORIGIN, 'Content-Type': 'application/json' },
+      headers: { Cookie: staffCookie, Origin: ORIGIN, 'Content-Type': 'application/json' },
       body: JSON.stringify({ value: first.accessQr.publicToken }),
     });
     assert.equal(oldStaffLookup.status, 200);
@@ -153,23 +231,13 @@ test('ACCESS-001 persists one Student QR, resolves public identity, supports Sta
     assert.equal(oldStaffBody.student.id, first.studentId);
     assert.equal(oldStaffBody.qr.active, false);
 
-    const newPublic = await fetch(`${base}/api/student/access/${rotateBody.qr.publicToken}`);
-    assert.equal(newPublic.status, 200);
-    assert.deepEqual(await newPublic.json(), { publicId: first.studentPublicId });
-
-    const activeAfter = await pool.query<{ count: string }>(
-      'SELECT count(*)::text AS count FROM student_access_qrs WHERE student_id = $1 AND revoked_at IS NULL',
-      [first.studentId],
-    );
-    assert.equal(Number(activeAfter.rows[0].count), 1);
-
     const audit = await pool.query<{ action: string }>(
       `SELECT action FROM audit_events
-       WHERE actor_staff_user_id = $1
-         AND action IN ('STUDENT_ACCESS_QR_CREATED', 'STUDENT_ACCESS_QR_ROTATED')`,
-      [bootstrap.staffUserId],
+       WHERE actor_student_id = $1 OR actor_staff_user_id = $2`,
+      [first.studentId, bootstrap.staffUserId],
     );
-    assert.ok(audit.rows.some((row) => row.action === 'STUDENT_ACCESS_QR_CREATED'));
+    assert.ok(audit.rows.some((row) => row.action === 'STUDENT_ACCESS_ACTIVATED'));
+    assert.ok(audit.rows.some((row) => row.action === 'STUDENT_LOGIN'));
     assert.ok(audit.rows.some((row) => row.action === 'STUDENT_ACCESS_QR_ROTATED'));
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
