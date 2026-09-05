@@ -8,6 +8,8 @@ Turn the existing Student Workspace from a historical/process view into a school
 
 This cut does not create a second process engine. `server/process/resolver.ts` remains the authority for process state. `PROCESS-OPS-001` is a School projection over that accepted state.
 
+Admission requires the complete operational CI gate, including PostgreSQL witnesses, frontend/server build, deployment image and runtime smoke.
+
 ## Existing primitives reused
 
 The cut composes primitives already admitted by CENTRO-OPS:
