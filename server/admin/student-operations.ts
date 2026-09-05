@@ -1,7 +1,7 @@
 import type pg from 'pg';
 import type { EnrollmentProcessView, PersistentMilestoneCode, ProcessMilestoneCode } from '../process/resolver.js';
 import { resolveStudentProcesses } from '../process/resolver.js';
-import { getOpenTheoryExamAttempt } from '../theory-exams/admin.js';
+import { getOpenTheoryExamAttempt, listTheoryExamAttempts } from '../theory-exams/admin.js';
 
 export type SchoolOperationalSeverity = 'BLOCKING' | 'ACTION_REQUIRED' | 'SCHEDULED' | 'WAITING' | 'COMPLETE';
 
@@ -112,6 +112,23 @@ async function loadOpenPracticalCandidate(pool: pg.Pool, enrollmentId: string) {
   return result.rows[0] ?? null;
 }
 
+async function loadLatestPracticalCandidate(pool: pg.Pool, enrollmentId: string) {
+  const result = await pool.query<{
+    official_scheduled_for: Date;
+    attendance_status: 'PENDING' | 'PRESENT' | 'ABSENT';
+    observed_result: 'PENDING' | 'APPROVED' | 'FAILED';
+    official_result: 'PENDING' | 'APPROVED' | 'FAILED';
+  }>(
+    `SELECT official_scheduled_for, attendance_status, observed_result, official_result
+     FROM practical_exam_candidates
+     WHERE enrollment_id = $1
+     ORDER BY official_scheduled_for DESC, created_at DESC
+     LIMIT 1`,
+    [enrollmentId],
+  );
+  return result.rows[0] ?? null;
+}
+
 async function loadLatestLesson(pool: pg.Pool, enrollmentId: string) {
   const result = await pool.query<{
     status: 'SCHEDULED' | 'COMPLETED' | 'NO_SHOW' | 'CANCELLED';
@@ -146,12 +163,12 @@ async function actionForProcess(pool: pg.Pool, studentId: string, process: Enrol
   };
 
   if (process.enrollment.status === 'PAUSED') {
-    const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Ver matrícula', href: processHref(studentId) };
+    const primaryCommand: SchoolOperationalCommand = { kind: 'OPEN_URL', label: 'Revisar matrícula', href: processHref(studentId) };
     return {
       ...common,
       code: 'ENROLLMENT_PAUSED',
       title: 'Matrícula pausada',
-      detail: 'Nenhuma etapa pode avançar enquanto a matrícula estiver pausada. Reative a matrícula antes de continuar.',
+      detail: 'Nenhuma etapa pode avançar enquanto a matrícula estiver pausada. A escola precisa revisar a matrícula e reativá-la pelo procedimento autorizado antes de continuar.',
       severity: 'BLOCKING',
       primaryCommand,
       secondaryCommands: [],
@@ -227,7 +244,33 @@ async function actionForProcess(pool: pg.Pool, studentId: string, process: Enrol
     case 'THEORY_PASSED': {
       const attempt = await getOpenTheoryExamAttempt(pool, process.enrollment.id);
       if (!attempt) {
-        const primaryCommand: SchoolOperationalCommand = { kind: 'SCHEDULE_THEORY_EXAM', label: 'Agendar prova' };
+        const primaryCommand: SchoolOperationalCommand = { kind: 'SCHEDULE_THEORY_EXAM', label: 'Agendar nova prova' };
+        const latestAttempt = (await listTheoryExamAttempts(pool, process.enrollment.id))[0] ?? null;
+        if (latestAttempt?.attendanceStatus === 'ABSENT') {
+          return {
+            ...common,
+            code: 'THEORY_EXAM_ABSENCE_RECOVERY',
+            title: 'A última prova teórica terminou como ausência',
+            detail: 'A tentativa anterior foi encerrada porque o aluno não compareceu. Ela não conta como aprovação e uma nova prova precisa ser marcada para continuar.',
+            severity: 'ACTION_REQUIRED',
+            primaryCommand,
+            secondaryCommands: [],
+            ...compat(primaryCommand),
+          };
+        }
+        if (latestAttempt?.officialResult === 'FAILED') {
+          return {
+            ...common,
+            code: 'THEORY_EXAM_FAILED_RECOVERY',
+            title: 'A última prova teórica terminou como reprovada',
+            detail: 'O resultado oficial da tentativa anterior foi reprovação. Quando houver uma nova data, marque outra tentativa para o aluno continuar.',
+            severity: 'ACTION_REQUIRED',
+            primaryCommand,
+            secondaryCommands: [],
+            ...compat(primaryCommand),
+          };
+        }
+        primaryCommand.label = 'Agendar prova';
         return {
           ...common,
           code: 'SCHEDULE_THEORY_EXAM',
@@ -352,7 +395,33 @@ async function actionForProcess(pool: pg.Pool, studentId: string, process: Enrol
     case 'PRACTICAL_EXAM_PASSED': {
       const candidate = await loadOpenPracticalCandidate(pool, process.enrollment.id);
       if (!candidate) {
-        const primaryCommand: SchoolOperationalCommand = { kind: 'ADD_TO_PRACTICAL_EXAM', label: 'Marcar exame prático' };
+        const primaryCommand: SchoolOperationalCommand = { kind: 'ADD_TO_PRACTICAL_EXAM', label: 'Marcar novo exame prático' };
+        const latestCandidate = await loadLatestPracticalCandidate(pool, process.enrollment.id);
+        if (latestCandidate?.attendance_status === 'ABSENT') {
+          return {
+            ...common,
+            code: 'PRACTICAL_EXAM_ABSENCE_RECOVERY',
+            title: 'A última tentativa prática terminou como ausência',
+            detail: 'O aluno não compareceu à tentativa anterior. Quando houver uma nova data compatível, marque outra tentativa para continuar.',
+            severity: 'ACTION_REQUIRED',
+            primaryCommand,
+            secondaryCommands: [],
+            ...compat(primaryCommand),
+          };
+        }
+        if (latestCandidate?.official_result === 'FAILED') {
+          return {
+            ...common,
+            code: 'PRACTICAL_EXAM_FAILED_RECOVERY',
+            title: 'O último exame prático terminou como reprovado',
+            detail: 'O resultado oficial da tentativa anterior foi reprovação. Quando houver uma nova lista compatível, marque outra tentativa.',
+            severity: 'ACTION_REQUIRED',
+            primaryCommand,
+            secondaryCommands: [],
+            ...compat(primaryCommand),
+          };
+        }
+        primaryCommand.label = 'Marcar exame prático';
         return {
           ...common,
           code: 'SCHEDULE_PRACTICAL_EXAM',
@@ -370,7 +439,7 @@ async function actionForProcess(pool: pg.Pool, studentId: string, process: Enrol
           ...common,
           code: 'PRACTICAL_EXAM_ABSENCE_RECORDED',
           title: 'Ausência registrada no exame prático',
-          detail: 'Resolva a lista de exame atual antes de marcar uma nova tentativa para este aluno.',
+          detail: 'A tentativa atual está encerrada como ausência. Finalize a lista de exame; depois disso, uma nova tentativa poderá ser marcada.',
           severity: 'WAITING',
           primaryCommand,
           secondaryCommands: [],
