@@ -4,6 +4,19 @@ import { AccessQr, studentAccessUrl } from './access-qr';
 import { AdminProcessPanel } from './admin-process';
 import { AdminQrScanner } from './admin-qr-scanner';
 
+type IdentityDocument = {
+  type: 'CIN' | 'RG' | 'RNE' | 'CRNM';
+  number: string;
+  uf: string | null;
+};
+
+type StudentAddress = {
+  postalCode: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+};
+
 type StudentSummary = {
   id: string;
   publicId: string;
@@ -11,11 +24,23 @@ type StudentSummary = {
   phone: string;
   email: string | null;
   document: string | null;
+  cpf: string | null;
+  birthDate: string | null;
+  identityDocument: IdentityDocument | null;
+  address: StudentAddress | null;
   status: 'ACTIVE' | 'ARCHIVED';
   activeEnrollments: number;
   totalEnrollments: number;
   createdAt: string;
   updatedAt: string;
+};
+
+type IntakeObservation = {
+  id: string;
+  kind: 'DETRAN_PROCESS_STARTED' | 'RENACH_OBSERVED' | 'THEORY_COURSE_COMPLETED' | 'THEORY_EXAM_PASSED';
+  value: string | null;
+  observedAt: string;
+  recordedByStaffUserId: string;
 };
 
 type StudentEnrollment = {
@@ -26,6 +51,8 @@ type StudentEnrollment = {
   openedAt: string;
   completedAt: string | null;
   notes: string | null;
+  renach: string | null;
+  intakeObservations: IntakeObservation[];
 };
 
 type StudentCredential = {
@@ -79,6 +106,25 @@ const enrollmentStatusLabels: Record<StudentEnrollment['status'], string> = {
   CANCELLED: 'Cancelada',
 };
 
+const intakeLabels: Record<IntakeObservation['kind'], { title: string; detail: string }> = {
+  DETRAN_PROCESS_STARTED: {
+    title: 'Processo no Detran iniciado',
+    detail: 'O intake declarou que o processo oficial já havia começado.',
+  },
+  RENACH_OBSERVED: {
+    title: 'RENACH observado',
+    detail: 'O RENACH foi informado como fato da matrícula.',
+  },
+  THEORY_COURSE_COMPLETED: {
+    title: 'Curso teórico concluído',
+    detail: 'Conclusão do curso observada; aprovação na prova não é presumida.',
+  },
+  THEORY_EXAM_PASSED: {
+    title: 'Aprovação teórica observada',
+    detail: 'A aprovação na prova teórica foi declarada no intake.',
+  },
+};
+
 const auditLabels: Record<string, string> = {
   STUDENT_CREATED: 'Aluno criado',
   STUDENT_CREDENTIAL_CREATED: 'Acesso legado criado',
@@ -86,6 +132,7 @@ const auditLabels: Record<string, string> = {
   STUDENT_ACCESS_QR_ROTATED: 'QR de acesso substituído',
   STUDENT_ACCESS_ACTIVATED: 'Acesso ativado pelo aluno',
   ENROLLMENT_CREATED: 'Matrícula criada',
+  ENROLLMENT_INTAKE_RECORDED: 'Intake institucional registrado',
   STUDENT_LOGIN: 'Aluno entrou no portal',
   STUDENT_LOGOUT: 'Aluno saiu do portal',
   STUDENT_INITIAL_PASSWORD_CHANGED: 'Senha inicial legada alterada',
@@ -118,10 +165,33 @@ function dateOnly(value: string): string {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(value));
 }
 
+function birthDateLabel(value: string | null): string {
+  if (!value) return '—';
+  const [year, month, day] = value.slice(0, 10).split('-');
+  if (!year || !month || !day) return value;
+  return `${day}/${month}/${year}`;
+}
+
 function documentLabel(value: string | null): string {
   if (!value) return '—';
   if (value.length === 11) return `${value.slice(0, 3)}.${value.slice(3, 6)}.${value.slice(6, 9)}-${value.slice(9)}`;
   return value;
+}
+
+function identityLabel(identity: IdentityDocument | null): string {
+  if (!identity) return '—';
+  return `${identity.type} ${identity.number}${identity.uf ? ` · ${identity.uf}` : ''}`;
+}
+
+function postalCodeLabel(value: string | null): string {
+  if (!value || value.length !== 8) return value || '—';
+  return `${value.slice(0, 5)}-${value.slice(5)}`;
+}
+
+function addressLabel(address: StudentAddress | null): string {
+  if (!address) return 'Não informado';
+  const line = [address.street, address.number].filter(Boolean).join(', ');
+  return [line, address.complement, address.postalCode ? `CEP ${postalCodeLabel(address.postalCode)}` : null].filter(Boolean).join(' · ') || 'Não informado';
 }
 
 function credentialState(credential: StudentCredential): { title: string; detail: string; tone: string } {
@@ -167,7 +237,7 @@ export function AdminStudents() {
           <p className="admin-eyebrow">ALUNOS</p>
           <h2 id="students-title">Workspace de alunos</h2>
         </div>
-        <p>Busque por nome, ID Centro, documento, telefone ou e-mail. O QR é uma busca interna rápida e nunca substitui a autenticação.</p>
+        <p>Busque por nome, ID Centro, CPF, identidade, telefone ou e-mail. O QR é uma busca interna rápida e nunca substitui a autenticação.</p>
       </div>
 
       <div className="admin-student-search-row">
@@ -175,7 +245,7 @@ export function AdminStudents() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Nome, CEN-26-00001, documento, telefone…"
+            placeholder="Nome, CEN-26-00001, CPF, identidade, telefone…"
             aria-label="Buscar aluno"
           />
           <button className="admin-primary" type="submit">Buscar</button>
@@ -198,7 +268,7 @@ export function AdminStudents() {
           </div>
           {students.map((student) => (
             <button key={student.id} type="button" className="admin-student-row" onClick={() => navigate(`/admin/alunos/${student.id}`)}>
-              <span className="admin-student-identity"><strong>{student.fullName}</strong><small>{student.publicId} · {documentLabel(student.document)}</small></span>
+              <span className="admin-student-identity"><strong>{student.fullName}</strong><small>{student.publicId} · {documentLabel(student.cpf || student.document)}</small></span>
               <span><strong>{student.activeEnrollments}</strong><small>{student.totalEnrollments} no histórico</small></span>
               <span><strong>{student.phone}</strong><small>{student.email || 'Sem e-mail'}</small></span>
               <span><strong>{dateOnly(student.updatedAt)}</strong><small>{student.status === 'ACTIVE' ? 'Aluno ativo' : 'Arquivado'}</small></span>
@@ -302,10 +372,22 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
       </div>
 
       <div className="admin-student-facts">
-        <div><span>Documento</span><strong>{documentLabel(student.document)}</strong></div>
-        <div><span>Matrículas abertas</span><strong>{student.activeEnrollments}</strong></div>
-        <div><span>Matrículas totais</span><strong>{student.totalEnrollments}</strong></div>
+        <div><span>CPF</span><strong>{documentLabel(student.cpf)}</strong></div>
+        <div><span>Nascimento</span><strong>{birthDateLabel(student.birthDate)}</strong></div>
+        <div><span>Identidade</span><strong>{identityLabel(student.identityDocument)}</strong></div>
         <div><span>Aluno desde</span><strong>{dateOnly(student.createdAt)}</strong></div>
+      </div>
+
+      <div className="admin-detail-card">
+        <div className="admin-card-title"><span>REGISTRO INSTITUCIONAL</span><strong>Dados do aluno</strong></div>
+        <dl className="admin-detail-list">
+          <div><dt>CPF</dt><dd>{documentLabel(student.cpf)}</dd></div>
+          <div><dt>Documento de identidade</dt><dd>{identityLabel(student.identityDocument)}</dd></div>
+          <div><dt>Data de nascimento</dt><dd>{birthDateLabel(student.birthDate)}</dd></div>
+          <div><dt>Telefone</dt><dd>{student.phone}</dd></div>
+          <div><dt>E-mail</dt><dd>{student.email || 'Não informado'}</dd></div>
+          <div><dt>Endereço</dt><dd>{addressLabel(student.address)}</dd></div>
+        </dl>
       </div>
 
       <div className="admin-student-columns">
@@ -352,9 +434,25 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
         <div className="admin-card-title"><span>MATRÍCULAS</span><strong>{enrollments.length} registro(s)</strong></div>
         {enrollments.length === 0 ? <p>Nenhuma matrícula registrada.</p> : enrollments.map((enrollment) => (
           <article key={enrollment.id} className="admin-enrollment-record">
-            <div><strong>{serviceLabels[enrollment.serviceType]} · {enrollment.category}</strong><small>Aberta em {dateTime(enrollment.openedAt)}</small></div>
+            <div>
+              <strong>{serviceLabels[enrollment.serviceType]} · {enrollment.category}</strong>
+              <small>Aberta em {dateTime(enrollment.openedAt)}{enrollment.renach ? ` · RENACH ${enrollment.renach}` : ''}</small>
+            </div>
             <span className={`admin-state admin-state-${enrollment.status === 'ACTIVE' ? 'ok' : enrollment.status === 'PAUSED' ? 'pending' : 'neutral'}`}>{enrollmentStatusLabels[enrollment.status]}</span>
             {enrollment.notes && <p>{enrollment.notes}</p>}
+            {enrollment.intakeObservations.length > 0 && (
+              <div className="admin-detail-list">
+                {enrollment.intakeObservations.map((observation) => (
+                  <div key={observation.id}>
+                    <dt>{dateTime(observation.observedAt)}</dt>
+                    <dd>
+                      <strong>{intakeLabels[observation.kind].title}</strong>
+                      <small>{observation.value ? `${intakeLabels[observation.kind].detail} · ${observation.value}` : intakeLabels[observation.kind].detail}</small>
+                    </dd>
+                  </div>
+                ))}
+              </div>
+            )}
           </article>
         ))}
       </div>

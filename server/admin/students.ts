@@ -1,5 +1,18 @@
 import type pg from 'pg';
 
+export type AdminStudentIdentityDocument = {
+  type: 'CIN' | 'RG' | 'RNE' | 'CRNM';
+  number: string;
+  uf: string | null;
+};
+
+export type AdminStudentAddress = {
+  postalCode: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+};
+
 export type AdminStudentSummary = {
   id: string;
   publicId: string;
@@ -7,11 +20,23 @@ export type AdminStudentSummary = {
   phone: string;
   email: string | null;
   document: string | null;
+  cpf: string | null;
+  birthDate: string | null;
+  identityDocument: AdminStudentIdentityDocument | null;
+  address: AdminStudentAddress | null;
   status: 'ACTIVE' | 'ARCHIVED';
   activeEnrollments: number;
   totalEnrollments: number;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type AdminEnrollmentIntakeObservation = {
+  id: string;
+  kind: 'DETRAN_PROCESS_STARTED' | 'RENACH_OBSERVED' | 'THEORY_COURSE_COMPLETED' | 'THEORY_EXAM_PASSED';
+  value: string | null;
+  observedAt: Date;
+  recordedByStaffUserId: string;
 };
 
 export type AdminStudentEnrollment = {
@@ -22,6 +47,8 @@ export type AdminStudentEnrollment = {
   openedAt: Date;
   completedAt: Date | null;
   notes: string | null;
+  renach: string | null;
+  intakeObservations: AdminEnrollmentIntakeObservation[];
 };
 
 export type AdminStudentCredential = {
@@ -50,9 +77,45 @@ export type AdminStudentWorkspace = {
   recentAudit: AdminStudentAuditEvent[];
 };
 
+type CivilDateValue = string | Date | null;
+
+function civilDate(value: CivilDateValue): string | null {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return value.slice(0, 10);
+}
+
 function clampLimit(value: number | undefined): number {
   if (!Number.isFinite(value)) return 50;
   return Math.max(1, Math.min(100, Math.trunc(value ?? 50)));
+}
+
+function mapIdentity(row: {
+  identity_document_type: AdminStudentIdentityDocument['type'] | null;
+  identity_document_number: string | null;
+  identity_document_uf: string | null;
+}): AdminStudentIdentityDocument | null {
+  if (!row.identity_document_type || !row.identity_document_number) return null;
+  return {
+    type: row.identity_document_type,
+    number: row.identity_document_number,
+    uf: row.identity_document_uf,
+  };
+}
+
+function mapAddress(row: {
+  postal_code: string | null;
+  street: string | null;
+  address_number: string | null;
+  address_complement: string | null;
+}): AdminStudentAddress | null {
+  if (!row.postal_code && !row.street && !row.address_number && !row.address_complement) return null;
+  return {
+    postalCode: row.postal_code,
+    street: row.street,
+    number: row.address_number,
+    complement: row.address_complement,
+  };
 }
 
 export async function listAdminStudents(
@@ -72,6 +135,15 @@ export async function listAdminStudents(
     phone: string;
     email: string | null;
     document_normalized: string | null;
+    cpf_normalized: string | null;
+    birth_date: CivilDateValue;
+    identity_document_type: AdminStudentIdentityDocument['type'] | null;
+    identity_document_number: string | null;
+    identity_document_uf: string | null;
+    postal_code: string | null;
+    street: string | null;
+    address_number: string | null;
+    address_complement: string | null;
     status: 'ACTIVE' | 'ARCHIVED';
     active_enrollments: string;
     total_enrollments: string;
@@ -85,6 +157,15 @@ export async function listAdminStudents(
        s.phone,
        s.email,
        s.document_normalized,
+       s.cpf_normalized,
+       s.birth_date,
+       s.identity_document_type,
+       s.identity_document_number,
+       s.identity_document_uf,
+       s.postal_code,
+       s.street,
+       s.address_number,
+       s.address_complement,
        s.status,
        count(e.id) FILTER (WHERE e.status IN ('ACTIVE', 'PAUSED'))::text AS active_enrollments,
        count(e.id)::text AS total_enrollments,
@@ -98,6 +179,8 @@ export async function listAdminStudents(
         OR s.phone ILIKE $2
         OR COALESCE(s.email, '') ILIKE $2
         OR COALESCE(s.document_normalized, '') LIKE $3
+        OR COALESCE(s.cpf_normalized, '') LIKE $3
+        OR COALESCE(s.identity_document_number, '') ILIKE $2
      GROUP BY s.id
      ORDER BY
        CASE WHEN lower(s.public_id) = lower($1) THEN 0 ELSE 1 END,
@@ -114,6 +197,10 @@ export async function listAdminStudents(
     phone: row.phone,
     email: row.email,
     document: row.document_normalized,
+    cpf: row.cpf_normalized,
+    birthDate: civilDate(row.birth_date),
+    identityDocument: mapIdentity(row),
+    address: mapAddress(row),
     status: row.status,
     activeEnrollments: Number(row.active_enrollments),
     totalEnrollments: Number(row.total_enrollments),
@@ -133,6 +220,15 @@ export async function getAdminStudentWorkspace(
     phone: string;
     email: string | null;
     document_normalized: string | null;
+    cpf_normalized: string | null;
+    birth_date: CivilDateValue;
+    identity_document_type: AdminStudentIdentityDocument['type'] | null;
+    identity_document_number: string | null;
+    identity_document_uf: string | null;
+    postal_code: string | null;
+    street: string | null;
+    address_number: string | null;
+    address_complement: string | null;
     status: 'ACTIVE' | 'ARCHIVED';
     active_enrollments: string;
     total_enrollments: string;
@@ -146,6 +242,15 @@ export async function getAdminStudentWorkspace(
        s.phone,
        s.email,
        s.document_normalized,
+       s.cpf_normalized,
+       s.birth_date,
+       s.identity_document_type,
+       s.identity_document_number,
+       s.identity_document_uf,
+       s.postal_code,
+       s.street,
+       s.address_number,
+       s.address_complement,
        s.status,
        count(e.id) FILTER (WHERE e.status IN ('ACTIVE', 'PAUSED'))::text AS active_enrollments,
        count(e.id)::text AS total_enrollments,
@@ -161,7 +266,7 @@ export async function getAdminStudentWorkspace(
   const studentRow = studentResult.rows[0];
   if (!studentRow) return null;
 
-  const [credentialResult, enrollmentResult, auditResult] = await Promise.all([
+  const [credentialResult, enrollmentResult, intakeResult, auditResult] = await Promise.all([
     pool.query<{
       must_change_password: boolean;
       password_version: number;
@@ -183,11 +288,27 @@ export async function getAdminStudentWorkspace(
       opened_at: Date;
       completed_at: Date | null;
       notes: string | null;
+      renach: string | null;
     }>(
-      `SELECT id, service_type, category, status, opened_at, completed_at, notes
+      `SELECT id, service_type, category, status, opened_at, completed_at, notes, renach
        FROM enrollments
        WHERE student_id = $1
        ORDER BY opened_at DESC, created_at DESC`,
+      [studentId],
+    ),
+    pool.query<{
+      id: string;
+      enrollment_id: string;
+      kind: AdminEnrollmentIntakeObservation['kind'];
+      value: string | null;
+      observed_at: Date;
+      recorded_by_staff_user_id: string;
+    }>(
+      `SELECT o.id, o.enrollment_id, o.kind, o.value, o.observed_at, o.recorded_by_staff_user_id
+       FROM enrollment_intake_observations o
+       JOIN enrollments e ON e.id = o.enrollment_id
+       WHERE e.student_id = $1
+       ORDER BY o.observed_at ASC, o.created_at ASC`,
       [studentId],
     ),
     pool.query<{
@@ -210,6 +331,19 @@ export async function getAdminStudentWorkspace(
     ),
   ]);
 
+  const intakeByEnrollment = new Map<string, AdminEnrollmentIntakeObservation[]>();
+  for (const row of intakeResult.rows) {
+    const observations = intakeByEnrollment.get(row.enrollment_id) ?? [];
+    observations.push({
+      id: row.id,
+      kind: row.kind,
+      value: row.value,
+      observedAt: row.observed_at,
+      recordedByStaffUserId: row.recorded_by_staff_user_id,
+    });
+    intakeByEnrollment.set(row.enrollment_id, observations);
+  }
+
   const credentialRow = credentialResult.rows[0];
   return {
     student: {
@@ -219,6 +353,10 @@ export async function getAdminStudentWorkspace(
       phone: studentRow.phone,
       email: studentRow.email,
       document: studentRow.document_normalized,
+      cpf: studentRow.cpf_normalized,
+      birthDate: civilDate(studentRow.birth_date),
+      identityDocument: mapIdentity(studentRow),
+      address: mapAddress(studentRow),
       status: studentRow.status,
       activeEnrollments: Number(studentRow.active_enrollments),
       totalEnrollments: Number(studentRow.total_enrollments),
@@ -250,6 +388,8 @@ export async function getAdminStudentWorkspace(
       openedAt: row.opened_at,
       completedAt: row.completed_at,
       notes: row.notes,
+      renach: row.renach,
+      intakeObservations: intakeByEnrollment.get(row.id) ?? [],
     })),
     recentAudit: auditResult.rows.map((row) => ({
       id: row.id,
