@@ -59,6 +59,10 @@ function primaryActionLabel(kind: PrimaryActionKind): string {
   return 'Ver próximo passo';
 }
 
+function isPassiveException(code: string): boolean {
+  return code.startsWith('WAIT_') || code.startsWith('SCHOOL_');
+}
+
 export function StudentHome({ student }: { student: StudentIdentity }) {
   const navigate = useNavigate();
   const [home, setHome] = useState<HomeView | null>(null);
@@ -79,6 +83,7 @@ export function StudentHome({ student }: { student: StudentIdentity }) {
   const examHref = home.nextExam ? `/aluno/exame/${home.nextExam.candidateId}` : null;
   const lessonIsPrimary = Boolean(lessonHref && home.primaryAction?.href === lessonHref);
   const examIsPrimary = Boolean(examHref && home.primaryAction?.href === examHref);
+  const passivePrimary = Boolean(home.primaryAction && isPassiveException(home.primaryAction.code));
 
   return (
     <div className="student-home-v2">
@@ -104,7 +109,7 @@ export function StudentHome({ student }: { student: StudentIdentity }) {
             <h2>{home.primaryAction.title}</h2>
             {home.primaryAction.dueAt && <strong className="student-home-due">{dateTime(home.primaryAction.dueAt)}</strong>}
             <p>{home.primaryAction.detail}</p>
-            <button className="student-primary" type="button" onClick={() => navigate(home.primaryAction!.href)}>{primaryActionLabel(home.primaryAction.kind)}</button>
+            {!passivePrimary && <button className="student-primary" type="button" onClick={() => navigate(home.primaryAction!.href)}>{primaryActionLabel(home.primaryAction.kind)}</button>}
           </>
         ) : (
           <><h2>Você não precisa fazer nada agora.</h2><p>Quando houver um próximo passo para você, ele aparecerá aqui.</p></>
