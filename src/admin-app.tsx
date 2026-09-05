@@ -22,10 +22,18 @@ type SessionPayload = {
 
 type ServiceType = 'FIRST_LICENSE' | 'CATEGORY_ADDITION' | 'CATEGORY_CHANGE' | 'LICENSED_TRAINING';
 type Category = 'A' | 'B' | 'AB' | 'D';
+type IdentityDocumentType = 'CIN' | 'RG' | 'RNE' | 'CRNM';
+type IntakeSituation = 'NOT_STARTED' | 'PROCESS_STARTED' | 'RENACH_ISSUED' | 'THEORY_COURSE_COMPLETED' | 'THEORY_EXAM_PASSED';
 
 type EnrollmentReceipt = {
   student: { id: string; publicId: string };
-  enrollment: { id: string; serviceType: ServiceType; category: Category };
+  enrollment: {
+    id: string;
+    serviceType: ServiceType;
+    category: Category;
+    intakeSituation: IntakeSituation;
+    renach: string | null;
+  };
   credential: {
     created: boolean;
     initialPassword: string | null;
@@ -58,6 +66,33 @@ const categoryLabels: Record<Category, string> = {
   AB: 'A+B · Moto e carro',
   D: 'D · Passageiros',
 };
+
+const intakeLabels: Record<IntakeSituation, { title: string; detail: string }> = {
+  NOT_STARTED: {
+    title: 'Ainda não iniciou no Detran',
+    detail: 'A matrícula começa antes de qualquer fato oficial observado.',
+  },
+  PROCESS_STARTED: {
+    title: 'Processo oficial iniciado',
+    detail: 'O candidato já abriu o processo oficial, mas ainda não informou RENACH.',
+  },
+  RENACH_ISSUED: {
+    title: 'Já possui RENACH',
+    detail: 'O RENACH será guardado como referência externa desta matrícula.',
+  },
+  THEORY_COURSE_COMPLETED: {
+    title: 'Teoria concluída',
+    detail: 'O curso teórico foi concluído; aprovação na prova ainda não é presumida.',
+  },
+  THEORY_EXAM_PASSED: {
+    title: 'Aprovado na prova teórica',
+    detail: 'A aprovação já ocorrida materializa os milestones oficiais anteriores necessários.',
+  },
+};
+
+const brazilStates = [
+  'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
+];
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -127,6 +162,7 @@ function Login({ onAuthenticated }: { onAuthenticated: (session: SessionPayload)
 function Receipt({ receipt, onNew, onStudent }: { receipt: EnrollmentReceipt; onNew: () => void; onStudent: () => void }) {
   const service = serviceLabels[receipt.enrollment.serviceType];
   const category = categoryLabels[receipt.enrollment.category];
+  const intake = intakeLabels[receipt.enrollment.intakeSituation];
   const [accessQr, setAccessQr] = useState<AccessQrPayload['qr'] | null>(null);
   const [qrError, setQrError] = useState('');
 
@@ -146,7 +182,7 @@ function Receipt({ receipt, onNew, onStudent }: { receipt: EnrollmentReceipt; on
     <section className="admin-receipt" aria-labelledby="receipt-title">
       <div className="admin-receipt-status">MATRÍCULA CRIADA</div>
       <h2 id="receipt-title">Acesso do aluno</h2>
-      <p>{service} · {category}</p>
+      <p>{service} · {category} · {intake.title}{receipt.enrollment.renach ? ` · RENACH ${receipt.enrollment.renach}` : ''}</p>
 
       <div className="admin-receipt-progress" aria-label="Materialização do acesso">
         <span>✓ Matrícula</span>
@@ -207,6 +243,8 @@ function Receipt({ receipt, onNew, onStudent }: { receipt: EnrollmentReceipt; on
 function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt) => void }) {
   const [serviceType, setServiceType] = useState<ServiceType>('FIRST_LICENSE');
   const [category, setCategory] = useState<Category>('B');
+  const [identityType, setIdentityType] = useState<IdentityDocumentType>('CIN');
+  const [intakeSituation, setIntakeSituation] = useState<IntakeSituation>('NOT_STARTED');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -230,10 +268,25 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
         method: 'POST',
         body: JSON.stringify({
           fullName: String(form.get('fullName') || ''),
-          document: String(form.get('document') || ''),
+          cpf: String(form.get('cpf') || ''),
           phone: String(form.get('phone') || ''),
           email: String(form.get('email') || '') || null,
           birthDate: String(form.get('birthDate') || '') || null,
+          identityDocument: {
+            type: identityType,
+            number: String(form.get('identityDocumentNumber') || ''),
+            uf: String(form.get('identityDocumentUf') || '') || null,
+          },
+          address: {
+            postalCode: String(form.get('postalCode') || '') || null,
+            street: String(form.get('street') || '') || null,
+            number: String(form.get('addressNumber') || '') || null,
+            complement: String(form.get('addressComplement') || '') || null,
+          },
+          intake: {
+            situation: intakeSituation,
+            renach: String(form.get('renach') || '') || null,
+          },
           serviceType,
           category,
           notes: String(form.get('notes') || '') || null,
@@ -248,53 +301,114 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
   }
 
   return (
-    <section className="admin-work-card" aria-labelledby="new-enrollment-title">
+    <section className="admin-work-card admin-enrollment-card" aria-labelledby="new-enrollment-title">
       <div className="admin-section-head">
         <div>
           <p className="admin-eyebrow">MATRÍCULAS</p>
           <h2 id="new-enrollment-title">Nova matrícula</h2>
         </div>
-        <p>A matrícula cria ou reutiliza a identidade do aluno e entrega um QR persistente para ativação do portal.</p>
+        <p>Cadastre apenas o necessário, localize o estado real do processo e entregue o QR persistente para ativação do aluno.</p>
       </div>
 
       <form className="admin-form admin-enrollment-form" onSubmit={submit}>
         <fieldset>
-          <legend>Aluno</legend>
+          <legend><span>01</span> Aluno</legend>
           <div className="admin-field-grid">
             <label className="admin-field-wide">Nome completo<input name="fullName" autoComplete="name" required /></label>
-            <label>CPF ou documento<input name="document" inputMode="numeric" required /><small>Usado para reconciliação administrativa. Nunca é o login.</small></label>
+            <label>CPF<input name="cpf" inputMode="numeric" autoComplete="off" placeholder="000.000.000-00" required /><small>Identificação fiscal. Nunca é usado como login.</small></label>
+            <label>Data de nascimento<input name="birthDate" type="date" required /></label>
             <label>Telefone<input name="phone" inputMode="tel" autoComplete="tel" required /></label>
             <label>E-mail<input name="email" type="email" autoComplete="email" /></label>
-            <label>Data de nascimento<input name="birthDate" type="date" /></label>
+          </div>
+
+          <div className="admin-subsection">
+            <div className="admin-subsection-title">
+              <strong>Documento de identidade</strong>
+              <span>RG, CIN ou documento migratório. Sem upload obrigatório.</span>
+            </div>
+            <div className="admin-field-grid admin-field-grid-three">
+              <label>Tipo
+                <select value={identityType} onChange={(event) => setIdentityType(event.target.value as IdentityDocumentType)} required>
+                  <option value="CIN">CIN</option>
+                  <option value="RG">RG</option>
+                  <option value="RNE">RNE</option>
+                  <option value="CRNM">CRNM</option>
+                </select>
+              </label>
+              <label>Número<input name="identityDocumentNumber" autoComplete="off" required /></label>
+              <label>UF emissora
+                <select name="identityDocumentUf" defaultValue="SP">
+                  <option value="">Não se aplica</option>
+                  {brazilStates.map((state) => <option key={state} value={state}>{state}</option>)}
+                </select>
+              </label>
+            </div>
           </div>
         </fieldset>
 
         <fieldset>
-          <legend>Serviço</legend>
-          <div className="admin-choice-grid" role="radiogroup" aria-label="Serviço da matrícula">
-            {(Object.keys(serviceLabels) as ServiceType[]).map((value) => (
-              <button key={value} type="button" role="radio" aria-checked={serviceType === value} className={serviceType === value ? 'is-selected' : ''} onClick={() => setServiceType(value)}>
-                {serviceLabels[value]}
-              </button>
-            ))}
+          <legend><span>02</span> Habilitação</legend>
+          <div className="admin-form-block">
+            <span className="admin-form-block-label">Serviço</span>
+            <div className="admin-choice-grid" role="radiogroup" aria-label="Serviço da matrícula">
+              {(Object.keys(serviceLabels) as ServiceType[]).map((value) => (
+                <button key={value} type="button" role="radio" aria-checked={serviceType === value} className={serviceType === value ? 'is-selected' : ''} onClick={() => setServiceType(value)}>
+                  {serviceLabels[value]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="admin-form-block">
+            <span className="admin-form-block-label">Categoria</span>
+            <div className="admin-choice-grid admin-category-grid" role="radiogroup" aria-label="Categoria da matrícula">
+              {categories.map((value) => (
+                <button key={value} type="button" role="radio" aria-checked={category === value} className={category === value ? 'is-selected' : ''} onClick={() => setCategory(value)}>
+                  {categoryLabels[value]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="admin-form-block">
+            <span className="admin-form-block-label">Situação atual do processo</span>
+            <div className="admin-intake-grid" role="radiogroup" aria-label="Situação atual do processo de habilitação">
+              {(Object.keys(intakeLabels) as IntakeSituation[]).map((value) => (
+                <button key={value} type="button" role="radio" aria-checked={intakeSituation === value} className={intakeSituation === value ? 'is-selected' : ''} onClick={() => setIntakeSituation(value)}>
+                  <strong>{intakeLabels[value].title}</strong>
+                  <span>{intakeLabels[value].detail}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="admin-field-grid">
+            <label>RENACH
+              <input name="renach" autoComplete="off" required={intakeSituation === 'RENACH_ISSUED'} />
+              <small>{intakeSituation === 'RENACH_ISSUED' ? 'Obrigatório porque o intake declara que o RENACH já existe.' : 'Opcional. Informe quando já estiver disponível.'}</small>
+            </label>
           </div>
         </fieldset>
 
         <fieldset>
-          <legend>Categoria</legend>
-          <div className="admin-choice-grid admin-category-grid" role="radiogroup" aria-label="Categoria da matrícula">
-            {categories.map((value) => (
-              <button key={value} type="button" role="radio" aria-checked={category === value} className={category === value ? 'is-selected' : ''} onClick={() => setCategory(value)}>
-                {categoryLabels[value]}
-              </button>
-            ))}
+          <legend><span>03</span> Endereço</legend>
+          <p className="admin-fieldset-note">Dados de endereço ajudam a operação, mas não bloqueiam a matrícula quando ainda não estão disponíveis.</p>
+          <div className="admin-field-grid">
+            <label>CEP<input name="postalCode" inputMode="numeric" autoComplete="postal-code" placeholder="00000-000" /></label>
+            <label>Número<input name="addressNumber" autoComplete="address-line2" /></label>
+            <label className="admin-field-wide">Endereço<input name="street" autoComplete="street-address" /></label>
+            <label className="admin-field-wide">Complemento<input name="addressComplement" /></label>
           </div>
         </fieldset>
 
-        <label>Observação<textarea name="notes" rows={3} /></label>
+        <fieldset>
+          <legend><span>04</span> Confirmação</legend>
+          <label>Observação operacional<textarea name="notes" rows={3} placeholder="Somente o que a equipe realmente precisa saber para conduzir esta matrícula." /></label>
+        </fieldset>
+
         {error && <p className="admin-error" role="alert">{error}</p>}
         <div className="admin-submit-row">
-          <span>A criação é transacional: aluno, QR, matrícula e auditoria entram juntos. A senha nasce somente quando o aluno ativa o QR.</span>
+          <span>Aluno, matrícula, fatos de intake, QR e auditoria entram na mesma transação. A senha só nasce quando o aluno ativa o QR.</span>
           <button className="admin-primary" type="submit" disabled={busy}>{busy ? 'Criando…' : 'Confirmar matrícula'}</button>
         </div>
       </form>
