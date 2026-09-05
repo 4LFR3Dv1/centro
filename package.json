@@ -17,6 +17,7 @@
     "admin:password:recover": "tsx server/staff/password-recovery-cli.ts",
     "ux:language:check": "node scripts/check-ui-language.mjs",
     "ux:friction:check": "node scripts/check-ui-friction.mjs",
+    "ux:exceptions:check": "node scripts/check-ui-exceptions.mjs",
     "ops:test:unit": "tsx --test server/ops/credentials.test.ts server/ops/contracts.test.ts server/schedule/contracts.test.ts",
     "ops:test:db": "tsx --test --test-concurrency=1 server/db/constitution.test.ts server/enrollments/materialize.test.ts server/enrollments/duplicate-open.test.ts server/http/admin-enrollment-intake.test.ts server/http/admin-api.test.ts server/http/student-api.test.ts server/http/student-experience-api.test.ts server/http/student-access-api.test.ts server/http/admin-students.test.ts server/admin/student-operations.test.ts server/schedule/kernel.test.ts server/http/admin-schedule.test.ts server/http/student-calendar.test.ts server/http/process-api.test.ts server/http/student-guide-access002.test.ts server/http/admin-today.test.ts server/http/staff-security-api.test.ts server/http/admin-exams.test.ts server/http/admin-theory-exams.test.ts",
     "ops:check": "tsc -p tsconfig.server.json --noEmit && npm run ops:test:unit && npm run ops:test:db",
@@ -25,7 +26,7 @@
     "build": "npm run data:ingest && npm run build:app && npm run build:server",
     "start": "node .server-dist/start.js",
     "preview": "vite preview",
-    "check": "npm run ux:language:check && npm run ux:friction:check && npm run ops:check && npm run data:ingest -- --strict && npm run map:data:validate && npm run safety:data:validate && npm run transit:data:validate && npm run build:app && npm run build:server"
+    "check": "npm run ux:language:check && npm run ux:friction:check && npm run ux:exceptions:check && npm run ops:check && npm run data:ingest -- --strict && npm run map:data:validate && npm run safety:data:validate && npm run transit:data:validate && npm run build:app && npm run build:server"
   },
   "dependencies": {
     "@fullcalendar/react": "7.0.2",
