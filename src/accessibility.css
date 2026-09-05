@@ -1,0 +1,66 @@
+/* UX-005 — shared accessibility baseline */
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+:where(button, [href], input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid Highlight;
+  outline-offset: 3px;
+}
+
+:where(button, [role='button'], input[type='button'], input[type='submit'], input[type='reset']) {
+  min-height: 44px;
+}
+
+:where(input, select, textarea) {
+  min-height: 44px;
+}
+
+:where(textarea) {
+  min-height: 88px;
+}
+
+:where(button, [href], input, select, textarea):disabled {
+  cursor: not-allowed;
+}
+
+[role='alert'], [role='status'], [aria-live] {
+  scroll-margin-block: 24px;
+}
+
+.admin-ops-modal-backdrop,
+.admin-qr-backdrop {
+  overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(button, [href], input, select, textarea, summary):focus-visible {
+    outline: 3px solid CanvasText;
+  }
+
+  .guided-state,
+  .admin-state,
+  .student-exam-state {
+    border: 1px solid CanvasText;
+  }
+}
