@@ -111,38 +111,44 @@ const enrollmentStatusLabels: Record<StudentEnrollment['status'], string> = {
 const intakeLabels: Record<IntakeObservation['kind'], { title: string; detail: string }> = {
   DETRAN_PROCESS_STARTED: {
     title: 'Processo no Detran iniciado',
-    detail: 'O intake declarou que o processo oficial já havia começado.',
+    detail: 'O processo no Detran já havia sido iniciado quando a matrícula foi criada.',
   },
   RENACH_OBSERVED: {
-    title: 'RENACH observado',
-    detail: 'O RENACH foi informado como fato da matrícula.',
+    title: 'RENACH informado',
+    detail: 'O número foi informado na matrícula.',
   },
   THEORY_COURSE_COMPLETED: {
     title: 'Curso teórico concluído',
-    detail: 'Conclusão do curso observada; aprovação na prova não é presumida.',
+    detail: 'O curso teórico já estava concluído quando a matrícula foi criada.',
   },
   THEORY_EXAM_PASSED: {
-    title: 'Aprovação teórica observada',
-    detail: 'A aprovação na prova teórica foi declarada no intake.',
+    title: 'Prova teórica aprovada',
+    detail: 'A aprovação já havia sido confirmada quando a matrícula foi criada.',
   },
 };
 
 const auditLabels: Record<string, string> = {
   STUDENT_CREATED: 'Aluno criado',
-  STUDENT_CREDENTIAL_CREATED: 'Acesso legado criado',
-  STUDENT_ACCESS_QR_CREATED: 'QR de acesso criado',
-  STUDENT_ACCESS_QR_ROTATED: 'QR de acesso substituído',
-  STUDENT_ACCESS_ACTIVATED: 'Acesso ativado pelo aluno',
+  STUDENT_CREDENTIAL_CREATED: 'Acesso antigo criado',
+  STUDENT_ACCESS_QR_CREATED: 'QR do aluno criado',
+  STUDENT_ACCESS_QR_ROTATED: 'QR do aluno substituído',
+  STUDENT_ACCESS_ACTIVATED: 'Primeiro acesso concluído',
   ENROLLMENT_CREATED: 'Matrícula criada',
-  ENROLLMENT_INTAKE_RECORDED: 'Intake institucional registrado',
-  STUDENT_LOGIN: 'Aluno entrou no portal',
-  STUDENT_LOGOUT: 'Aluno saiu do portal',
-  STUDENT_INITIAL_PASSWORD_CHANGED: 'Senha inicial legada alterada',
+  ENROLLMENT_INTAKE_RECORDED: 'Situação inicial da matrícula registrada',
+  STUDENT_LOGIN: 'Aluno entrou na área do aluno',
+  STUDENT_LOGOUT: 'Aluno saiu da área do aluno',
+  STUDENT_INITIAL_PASSWORD_CHANGED: 'Senha inicial antiga alterada',
   STUDENT_PASSWORD_CHANGED: 'Senha alterada pelo aluno',
-  STUDENT_OTHER_SESSIONS_REVOKED: 'Outras sessões encerradas',
-  PROCESS_MILESTONE_SCHEDULED: 'Marco processual agendado',
-  PROCESS_MILESTONE_ACHIEVED: 'Marco processual concluído',
-  PROCESS_MILESTONE_REVOKED: 'Marco processual revertido',
+  STUDENT_OTHER_SESSIONS_REVOKED: 'Outros acessos encerrados',
+  PROCESS_MILESTONE_SCHEDULED: 'Etapa agendada',
+  PROCESS_MILESTONE_ACHIEVED: 'Etapa concluída',
+  PROCESS_MILESTONE_REVOKED: 'Etapa reaberta',
+};
+
+const actorLabels: Record<AuditEvent['actorType'], string> = {
+  SYSTEM: 'Automático',
+  STUDENT: 'Aluno',
+  STAFF: 'Equipe',
 };
 
 async function adminApi<T>(path: string, init?: RequestInit): Promise<T> {
@@ -197,13 +203,13 @@ function addressLabel(address: StudentAddress | null): string {
 }
 
 function credentialState(credential: StudentCredential): { title: string; detail: string; tone: string } {
-  if (!credential.exists) return { title: 'Sem credencial', detail: 'A credencial ainda não foi materializada.', tone: 'neutral' };
-  if (credential.disabledAt) return { title: 'Acesso desativado', detail: 'A credencial está desativada.', tone: 'warning' };
+  if (!credential.exists) return { title: 'Aguardando primeiro acesso', detail: 'O aluno ainda não criou a própria senha.', tone: 'neutral' };
+  if (credential.disabledAt) return { title: 'Acesso desativado', detail: 'O aluno não consegue entrar enquanto o acesso estiver desativado.', tone: 'warning' };
   if (credential.lockedUntil && new Date(credential.lockedUntil).getTime() > Date.now()) {
-    return { title: 'Acesso bloqueado', detail: `Bloqueio temporário até ${dateTime(credential.lockedUntil)}.`, tone: 'warning' };
+    return { title: 'Acesso temporariamente bloqueado', detail: `O aluno poderá tentar novamente depois de ${dateTime(credential.lockedUntil)}.`, tone: 'warning' };
   }
-  if (credential.mustChangePassword) return { title: 'Migração de senha pendente', detail: 'Credencial legada ainda exige troca da senha inicial.', tone: 'pending' };
-  return { title: 'Acesso ativo', detail: `Senha institucional na versão ${credential.passwordVersion}.`, tone: 'ok' };
+  if (credential.mustChangePassword) return { title: 'Precisa trocar a senha', detail: 'Este acesso antigo ainda pede a troca da senha inicial.', tone: 'pending' };
+  return { title: 'Acesso ativo', detail: 'O aluno já definiu a senha e pode entrar normalmente.', tone: 'ok' };
 }
 
 export function AdminStudents() {
@@ -237,31 +243,31 @@ export function AdminStudents() {
       <div className="admin-section-head admin-student-head">
         <div>
           <p className="admin-eyebrow">ALUNOS</p>
-          <h2 id="students-title">Workspace de alunos</h2>
+          <h2 id="students-title">Alunos</h2>
         </div>
-        <p>Busque por nome, ID Centro, CPF, identidade, telefone ou e-mail. O QR é uma busca interna rápida e nunca substitui a autenticação.</p>
+        <p>Busque pelo dado que você tiver em mãos — nome, ID Centro, CPF, documento, telefone ou e-mail. Você também pode ler o QR do aluno.</p>
       </div>
 
       <div className="admin-student-search-row">
-        <form className="admin-student-search" onSubmit={submit}>
+        <form className="admin-student-search" onSubmit={submit} role="search">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Nome, CEN-26-00001, CPF, identidade, telefone…"
+            placeholder="Nome, ID Centro, CPF, documento, telefone…"
             aria-label="Buscar aluno"
           />
           <button className="admin-primary" type="submit">Buscar</button>
         </form>
-        <button className="admin-secondary admin-scan-button" type="button" onClick={() => setScannerOpen(true)}>Ler QR</button>
+        <button className="admin-secondary admin-scan-button" type="button" onClick={() => setScannerOpen(true)}>Ler QR do aluno</button>
       </div>
 
       {error && <p className="admin-error" role="alert">{error}</p>}
       {loading ? (
-        <p className="admin-empty">Carregando alunos…</p>
+        <p className="admin-empty" aria-live="polite">Carregando alunos…</p>
       ) : students.length === 0 ? (
         <div className="admin-empty">
           <strong>Nenhum aluno encontrado.</strong>
-          <span>{appliedQuery ? 'Tente outro termo de busca.' : 'A primeira matrícula materializada aparecerá aqui.'}</span>
+          <span>{appliedQuery ? 'Tente outro dado do aluno.' : 'Os alunos aparecem aqui assim que a primeira matrícula é criada.'}</span>
         </div>
       ) : (
         <div className="admin-student-table" role="table" aria-label="Alunos">
@@ -269,7 +275,7 @@ export function AdminStudents() {
             <span>Aluno</span><span>Matrículas</span><span>Contato</span><span>Atualizado</span>
           </div>
           {students.map((student) => (
-            <button key={student.id} type="button" className="admin-student-row" onClick={() => navigate(`/admin/alunos/${student.id}`)}>
+            <button key={student.id} type="button" className="admin-student-row" onClick={() => navigate(`/admin/alunos/${student.id}`)} aria-label={`Ver ${student.fullName}`}>
               <span className="admin-student-identity"><strong>{student.fullName}</strong><small>{student.publicId} · {documentLabel(student.cpf || student.document)}</small></span>
               <span><strong>{student.activeEnrollments}</strong><small>{student.totalEnrollments} no histórico</small></span>
               <span><strong>{student.phone}</strong><small>{student.email || 'Sem e-mail'}</small></span>
@@ -284,7 +290,7 @@ export function AdminStudents() {
           onClose={() => setScannerOpen(false)}
           onResolved={(resolvedStudentId, meta) => {
             setScannerOpen(false);
-            if (!meta.active) window.alert(`QR antigo de ${meta.fullName}. Abrindo o cadastro atual.`);
+            if (!meta.active) window.alert(`Este é um QR antigo de ${meta.fullName}. Vamos abrir o cadastro atual do aluno.`);
             navigate(`/admin/alunos/${resolvedStudentId}`);
           }}
         />
@@ -328,7 +334,7 @@ export function AdminStudentDetail({ studentId }: { studentId: string; onNewEnro
   }, [studentId]);
 
   async function rotateQr() {
-    if (!workspace || !window.confirm('Substituir o QR atual? Cartões antigos deixarão de abrir o login ou a ativação do aluno.')) return;
+    if (!workspace || !window.confirm('Substituir o QR atual? O código anterior deixará de abrir o acesso do aluno.')) return;
     setRotating(true);
     setError('');
     try {
@@ -338,11 +344,11 @@ export function AdminStudentDetail({ studentId }: { studentId: string; onNewEnro
       setAccessQr(next.qr);
       await loadWorkspace();
     } catch (candidate) {
-      setError(candidate instanceof Error ? candidate.message : 'Não foi possível substituir o QR.');
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível substituir o QR. Tente novamente.');
     } finally { setRotating(false); }
   }
 
-  if (loading) return <section className="admin-work-card"><p className="admin-empty">Abrindo aluno…</p></section>;
+  if (loading) return <section className="admin-work-card"><p className="admin-empty" aria-live="polite">Abrindo aluno…</p></section>;
   if (error || !workspace) {
     return (
       <section className="admin-work-card">
@@ -354,7 +360,7 @@ export function AdminStudentDetail({ studentId }: { studentId: string; onNewEnro
 
   const { student, credential, enrollments, recentAudit } = workspace;
   const access = accessQr?.activationRequired
-    ? { title: 'Aguardando ativação', detail: 'O aluno ainda não criou a própria senha. Entregue o QR ativo para concluir o primeiro acesso.', tone: 'pending' }
+    ? { title: 'Aguardando primeiro acesso', detail: 'Entregue o QR atual ao aluno. Ele criará a própria senha no primeiro acesso.', tone: 'pending' }
     : credentialState(credential);
   const operationalEnrollments = enrollments.filter((enrollment) => enrollment.status === 'ACTIVE' || enrollment.status === 'PAUSED');
   const currentEnrollment = operationalEnrollments.find((enrollment) => enrollment.status === 'ACTIVE') ?? operationalEnrollments[0] ?? null;
@@ -383,7 +389,7 @@ export function AdminStudentDetail({ studentId }: { studentId: string; onNewEnro
 
       <details className="admin-detail-card admin-student-record-details">
         <summary>
-          <span>REGISTRO INSTITUCIONAL</span>
+          <span>DADOS DO ALUNO</span>
           <strong>Ver todos os dados</strong>
         </summary>
         <dl className="admin-detail-list">
@@ -397,7 +403,7 @@ export function AdminStudentDetail({ studentId }: { studentId: string; onNewEnro
       </details>
 
       <div className="admin-student-workspace-grid">
-        <aside className="admin-student-context-rail" aria-label="Contexto do aluno">
+        <aside className="admin-student-context-rail" aria-label="Informações do aluno">
           <div className="admin-detail-card admin-access-card">
             <div className="admin-card-title"><span>ACESSO</span><strong className={`admin-state admin-state-${access.tone}`}>{access.title}</strong></div>
             <p>{access.detail}</p>
@@ -405,31 +411,30 @@ export function AdminStudentDetail({ studentId }: { studentId: string; onNewEnro
               {accessQr && <AccessQr publicToken={accessQr.publicToken} size={190} />}
               <div>
                 <strong>{student.publicId}</strong>
-                {accessQr && <small>QR atual emitido em {dateTime(accessQr.createdAt)}</small>}
-                {accessQr?.activatedAt && <small>Acesso ativado em {dateTime(accessQr.activatedAt)}</small>}
+                {accessQr && <small>QR criado em {dateTime(accessQr.createdAt)}</small>}
+                {accessQr?.activatedAt && <small>Primeiro acesso em {dateTime(accessQr.activatedAt)}</small>}
                 <small>
                   {accessQr?.activationRequired
-                    ? 'No primeiro scan deste QR, o aluno cria a própria senha.'
-                    : 'O QR localiza esta identidade. A senha continua obrigatória no portal.'}
+                    ? 'No primeiro acesso com este QR, o aluno cria a própria senha.'
+                    : 'O QR abre a entrada com o ID do aluno. A senha continua obrigatória.'}
                 </small>
               </div>
             </div>
             {credential.exists ? (
               <dl className="admin-detail-list">
-                <div><dt>Credencial</dt><dd>Materializada</dd></div>
-                <div><dt>Versão da senha</dt><dd>{credential.passwordVersion ?? '—'}</dd></div>
-                <div><dt>Tentativas inválidas</dt><dd>{credential.failedAttempts}</dd></div>
+                <div><dt>Estado</dt><dd>{credential.mustChangePassword ? 'Precisa trocar a senha' : 'Ativo'}</dd></div>
+                <div><dt>Tentativas de senha incorreta</dt><dd>{credential.failedAttempts}</dd></div>
               </dl>
             ) : (
               <dl className="admin-detail-list">
-                <div><dt>Credencial</dt><dd>Aguardando ativação</dd></div>
-                <div><dt>Senha</dt><dd>Não existe ainda</dd></div>
+                <div><dt>Estado</dt><dd>Aguardando primeiro acesso</dd></div>
+                <div><dt>Senha</dt><dd>O aluno ainda não criou uma senha</dd></div>
               </dl>
             )}
             <div className="admin-access-actions">
-              {accessQr && <button className="admin-secondary" type="button" onClick={() => void navigator.clipboard.writeText(studentAccessUrl(accessQr.publicToken))}>Copiar link</button>}
+              {accessQr && <button className="admin-secondary" type="button" onClick={() => void navigator.clipboard.writeText(studentAccessUrl(accessQr.publicToken))}>Copiar link de acesso</button>}
               {accessQr && <button className="admin-secondary" type="button" onClick={() => window.print()}>Imprimir QR</button>}
-              <button className="admin-secondary" type="button" onClick={() => void rotateQr()} disabled={rotating}>{rotating ? 'Substituindo…' : 'Girar QR'}</button>
+              <button className="admin-secondary" type="button" onClick={() => void rotateQr()} disabled={rotating}>{rotating ? 'Substituindo…' : 'Substituir QR'}</button>
             </div>
             <small>A escola nunca cria, recebe ou recupera a senha escolhida pelo aluno.</small>
           </div>
@@ -464,7 +469,7 @@ export function AdminStudentDetail({ studentId }: { studentId: string; onNewEnro
       </div>
 
       <div className="admin-detail-card admin-enrollment-history">
-        <div className="admin-card-title"><span>MATRÍCULAS</span><strong>{enrollments.length} registro(s)</strong></div>
+        <div className="admin-card-title"><span>HISTÓRICO DE MATRÍCULAS</span><strong>{enrollments.length} registro(s)</strong></div>
         {enrollments.length === 0 ? <p>Nenhuma matrícula registrada.</p> : enrollments.map((enrollment) => (
           <article key={enrollment.id} className="admin-enrollment-record">
             <div>
@@ -491,12 +496,12 @@ export function AdminStudentDetail({ studentId }: { studentId: string; onNewEnro
       </div>
 
       <div className="admin-detail-card admin-audit-history">
-        <div className="admin-card-title"><span>HISTÓRICO OPERACIONAL</span><strong>Últimos {recentAudit.length}</strong></div>
-        {recentAudit.length === 0 ? <p>Nenhum evento auditável projetado.</p> : recentAudit.map((event) => (
+        <div className="admin-card-title"><span>HISTÓRICO DE ATIVIDADES</span><strong>Últimas {recentAudit.length}</strong></div>
+        {recentAudit.length === 0 ? <p>Nenhuma atividade registrada ainda.</p> : recentAudit.map((event) => (
           <div className="admin-audit-row" key={event.id}>
             <span>{dateTime(event.occurredAt)}</span>
-            <strong>{auditLabels[event.action] || event.action}</strong>
-            <small>{event.actorType} · {event.entityType}</small>
+            <strong>{auditLabels[event.action] || 'Atividade registrada'}</strong>
+            <small>{actorLabels[event.actorType]}</small>
           </div>
         ))}
       </div>
