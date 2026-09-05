@@ -6,10 +6,11 @@ import './admin-today.css';
 type Severity = 'BLOCKING' | 'ACTION_REQUIRED' | 'SCHEDULED' | 'WAITING' | 'COMPLETE';
 type Category = 'A' | 'B' | 'AB' | 'D';
 type PhysicalCategory = 'A' | 'B' | 'D';
+type ServiceType = 'FIRST_LICENSE' | 'CATEGORY_ADDITION' | 'CATEGORY_CHANGE' | 'LICENSED_TRAINING';
 
 type OperationalAction = {
   enrollmentId: string;
-  serviceType: 'FIRST_LICENSE' | 'CATEGORY_ADDITION' | 'CATEGORY_CHANGE' | 'LICENSED_TRAINING';
+  serviceType: ServiceType;
   category: Category;
   processStateCode: string;
   code: string;
@@ -79,9 +80,16 @@ type ScheduleOptions = {
 };
 
 const severityLabel: Record<'BLOCKING' | 'ACTION_REQUIRED' | 'WAITING', string> = {
-  BLOCKING: 'BLOQUEIO',
-  ACTION_REQUIRED: 'AÇÃO NECESSÁRIA',
+  BLOCKING: 'PRECISA RESOLVER',
+  ACTION_REQUIRED: 'PRECISA DE AÇÃO',
   WAITING: 'AGUARDANDO',
+};
+
+const serviceLabels: Record<ServiceType, string> = {
+  FIRST_LICENSE: 'Primeira habilitação',
+  CATEGORY_ADDITION: 'Adição de categoria',
+  CATEGORY_CHANGE: 'Mudança de categoria',
+  LICENSED_TRAINING: 'Treinamento para habilitado',
 };
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -94,7 +102,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   const body = await response.json().catch(() => ({})) as T & { error?: string };
-  if (!response.ok) throw new Error(body.error || 'A operação não pôde ser concluída.');
+  if (!response.ok) throw new Error(body.error || 'Não foi possível concluir esta ação.');
   return body;
 }
 
@@ -107,12 +115,6 @@ function time(value: string): string {
 function dateLabel(value: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Sao_Paulo', weekday: 'long', day: '2-digit', month: 'long',
-  }).format(new Date(value));
-}
-
-function dateTime(value: string): string {
-  return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
   }).format(new Date(value));
 }
 
@@ -145,7 +147,7 @@ function HomeLessonScheduler({ item, onClose, onChanged }: { item: AttentionItem
     void api<ScheduleOptions>('/api/admin/schedule/options').then((value) => {
       if (!alive) return;
       if (!value.enrollments.some((enrollment) => enrollment.id === item.action.enrollmentId && enrollment.studentId === item.studentId)) {
-        throw new Error('A matrícula não está disponível para agendamento.');
+        throw new Error('Esta matrícula não está disponível para agendamento.');
       }
       setOptions(value);
       const date = new Date(Date.now() + 60 * 60_000);
@@ -166,7 +168,7 @@ function HomeLessonScheduler({ item, onClose, onChanged }: { item: AttentionItem
   async function submit(event: FormEvent) {
     event.preventDefault();
     const startsAt = new Date(startsAtLocal);
-    if (!Number.isFinite(startsAt.getTime())) return setError('Data e hora inválidas.');
+    if (!Number.isFinite(startsAt.getTime())) return setError('Informe uma data e hora válidas.');
     setBusy(true); setError('');
     try {
       await api('/api/admin/schedule/lessons', {
@@ -185,28 +187,32 @@ function HomeLessonScheduler({ item, onClose, onChanged }: { item: AttentionItem
       window.dispatchEvent(new CustomEvent('centro:process-changed', { detail: { studentId: item.studentId, enrollmentId: item.action.enrollmentId } }));
       onChanged();
     } catch (candidate) {
-      setError(candidate instanceof Error ? candidate.message : 'Não foi possível agendar a aula.');
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível agendar a aula. Revise os dados e tente novamente.');
     } finally { setBusy(false); }
   }
 
   return (
     <div className="admin-ops-modal-backdrop" role="presentation">
-      <section className="admin-ops-modal" role="dialog" aria-modal="true">
-        <div className="admin-card-title"><div><span>SCHEDULE / LESSON KERNEL</span><h2>Agendar aula prática</h2></div><button className="admin-ops-close" type="button" onClick={onClose}>×</button></div>
-        <p>{item.studentName} · {item.studentPublicId}. O agendamento permanece sujeito às regras de conflito e categoria.</p>
+      <section className="admin-ops-modal" role="dialog" aria-modal="true" aria-labelledby="home-lesson-title">
+        <div className="admin-card-title">
+          <div><span>AGENDAR AULA</span><h2 id="home-lesson-title">{item.studentName}</h2></div>
+          <button className="admin-ops-close" type="button" onClick={onClose} aria-label="Fechar agendamento">×</button>
+        </div>
+        <p>Escolha o horário, o instrutor e o veículo. O Centro avisa se houver conflito ou combinação incompatível.</p>
         <form className="admin-ops-form" onSubmit={submit}>
           {allowed.length > 1 && <label>Categoria<select value={category} onChange={(event) => setCategory(event.target.value as PhysicalCategory)}>{allowed.map((value) => <option key={value}>{value}</option>)}</select></label>}
           <div className="admin-ops-form-grid">
-            <label>Início<input type="datetime-local" required value={startsAtLocal} onChange={(event) => setStartsAtLocal(event.target.value)} /></label>
+            <label>Data e hora<input type="datetime-local" required value={startsAtLocal} onChange={(event) => setStartsAtLocal(event.target.value)} /></label>
             <label>Duração<select value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))}>{options && Array.from({ length: Math.floor((options.policy.lessonMaxMinutes - options.policy.lessonMinMinutes) / options.policy.slotMinutes) + 1 }, (_, index) => options.policy.lessonMinMinutes + index * options.policy.slotMinutes).map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}</select></label>
           </div>
           <div className="admin-ops-form-grid">
             <label>Instrutor<select value={instructorId} onChange={(event) => setInstructorId(event.target.value)}><option value="">Selecione</option>{instructors.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.displayName}</option>)}</select></label>
             <label>Veículo<select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}><option value="">Selecione</option>{vehicles.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.label} · {candidate.plate}</option>)}</select></label>
           </div>
-          <label>Observação<textarea rows={2} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
+          <label>Observação opcional<textarea rows={2} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
+          {options && (!instructors.length || !vehicles.length) && <p className="admin-ops-warning" role="status">Antes de agendar, é preciso ter instrutor autorizado e veículo ativo para a categoria {category}.</p>}
           {error && <p className="admin-error" role="alert">{error}</p>}
-          <div className="admin-ops-form-actions"><button className="admin-secondary" type="button" onClick={onClose}>Cancelar</button><button className="admin-primary" disabled={busy || !options || !startsAtLocal || !instructorId || !vehicleId}>{busy ? 'Agendando…' : 'Confirmar aula'}</button></div>
+          <div className="admin-ops-form-actions"><button className="admin-secondary" type="button" onClick={onClose}>Cancelar</button><button className="admin-primary" disabled={busy || !options || !startsAtLocal || !instructorId || !vehicleId}>{busy ? 'Agendando…' : 'Agendar aula'}</button></div>
         </form>
       </section>
     </div>
@@ -215,7 +221,7 @@ function HomeLessonScheduler({ item, onClose, onChanged }: { item: AttentionItem
 
 function EventRow({ event, onOpen }: { event: HomeEvent; onOpen: () => void }) {
   return (
-    <button className="admin-home-event" type="button" onClick={onOpen}>
+    <button className="admin-home-event" type="button" onClick={onOpen} aria-label={`Ver ${event.title} de ${event.studentName}`}>
       <time>{time(event.startsAt)}</time>
       <div><strong>{event.studentName}</strong><small>{event.studentPublicId}</small></div>
       <div><strong>{event.title}</strong><small>{event.detail}</small></div>
@@ -236,7 +242,7 @@ export function AdminToday() {
   const load = useCallback(async () => {
     setError('');
     try { setPayload(await api<HomePayload>('/api/admin/home')); }
-    catch (candidate) { setError(candidate instanceof Error ? candidate.message : 'Não foi possível abrir a operação.'); }
+    catch (candidate) { setError(candidate instanceof Error ? candidate.message : 'Não foi possível carregar o resumo de hoje.'); }
     finally { setLoading(false); }
   }, []);
 
@@ -255,47 +261,47 @@ export function AdminToday() {
     setActiveItem(item); setActiveCommand(command);
   }
 
-  if (loading) return <section className="admin-work-card"><p className="admin-empty">Derivando operação da escola…</p></section>;
-  if (error || !payload) return <section className="admin-work-card"><p className="admin-error" role="alert">{error || 'Operação indisponível.'}</p><button className="admin-secondary" type="button" onClick={() => void load()}>Tentar novamente</button></section>;
+  if (loading) return <section className="admin-work-card"><p className="admin-empty" aria-live="polite">Preparando o resumo de hoje…</p></section>;
+  if (error || !payload) return <section className="admin-work-card"><p className="admin-error" role="alert">{error || 'Não foi possível carregar o resumo de hoje.'}</p><button className="admin-secondary" type="button" onClick={() => void load()}>Tentar novamente</button></section>;
 
   const attention = [...payload.attention.blocking, ...payload.attention.actionRequired, ...payload.attention.waiting];
 
   return (
     <section className="admin-home" aria-labelledby="admin-home-title">
       <header className="admin-home-hero">
-        <div><p className="admin-eyebrow">CENTRO · OPERAÇÃO · {dateLabel(payload.generatedAt).toUpperCase()}</p><h1 id="admin-home-title">Agora.</h1><p>O que está acontecendo, o que vem em seguida e o que a escola precisa resolver — tudo derivado dos domínios institucionais.</p></div>
-        <div className="admin-home-clock"><strong>{time(payload.generatedAt)}</strong><span>America/São Paulo</span></div>
+        <div><p className="admin-eyebrow">CENTRO · HOJE · {dateLabel(payload.generatedAt).toUpperCase()}</p><h1 id="admin-home-title">Agora.</h1><p>Veja o que está acontecendo, o que vem em seguida e quais alunos precisam da equipe.</p></div>
+        <div className="admin-home-clock"><strong>{time(payload.generatedAt)}</strong><span>Horário de São Paulo</span></div>
       </header>
 
-      <div className="admin-home-metrics" aria-label="Resumo operacional">
+      <div className="admin-home-metrics" aria-label="Resumo de hoje">
         <div><span>Agora</span><strong>{payload.summary.activeNow}</strong><small>em andamento</small></div>
         <div><span>Próximas 24h</span><strong>{payload.summary.upcoming24h}</strong><small>aulas e provas</small></div>
-        <div className="is-blocking"><span>Bloqueios</span><strong>{payload.summary.blocking}</strong><small>impedem avanço</small></div>
-        <div><span>Ações</span><strong>{payload.summary.actionRequired}</strong><small>exigem decisão</small></div>
-        <div><span>Aguardando</span><strong>{payload.summary.waiting}</strong><small>dependência aberta</small></div>
+        <div className="is-blocking"><span>Precisa resolver</span><strong>{payload.summary.blocking}</strong><small>impedem o próximo passo</small></div>
+        <div><span>Precisa de ação</span><strong>{payload.summary.actionRequired}</strong><small>podem ser resolvidos agora</small></div>
+        <div><span>Aguardando</span><strong>{payload.summary.waiting}</strong><small>nenhuma ação agora</small></div>
       </div>
 
       <section className="admin-home-now">
-        <div className="admin-section-head"><div><p className="admin-eyebrow">AGORA</p><h2>Operação em curso.</h2></div><button className="admin-secondary" type="button" onClick={() => navigate('/admin/agenda')}>Abrir agenda</button></div>
-        <div className="admin-detail-card admin-home-list">{payload.now.length === 0 ? <p className="admin-home-empty">Nenhuma operação com janela ativa neste instante.</p> : payload.now.map((event) => <EventRow key={`${event.kind}:${event.id}`} event={event} onOpen={() => navigate(event.href)} />)}</div>
+        <div className="admin-section-head"><div><p className="admin-eyebrow">AGORA</p><h2>Acontecendo neste momento</h2></div><button className="admin-secondary" type="button" onClick={() => navigate('/admin/agenda')}>Ver agenda</button></div>
+        <div className="admin-detail-card admin-home-list">{payload.now.length === 0 ? <p className="admin-home-empty">Nenhuma aula ou prova acontecendo agora.</p> : payload.now.map((event) => <EventRow key={`${event.kind}:${event.id}`} event={event} onOpen={() => navigate(event.href)} />)}</div>
       </section>
 
       <section className="admin-home-upcoming">
-        <div className="admin-section-head"><div><p className="admin-eyebrow">PRÓXIMOS</p><h2>As próximas 24 horas.</h2></div></div>
-        <div className="admin-detail-card admin-home-list">{payload.upcoming.length === 0 ? <p className="admin-home-empty">Nenhuma aula ou prova futura nas próximas 24 horas.</p> : payload.upcoming.slice(0, 12).map((event) => <EventRow key={`${event.kind}:${event.id}`} event={event} onOpen={() => navigate(event.href)} />)}</div>
+        <div className="admin-section-head"><div><p className="admin-eyebrow">EM SEGUIDA</p><h2>Próximas 24 horas</h2></div></div>
+        <div className="admin-detail-card admin-home-list">{payload.upcoming.length === 0 ? <p className="admin-home-empty">Nenhuma aula ou prova marcada para as próximas 24 horas.</p> : payload.upcoming.slice(0, 12).map((event) => <EventRow key={`${event.kind}:${event.id}`} event={event} onOpen={() => navigate(event.href)} />)}</div>
       </section>
 
       <section className="admin-home-attention">
-        <div className="admin-section-head"><div><p className="admin-eyebrow">PRECISA DE AÇÃO</p><h2>Fila operacional derivada.</h2></div><p>Não existe tabela de tarefas. Cada linha nasce do estado institucional atual e desaparece quando o domínio proprietário muda.</p></div>
-        <div className="admin-home-attention-summary"><strong>{payload.summary.blocking} bloqueios</strong><strong>{payload.summary.actionRequired} ações</strong><strong>{payload.summary.waiting} aguardando</strong></div>
+        <div className="admin-section-head"><div><p className="admin-eyebrow">ALUNOS QUE PRECISAM DE ATENÇÃO</p><h2>O que a equipe pode resolver</h2></div><p>Comece pelos itens que precisam ser resolvidos. Os itens em espera não exigem ação agora.</p></div>
+        <div className="admin-home-attention-summary"><strong>{payload.summary.blocking} precisam resolver</strong><strong>{payload.summary.actionRequired} precisam de ação</strong><strong>{payload.summary.waiting} aguardando</strong></div>
         <div className="admin-detail-card admin-home-list">
-          {attention.length === 0 ? <p className="admin-home-empty">Nenhuma ação operacional pendente.</p> : attention.slice(0, 24).map((item) => (
+          {attention.length === 0 ? <p className="admin-home-empty">Nenhum aluno precisa de atenção agora.</p> : attention.slice(0, 24).map((item) => (
             <article className={`admin-home-action severity-${item.action.severity.toLowerCase()}`} key={`${item.studentId}:${item.action.enrollmentId}:${item.action.code}`}>
               <div className="admin-home-action-kicker"><span>{severityLabel[item.action.severity as 'BLOCKING' | 'ACTION_REQUIRED' | 'WAITING']}</span><small>{item.studentPublicId}</small></div>
-              <div className="admin-home-action-main"><strong>{item.studentName}</strong><h3>{item.action.title}</h3><p>{item.action.detail}</p><small>{item.action.serviceType} · Categoria {item.action.category} · {item.action.processStateCode}</small></div>
+              <div className="admin-home-action-main"><strong>{item.studentName}</strong><h3>{item.action.title}</h3><p>{item.action.detail}</p><small>{serviceLabels[item.action.serviceType]} · Categoria {item.action.category}</small></div>
               <div className="admin-home-action-controls">
                 {item.action.secondaryCommands.slice(0, 1).map((command, index) => <button className="admin-secondary" key={`${command.kind}:${index}`} type="button" onClick={() => execute(item, command)}>{command.label}</button>)}
-                <button className="admin-primary" type="button" onClick={() => execute(item, item.action.primaryCommand)}>{item.action.primaryCommand?.label ?? 'Abrir aluno'}</button>
+                <button className="admin-primary" type="button" onClick={() => execute(item, item.action.primaryCommand)}>{item.action.primaryCommand?.label ?? 'Ver aluno'}</button>
               </div>
             </article>
           ))}
@@ -303,8 +309,8 @@ export function AdminToday() {
       </section>
 
       <section className="admin-home-access">
-        <div className="admin-section-head"><div><p className="admin-eyebrow">ACESSO DO ALUNO</p><h2>{payload.summary.pendingFirstAccess} aguardando ativação.</h2></div></div>
-        {payload.pendingFirstAccess.length > 0 && <div className="admin-home-access-strip">{payload.pendingFirstAccess.slice(0, 8).map((item) => <button key={item.studentId} type="button" onClick={() => navigate(`/admin/alunos/${item.studentId}`)}><strong>{item.studentName}</strong><span>{item.studentPublicId}</span></button>)}</div>}
+        <div className="admin-section-head"><div><p className="admin-eyebrow">PRIMEIRO ACESSO</p><h2>{payload.summary.pendingFirstAccess} aluno(s) ainda não ativaram o acesso</h2></div><p>{payload.summary.pendingFirstAccess > 0 ? 'Abra o aluno para reenviar, copiar ou imprimir o QR de primeiro acesso.' : 'Todos os alunos com matrícula ativa já concluíram o primeiro acesso.'}</p></div>
+        {payload.pendingFirstAccess.length > 0 && <div className="admin-home-access-strip">{payload.pendingFirstAccess.slice(0, 8).map((item) => <button key={item.studentId} type="button" onClick={() => navigate(`/admin/alunos/${item.studentId}`)} aria-label={`Ver acesso de ${item.studentName}`}><strong>{item.studentName}</strong><span>{item.studentPublicId}</span></button>)}</div>}
       </section>
 
       {lessonItem && <HomeLessonScheduler item={lessonItem} onClose={() => setLessonItem(null)} onChanged={() => { setLessonItem(null); void load(); }} />}

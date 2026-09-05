@@ -21,7 +21,7 @@ async function securityApi<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   const body = await response.json().catch(() => ({})) as T & { error?: string };
-  if (!response.ok) throw new Error(body.error || 'Não foi possível concluir a operação de segurança.');
+  if (!response.ok) throw new Error(body.error || 'Não foi possível concluir esta ação.');
   return body;
 }
 
@@ -47,8 +47,8 @@ export function StudentSecurity({ publicId }: { publicId: string }) {
   async function changePassword(event: FormEvent) {
     event.preventDefault();
     setError(''); setMessage('');
-    if (newPassword.length < 12) { setError('Use pelo menos 12 caracteres.'); return; }
-    if (newPassword !== confirmation) { setError('As senhas não coincidem.'); return; }
+    if (newPassword.length < 12) { setError('Sua nova senha precisa ter pelo menos 12 caracteres.'); return; }
+    if (newPassword !== confirmation) { setError('As duas novas senhas precisam ser iguais.'); return; }
     setBusy(true);
     try {
       const result = await securityApi<{ revokedSessions: number; passwordVersion: number }>('/api/student/security/password', {
@@ -56,10 +56,10 @@ export function StudentSecurity({ publicId }: { publicId: string }) {
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       setCurrentPassword(''); setNewPassword(''); setConfirmation('');
-      setMessage(result.revokedSessions > 0 ? `Senha alterada. ${result.revokedSessions} outra(s) sessão(ões) foram encerradas.` : 'Senha alterada.');
+      setMessage(result.revokedSessions > 0 ? `Senha alterada. Você saiu de ${result.revokedSessions} outro(s) dispositivo(s).` : 'Senha alterada com sucesso.');
       await reload();
     } catch (candidate) {
-      setError(candidate instanceof Error ? candidate.message : 'Não foi possível alterar sua senha.');
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível alterar sua senha. Confira a senha atual e tente novamente.');
     } finally { setBusy(false); }
   }
 
@@ -67,38 +67,37 @@ export function StudentSecurity({ publicId }: { publicId: string }) {
     setBusy(true); setError(''); setMessage('');
     try {
       const result = await securityApi<{ revokedSessions: number }>('/api/student/security/sessions/revoke-others', { method: 'POST' });
-      setMessage(result.revokedSessions ? `${result.revokedSessions} outra(s) sessão(ões) encerradas.` : 'Não havia outras sessões ativas.');
+      setMessage(result.revokedSessions ? `Você saiu de ${result.revokedSessions} outro(s) dispositivo(s).` : 'Você não estava conectado em outros dispositivos.');
       await reload();
     } catch (candidate) {
-      setError(candidate instanceof Error ? candidate.message : 'Não foi possível encerrar outras sessões.');
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível sair dos outros dispositivos. Tente novamente.');
     } finally { setBusy(false); }
   }
 
   return (
     <div className="student-security-page">
-      <section className="student-security-hero"><p className="student-eyebrow">MINHA CONTA</p><h1>Seu acesso.</h1><p>Seu ID do aluno é sua identidade de entrada. Documento e CPF nunca são usados como login.</p></section>
+      <section className="student-security-hero"><p className="student-eyebrow">MINHA CONTA</p><h1>Seu acesso.</h1><p>Use seu ID Centro e sua senha para entrar. CPF e documento não são usados no login.</p></section>
       <section className="student-security-overview">
-        <div><span>ID DO ALUNO</span><strong>{publicId}</strong></div>
-        <div><span>VERSÃO DA SENHA</span><strong>{snapshot?.passwordVersion ?? '—'}</strong></div>
-        <div><span>SESSÕES ATIVAS</span><strong>{snapshot?.activeSessions ?? '—'}</strong></div>
-        <div><span>ÚLTIMA ALTERAÇÃO</span><strong>{snapshot ? dateTime(snapshot.credentialUpdatedAt) : '—'}</strong></div>
+        <div><span>SEU ID CENTRO</span><strong>{publicId}</strong></div>
+        <div><span>DISPOSITIVOS CONECTADOS</span><strong>{snapshot?.activeSessions ?? '—'}</strong></div>
+        <div><span>ÚLTIMA TROCA DE SENHA</span><strong>{snapshot ? dateTime(snapshot.credentialUpdatedAt) : '—'}</strong></div>
       </section>
 
       <section className="student-panel student-security-form-card">
-        <div><p className="student-eyebrow">SENHA</p><h2>Alterar senha</h2><p>Ao trocar sua senha, esta sessão continua aberta e as outras sessões ativas são revogadas.</p></div>
+        <div><p className="student-eyebrow">SENHA</p><h2>Trocar minha senha</h2><p>Depois da troca, este dispositivo continua conectado e os outros são desconectados.</p></div>
         <form className="student-form" onSubmit={changePassword}>
           <label>Senha atual<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required /></label>
-          <label>Nova senha<input type="password" minLength={12} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required /></label>
-          <label>Confirmar nova senha<input type="password" minLength={12} autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required /></label>
+          <label>Nova senha<input type="password" minLength={12} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required /><small>Use pelo menos 12 caracteres.</small></label>
+          <label>Digite a nova senha novamente<input type="password" minLength={12} autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required /></label>
           {error && <p className="student-error" role="alert">{error}</p>}
-          {message && <p className="student-security-success">{message}</p>}
-          <button className="student-primary" type="submit" disabled={busy}>{busy ? 'Salvando…' : 'Alterar senha'}</button>
+          {message && <p className="student-security-success" role="status">{message}</p>}
+          <button className="student-primary" type="submit" disabled={busy}>{busy ? 'Salvando…' : 'Trocar minha senha'}</button>
         </form>
       </section>
 
       <section className="student-panel student-security-sessions">
-        <div><p className="student-eyebrow">SESSÕES</p><h2>Dispositivos conectados</h2><p>{snapshot?.activeSessions ?? 0} sessão(ões) ativas. Você pode encerrar todas as outras sem sair deste dispositivo.</p></div>
-        <button className="student-secondary" type="button" onClick={() => void revokeOthers()} disabled={busy || (snapshot?.activeSessions ?? 0) <= 1}>Encerrar outras sessões</button>
+        <div><p className="student-eyebrow">DISPOSITIVOS</p><h2>Onde sua conta está conectada</h2><p>{snapshot?.activeSessions ?? 0} dispositivo(s) conectado(s). Se você não reconhecer algum acesso, saia dos outros dispositivos e troque sua senha.</p></div>
+        <button className="student-secondary" type="button" onClick={() => void revokeOthers()} disabled={busy || (snapshot?.activeSessions ?? 0) <= 1}>Sair dos outros dispositivos</button>
       </section>
     </div>
   );

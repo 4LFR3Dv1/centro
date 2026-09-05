@@ -70,23 +70,23 @@ const categoryLabels: Record<Category, string> = {
 const intakeLabels: Record<IntakeSituation, { title: string; detail: string }> = {
   NOT_STARTED: {
     title: 'Ainda não iniciou no Detran',
-    detail: 'A matrícula começa antes de qualquer fato oficial observado.',
+    detail: 'O aluno ainda não abriu o processo de habilitação no Detran.',
   },
   PROCESS_STARTED: {
-    title: 'Processo oficial iniciado',
-    detail: 'O candidato já abriu o processo oficial, mas ainda não informou RENACH.',
+    title: 'Já iniciou no Detran',
+    detail: 'O processo já foi aberto, mas o RENACH ainda não foi informado.',
   },
   RENACH_ISSUED: {
     title: 'Já possui RENACH',
-    detail: 'O RENACH será guardado como referência externa desta matrícula.',
+    detail: 'O aluno já recebeu o RENACH. Informe o número abaixo.',
   },
   THEORY_COURSE_COMPLETED: {
-    title: 'Teoria concluída',
-    detail: 'O curso teórico foi concluído; aprovação na prova ainda não é presumida.',
+    title: 'Já concluiu o curso teórico',
+    detail: 'O curso terminou, mas a aprovação na prova teórica ainda não foi confirmada.',
   },
   THEORY_EXAM_PASSED: {
-    title: 'Aprovado na prova teórica',
-    detail: 'A aprovação já ocorrida materializa os milestones oficiais anteriores necessários.',
+    title: 'Já foi aprovado na prova teórica',
+    detail: 'A aprovação já aconteceu. O Centro considera as etapas anteriores concluídas para indicar o próximo passo.',
   },
 };
 
@@ -106,7 +106,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (response.status === 204) return undefined as T;
   const body = await response.json().catch(() => ({})) as { error?: string } & T;
-  if (!response.ok) throw new Error(body.error || 'Não foi possível concluir a operação.');
+  if (!response.ok) throw new Error(body.error || 'Não foi possível concluir esta ação.');
   return body;
 }
 
@@ -128,7 +128,7 @@ function Login({ onAuthenticated }: { onAuthenticated: (session: SessionPayload)
       setPassword('');
       onAuthenticated(session);
     } catch (candidate) {
-      setError(candidate instanceof Error ? candidate.message : 'Não foi possível entrar.');
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível entrar. Confira usuário e senha.');
     } finally {
       setBusy(false);
     }
@@ -139,8 +139,8 @@ function Login({ onAuthenticated }: { onAuthenticated: (session: SessionPayload)
       <section className="admin-login-panel" aria-labelledby="admin-login-title">
         <a className="admin-wordmark" href="/">Centro</a>
         <p className="admin-eyebrow">AUTO ESCOLA CENTRO</p>
-        <h1 id="admin-login-title">Operação da escola.</h1>
-        <p className="admin-lead">Acesso reservado à equipe. O painel público e o acesso do aluno são separados desta área.</p>
+        <h1 id="admin-login-title">Área da equipe.</h1>
+        <p className="admin-lead">Entre para acompanhar alunos, agenda, provas e o que precisa de atenção hoje.</p>
 
         <form className="admin-form admin-login-form" onSubmit={submit}>
           <label>
@@ -170,7 +170,7 @@ function Receipt({ receipt, onNew, onStudent }: { receipt: EnrollmentReceipt; on
     let alive = true;
     void api<AccessQrPayload>(`/api/admin/students/${receipt.student.id}/access-qr`)
       .then((value) => { if (alive) setAccessQr(value.qr); })
-      .catch((candidate) => { if (alive) setQrError(candidate instanceof Error ? candidate.message : 'Não foi possível carregar o QR.'); });
+      .catch((candidate) => { if (alive) setQrError(candidate instanceof Error ? candidate.message : 'Não foi possível carregar o QR do aluno.'); });
     return () => { alive = false; };
   }, [receipt.student.id]);
 
@@ -181,30 +181,30 @@ function Receipt({ receipt, onNew, onStudent }: { receipt: EnrollmentReceipt; on
   return (
     <section className="admin-receipt" aria-labelledby="receipt-title">
       <div className="admin-receipt-status">MATRÍCULA CRIADA</div>
-      <h2 id="receipt-title">Acesso do aluno</h2>
+      <h2 id="receipt-title">Entregue o acesso ao aluno</h2>
       <p>{service} · {category} · {intake.title}{receipt.enrollment.renach ? ` · RENACH ${receipt.enrollment.renach}` : ''}</p>
 
-      <div className="admin-receipt-progress" aria-label="Materialização do acesso">
-        <span>✓ Matrícula</span>
-        <span>✓ Identidade {receipt.student.publicId}</span>
-        <span>{accessQr ? '✓ QR persistente' : '… QR persistente'}</span>
-        <span>{accessQr?.activationRequired ? '○ Aguardando ativação pelo aluno' : accessQr ? '✓ Acesso ativado' : '… Estado de ativação'}</span>
+      <div className="admin-receipt-progress" aria-label="Etapas do acesso do aluno">
+        <span>✓ Matrícula criada</span>
+        <span>✓ ID do aluno {receipt.student.publicId}</span>
+        <span>{accessQr ? '✓ QR do aluno pronto' : '… Preparando QR do aluno'}</span>
+        <span>{accessQr?.activationRequired ? '○ Aguardando primeiro acesso' : accessQr ? '✓ Acesso ativado' : '… Verificando acesso'}</span>
       </div>
 
       <div className="admin-receipt-qr">
         <div>
-          {accessQr ? <AccessQr publicToken={accessQr.publicToken} size={230} /> : <div className="admin-receipt-qr-placeholder">Gerando QR…</div>}
+          {accessQr ? <AccessQr publicToken={accessQr.publicToken} size={230} /> : <div className="admin-receipt-qr-placeholder">Preparando QR…</div>}
         </div>
         <div>
-          <span>{accessQr?.activationRequired ? 'ESCANEIE PARA ATIVAR' : 'ESCANEIE PARA ACESSAR'}</span>
+          <span>{accessQr?.activationRequired ? 'ENTREGUE ESTE QR AO ALUNO' : 'QR DO ALUNO'}</span>
           <strong>{receipt.student.publicId}</strong>
           <p>
             {accessQr?.activationRequired
-              ? 'No primeiro scan, o aluno cria a própria senha e entra diretamente na área do aluno.'
-              : 'O acesso já está ativado. O QR abre o login com o ID Centro preenchido.'}
+              ? 'No primeiro acesso, o aluno escaneia este QR, cria a própria senha e entra na área do aluno.'
+              : 'O acesso já está ativo. O QR abre a entrada com o ID Centro preenchido; a senha continua obrigatória.'}
           </p>
           {accessQr && <button type="button" onClick={() => void copy(studentAccessUrl(accessQr.publicToken))}>Copiar link de acesso</button>}
-          {qrError && <small>{qrError}</small>}
+          {qrError && <small role="alert">{qrError}</small>}
         </div>
       </div>
 
@@ -215,26 +215,26 @@ function Receipt({ receipt, onNew, onStudent }: { receipt: EnrollmentReceipt; on
           <button type="button" onClick={() => void copy(receipt.student.publicId)}>Copiar ID</button>
         </div>
         <div>
-          <span>ATIVAÇÃO</span>
+          <span>PRIMEIRO ACESSO</span>
           <strong className="admin-access-existing">
             {accessQr?.activationRequired ? 'Aguardando aluno' : accessQr ? 'Acesso ativo' : 'Verificando…'}
           </strong>
           <small>
             {accessQr?.activationRequired
-              ? 'A escola não cria nem conhece a senha. O aluno escolhe a senha ao ativar este QR.'
-              : 'Nenhuma senha é projetada para a escola.'}
+              ? 'A escola não cria nem conhece a senha. O aluno escolhe a própria senha ao usar este QR.'
+              : 'A senha continua privada do aluno.'}
           </small>
         </div>
       </div>
 
       {accessQr?.activationRequired && (
-        <p className="admin-receipt-warning">Entregue este QR ao aluno. A credencial só será criada quando ele escanear o código e escolher a própria senha.</p>
+        <p className="admin-receipt-warning">Entregue este QR ao aluno. O acesso só fica ativo depois que ele escanear o código e escolher a própria senha.</p>
       )}
 
       <div className="admin-receipt-actions">
-        <button className="admin-secondary" type="button" onClick={() => window.print()} disabled={!accessQr}>Imprimir acesso</button>
-        <button className="admin-secondary" type="button" onClick={onStudent}>Abrir aluno</button>
-        <button className="admin-primary" type="button" onClick={onNew}>Nova matrícula</button>
+        <button className="admin-secondary" type="button" onClick={() => window.print()} disabled={!accessQr}>Imprimir QR</button>
+        <button className="admin-secondary" type="button" onClick={onStudent}>Ver aluno</button>
+        <button className="admin-primary" type="button" onClick={onNew}>Criar outra matrícula</button>
       </div>
     </section>
   );
@@ -294,7 +294,7 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
       });
       onCreated(receipt);
     } catch (candidate) {
-      setError(candidate instanceof Error ? candidate.message : 'Não foi possível criar a matrícula.');
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível criar a matrícula. Revise os dados e tente novamente.');
     } finally {
       setBusy(false);
     }
@@ -307,7 +307,7 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
           <p className="admin-eyebrow">MATRÍCULAS</p>
           <h2 id="new-enrollment-title">Nova matrícula</h2>
         </div>
-        <p>Cadastre apenas o necessário, localize o estado real do processo e entregue o QR persistente para ativação do aluno.</p>
+        <p>Informe o que você consegue confirmar hoje. O Centro usa essas informações para indicar o próximo passo do aluno.</p>
       </div>
 
       <form className="admin-form admin-enrollment-form" onSubmit={submit}>
@@ -315,7 +315,7 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
           <legend><span>01</span> Aluno</legend>
           <div className="admin-field-grid">
             <label className="admin-field-wide">Nome completo<input name="fullName" autoComplete="name" required /></label>
-            <label>CPF<input name="cpf" inputMode="numeric" autoComplete="off" placeholder="000.000.000-00" required /><small>Identificação fiscal. Nunca é usado como login.</small></label>
+            <label>CPF<input name="cpf" inputMode="numeric" autoComplete="off" placeholder="000.000.000-00" required /><small>Usado para identificar o aluno. O login usa o ID Centro.</small></label>
             <label>Data de nascimento<input name="birthDate" type="date" required /></label>
             <label>Telefone<input name="phone" inputMode="tel" autoComplete="tel" required /></label>
             <label>E-mail<input name="email" type="email" autoComplete="email" /></label>
@@ -324,7 +324,7 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
           <div className="admin-subsection">
             <div className="admin-subsection-title">
               <strong>Documento de identidade</strong>
-              <span>RG, CIN ou documento migratório. Sem upload obrigatório.</span>
+              <span>Informe o documento apresentado pelo aluno. Não é necessário anexar arquivo.</span>
             </div>
             <div className="admin-field-grid admin-field-grid-three">
               <label>Tipo
@@ -349,7 +349,7 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
         <fieldset>
           <legend><span>02</span> Habilitação</legend>
           <div className="admin-form-block">
-            <span className="admin-form-block-label">Serviço</span>
+            <span className="admin-form-block-label">O que o aluno vai fazer?</span>
             <div className="admin-choice-grid" role="radiogroup" aria-label="Serviço da matrícula">
               {(Object.keys(serviceLabels) as ServiceType[]).map((value) => (
                 <button key={value} type="button" role="radio" aria-checked={serviceType === value} className={serviceType === value ? 'is-selected' : ''} onClick={() => setServiceType(value)}>
@@ -371,8 +371,9 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
           </div>
 
           <div className="admin-form-block">
-            <span className="admin-form-block-label">Situação atual do processo</span>
-            <div className="admin-intake-grid" role="radiogroup" aria-label="Situação atual do processo de habilitação">
+            <span className="admin-form-block-label">Em que ponto este aluno está?</span>
+            <p className="admin-fieldset-note">Escolha a opção mais avançada que você consegue confirmar.</p>
+            <div className="admin-intake-grid" role="radiogroup" aria-label="Ponto atual do processo de habilitação">
               {(Object.keys(intakeLabels) as IntakeSituation[]).map((value) => (
                 <button key={value} type="button" role="radio" aria-checked={intakeSituation === value} className={intakeSituation === value ? 'is-selected' : ''} onClick={() => setIntakeSituation(value)}>
                   <strong>{intakeLabels[value].title}</strong>
@@ -385,14 +386,14 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
           <div className="admin-field-grid">
             <label>RENACH
               <input name="renach" autoComplete="off" required={intakeSituation === 'RENACH_ISSUED'} />
-              <small>{intakeSituation === 'RENACH_ISSUED' ? 'Obrigatório porque o intake declara que o RENACH já existe.' : 'Opcional. Informe quando já estiver disponível.'}</small>
+              <small>{intakeSituation === 'RENACH_ISSUED' ? 'Informe o RENACH porque você indicou que o aluno já o possui.' : 'Opcional. Preencha se o número já estiver disponível.'}</small>
             </label>
           </div>
         </fieldset>
 
         <fieldset>
           <legend><span>03</span> Endereço</legend>
-          <p className="admin-fieldset-note">Dados de endereço ajudam a operação, mas não bloqueiam a matrícula quando ainda não estão disponíveis.</p>
+          <p className="admin-fieldset-note">Preencha se estiver disponível. A falta de endereço não impede a criação da matrícula.</p>
           <div className="admin-field-grid">
             <label>CEP<input name="postalCode" inputMode="numeric" autoComplete="postal-code" placeholder="00000-000" /></label>
             <label>Número<input name="addressNumber" autoComplete="address-line2" /></label>
@@ -402,14 +403,14 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
         </fieldset>
 
         <fieldset>
-          <legend><span>04</span> Confirmação</legend>
-          <label>Observação operacional<textarea name="notes" rows={3} placeholder="Somente o que a equipe realmente precisa saber para conduzir esta matrícula." /></label>
+          <legend><span>04</span> Observação</legend>
+          <label>Algo que a equipe precisa saber?<textarea name="notes" rows={3} placeholder="Ex.: disponibilidade de horário, contato preferencial ou informação importante para o atendimento." /></label>
         </fieldset>
 
         {error && <p className="admin-error" role="alert">{error}</p>}
         <div className="admin-submit-row">
-          <span>Aluno, matrícula, fatos de intake, QR e auditoria entram na mesma transação. A senha só nasce quando o aluno ativa o QR.</span>
-          <button className="admin-primary" type="submit" disabled={busy}>{busy ? 'Criando…' : 'Confirmar matrícula'}</button>
+          <span>A matrícula e o QR do aluno serão criados juntos. O aluno escolhe a própria senha no primeiro acesso.</span>
+          <button className="admin-primary" type="submit" disabled={busy}>{busy ? 'Criando matrícula…' : 'Criar matrícula'}</button>
         </div>
       </form>
     </section>
@@ -469,18 +470,18 @@ export default function AdminApp() {
   const examsActive = location.pathname.startsWith('/admin/exames');
   const securityActive = location.pathname.startsWith('/admin/seguranca');
 
-  if (checking) return <main className="admin-loading">Abrindo operação da escola…</main>;
+  if (checking) return <main className="admin-loading">Abrindo área da equipe…</main>;
   if (!session) return <Login onAuthenticated={(value) => { setSession(value); navigate('/admin', { replace: true }); }} />;
 
   return (
     <div className="admin-shell">
       <header className="admin-topbar">
-        <div><a href="/" className="admin-wordmark">Centro</a><span>Auto Escola Centro · Administração</span></div>
+        <div><a href="/" className="admin-wordmark">Centro</a><span>Auto Escola Centro · Equipe</span></div>
         <div className="admin-user"><span>{session.staff.displayName}</span><button type="button" onClick={() => void logout()}>Sair</button></div>
       </header>
 
       <main className="admin-main">
-        <aside className="admin-rail" aria-label="Administração">
+        <aside className="admin-rail" aria-label="Área da equipe">
           <p>OPERAÇÃO</p>
           <button type="button" className={todayActive ? 'is-active' : ''} onClick={() => navigate('/admin')}>Hoje</button>
           <button type="button" className={calendarActive ? 'is-active' : ''} onClick={() => navigate('/admin/agenda')}>Agenda</button>

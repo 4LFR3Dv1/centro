@@ -53,7 +53,7 @@ export function StudentAccessEntry({ publicToken, onAuthenticated, onManualLogin
     setResolution(null);
     void json<AccessResolution>(`/api/student/access/${encodeURIComponent(publicToken)}`)
       .then((value) => { if (alive) setResolution(value); })
-      .catch((candidate) => { if (alive) setError(candidate instanceof Error ? candidate.message : 'QR inválido.'); })
+      .catch((candidate) => { if (alive) setError(candidate instanceof Error ? candidate.message : 'Este QR não está disponível.'); })
       .finally(() => { if (alive) setResolving(false); });
     return () => { alive = false; };
   }, [publicToken]);
@@ -64,8 +64,8 @@ export function StudentAccessEntry({ publicToken, onAuthenticated, onManualLogin
     setError('');
 
     if (resolution.activationRequired) {
-      if (password.length < 12) { setError('Use pelo menos 12 caracteres.'); return; }
-      if (password !== confirmation) { setError('As senhas não coincidem.'); return; }
+      if (password.length < 12) { setError('Sua senha precisa ter pelo menos 12 caracteres.'); return; }
+      if (password !== confirmation) { setError('As duas senhas precisam ser iguais.'); return; }
     }
 
     setBusy(true);
@@ -83,7 +83,7 @@ export function StudentAccessEntry({ publicToken, onAuthenticated, onManualLogin
       setConfirmation('');
       onAuthenticated(session);
     } catch (candidate) {
-      setError(candidate instanceof Error ? candidate.message : resolution.activationRequired ? 'Não foi possível ativar seu acesso.' : 'Não foi possível entrar.');
+      setError(candidate instanceof Error ? candidate.message : resolution.activationRequired ? 'Não foi possível ativar seu acesso. Tente novamente.' : 'Não foi possível entrar. Confira sua senha.');
     } finally { setBusy(false); }
   }
 
@@ -91,22 +91,22 @@ export function StudentAccessEntry({ publicToken, onAuthenticated, onManualLogin
     <main className="student-login-page student-access-entry">
       <section className="student-login-card" aria-labelledby="student-access-title">
         <a className="student-wordmark" href="/">Centro</a>
-        <p className="student-eyebrow">{resolution?.activationRequired ? 'PRIMEIRO ACESSO' : 'ACESSO POR QR'}</p>
+        <p className="student-eyebrow">{resolution?.activationRequired ? 'PRIMEIRO ACESSO' : 'ENTRAR COM QR'}</p>
         <h1 id="student-access-title">
-          {resolution?.activationRequired ? `Olá, ${resolution.firstName}.` : 'Sua área, direto do cartão.'}
+          {resolution?.activationRequired ? `Olá, ${resolution.firstName}.` : 'Seu ID já está pronto.'}
         </h1>
 
         {resolving ? (
-          <p className="student-lead">Identificando seu acesso…</p>
+          <p className="student-lead" aria-live="polite">Verificando seu acesso…</p>
         ) : resolution ? (
           <>
             <div className="student-access-identity">
-              <span>ID CENTRO</span>
+              <span>SEU ID CENTRO</span>
               <strong>{resolution.publicId}</strong>
               <small>
                 {resolution.activationRequired
                   ? 'Sua matrícula está pronta. Crie agora a senha que você usará para entrar na sua área.'
-                  : 'O QR localiza sua identidade. Use sua senha para entrar.'}
+                  : 'Seu ID já foi identificado. Digite sua senha para entrar.'}
               </small>
             </div>
 
@@ -123,10 +123,11 @@ export function StudentAccessEntry({ publicToken, onAuthenticated, onManualLogin
                   autoFocus
                   required
                 />
+                {resolution.activationRequired && <small>Use pelo menos 12 caracteres.</small>}
               </label>
               {resolution.activationRequired && (
                 <label>
-                  Confirmar senha
+                  Digite a senha novamente
                   <input
                     type="password"
                     minLength={12}
@@ -142,14 +143,15 @@ export function StudentAccessEntry({ publicToken, onAuthenticated, onManualLogin
               <button className="student-primary" disabled={busy} type="submit">
                 {busy
                   ? (resolution.activationRequired ? 'Ativando…' : 'Entrando…')
-                  : (resolution.activationRequired ? 'Ativar meu acesso' : 'Entrar')}
+                  : (resolution.activationRequired ? 'Criar senha e entrar' : 'Entrar')}
               </button>
             </form>
           </>
         ) : (
           <>
             <p className="student-error" role="alert">{error || 'Este QR não está disponível.'}</p>
-            <button className="student-primary" type="button" onClick={onManualLogin}>Digitar meu ID</button>
+            <p className="student-lead">Você ainda pode entrar usando seu ID Centro e sua senha.</p>
+            <button className="student-primary" type="button" onClick={onManualLogin}>Entrar com meu ID</button>
           </>
         )}
       </section>

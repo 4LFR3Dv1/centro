@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './student-home.css';
 
+type PrimaryActionKind = 'SECURITY' | 'LESSON' | 'EXAM' | 'PROCESS';
+
 type HomeView = {
   process: null | {
     currentState: { label: string; percent: number };
@@ -13,7 +15,7 @@ type HomeView = {
     detail: string;
     href: string;
     dueAt: string | null;
-    kind: 'SECURITY' | 'LESSON' | 'EXAM' | 'PROCESS';
+    kind: PrimaryActionKind;
   };
   nextLesson: null | {
     id: string;
@@ -50,6 +52,13 @@ function dateTime(value: string): string {
   }).format(new Date(value));
 }
 
+function primaryActionLabel(kind: PrimaryActionKind): string {
+  if (kind === 'SECURITY') return 'Resolver meu acesso';
+  if (kind === 'LESSON') return 'Ver minha aula';
+  if (kind === 'EXAM') return 'Ver minha prova';
+  return 'Ver próximo passo';
+}
+
 export function StudentHome({ student }: { student: StudentIdentity }) {
   const navigate = useNavigate();
   const [home, setHome] = useState<HomeView | null>(null);
@@ -64,7 +73,7 @@ export function StudentHome({ student }: { student: StudentIdentity }) {
   }, []);
 
   if (error) return <section className="student-panel"><p className="student-error" role="alert">{error}</p></section>;
-  if (!home) return <section className="student-panel"><p>Montando sua jornada…</p></section>;
+  if (!home) return <section className="student-panel"><p aria-live="polite">Preparando sua área…</p></section>;
 
   return (
     <div className="student-home-v2">
@@ -90,10 +99,10 @@ export function StudentHome({ student }: { student: StudentIdentity }) {
             <h2>{home.primaryAction.title}</h2>
             {home.primaryAction.dueAt && <strong className="student-home-due">{dateTime(home.primaryAction.dueAt)}</strong>}
             <p>{home.primaryAction.detail}</p>
-            <button className="student-primary" type="button" onClick={() => navigate(home.primaryAction!.href)}>Abrir</button>
+            <button className="student-primary" type="button" onClick={() => navigate(home.primaryAction!.href)}>{primaryActionLabel(home.primaryAction.kind)}</button>
           </>
         ) : (
-          <><h2>Nada exige sua atenção agora.</h2><p>Quando surgir uma próxima ação real no processo, ela aparece aqui.</p></>
+          <><h2>Você não precisa fazer nada agora.</h2><p>Quando houver um próximo passo para você, ele aparecerá aqui.</p></>
         )}
       </section>
 
@@ -113,14 +122,14 @@ export function StudentHome({ student }: { student: StudentIdentity }) {
         <div>
           <p className="student-eyebrow">PRÓXIMA AULA</p>
           {home.nextLesson ? (
-            <><h3>{dateTime(home.nextLesson.startsAt)}</h3><p>Categoria {home.nextLesson.category} · {home.nextLesson.instructorName} · {home.nextLesson.vehicleLabel}</p><button type="button" onClick={() => navigate(`/aluno/agenda/${home.nextLesson!.id}`)}>Ver aula →</button></>
-          ) : <><h3>Sem aula futura.</h3><p>Quando a escola registrar um horário, ele aparece aqui e na sua agenda.</p></>}
+            <><h3>{dateTime(home.nextLesson.startsAt)}</h3><p>Categoria {home.nextLesson.category} · {home.nextLesson.instructorName} · {home.nextLesson.vehicleLabel}</p><button type="button" onClick={() => navigate(`/aluno/agenda/${home.nextLesson!.id}`)}>Ver minha aula →</button></>
+          ) : <><h3>Nenhuma aula marcada.</h3><p>Quando a escola marcar um horário, ele aparecerá aqui e na sua agenda.</p></>}
         </div>
         <div>
           <p className="student-eyebrow">EXAME PRÁTICO</p>
           {home.nextExam ? (
-            <><h3>{dateTime(home.nextExam.officialScheduledFor)}</h3><p>{home.nextExam.locationLabel} · Categoria {home.nextExam.category}</p><button type="button" onClick={() => navigate(`/aluno/exame/${home.nextExam!.candidateId}`)}>Ver exame →</button></>
-          ) : <><h3>Ainda não agendado.</h3><p>Quando existir uma lista oficial vinculada à sua matrícula, ela aparece aqui.</p></>}
+            <><h3>{dateTime(home.nextExam.officialScheduledFor)}</h3><p>{home.nextExam.locationLabel} · Categoria {home.nextExam.category}</p><button type="button" onClick={() => navigate(`/aluno/exame/${home.nextExam!.candidateId}`)}>Ver meu exame →</button></>
+          ) : <><h3>Ainda não está marcado.</h3><p>Quando a escola marcar seu exame, ele aparecerá aqui.</p></>}
         </div>
       </section>
     </div>

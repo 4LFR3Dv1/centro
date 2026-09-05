@@ -25,7 +25,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   const body = await response.json().catch(() => ({})) as T & { error?: string };
-  if (!response.ok) throw new Error(body.error || 'Não foi possível concluir a operação.');
+  if (!response.ok) throw new Error(body.error || 'Não foi possível concluir esta ação.');
   return body;
 }
 
@@ -52,7 +52,7 @@ export function AdminSecurity() {
     let alive = true;
     void api<SecuritySnapshot>('/api/admin/security')
       .then((value) => { if (alive) setSnapshot(value); })
-      .catch((candidate) => { if (alive) setError(candidate instanceof Error ? candidate.message : 'Não foi possível carregar a segurança.'); })
+      .catch((candidate) => { if (alive) setError(candidate instanceof Error ? candidate.message : 'Não foi possível carregar a segurança da sua conta.'); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, []);
@@ -68,11 +68,11 @@ export function AdminSecurity() {
     const confirmPassword = String(data.get('confirmPassword') || '');
 
     if (newPassword.length < 12) {
-      setError('A nova senha deve ter pelo menos 12 caracteres.');
+      setError('A nova senha precisa ter pelo menos 12 caracteres.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('A confirmação da nova senha não confere.');
+      setError('As duas novas senhas precisam ser iguais.');
       return;
     }
 
@@ -86,11 +86,11 @@ export function AdminSecurity() {
       await load();
       setSuccess(
         receipt.revokedOtherSessions === 0
-          ? 'Senha alterada. Esta sessão continua ativa.'
-          : `Senha alterada. ${receipt.revokedOtherSessions} outra(s) sessão(ões) foram encerradas.`,
+          ? 'Senha alterada. Este dispositivo continua conectado.'
+          : `Senha alterada. Você saiu de ${receipt.revokedOtherSessions} outro(s) dispositivo(s).`,
       );
     } catch (candidate) {
-      setError(candidate instanceof Error ? candidate.message : 'Não foi possível alterar a senha.');
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível alterar a senha. Confira a senha atual e tente novamente.');
     } finally {
       setBusy(false);
     }
@@ -102,33 +102,33 @@ export function AdminSecurity() {
         <div>
           <p className="admin-eyebrow">CONTA</p>
           <h1 id="security-title">Segurança</h1>
-          <p>Altere sua própria credencial sem depender das variáveis de bootstrap da infraestrutura.</p>
+          <p>Altere sua senha e veja se sua conta está conectada em outros dispositivos.</p>
         </div>
       </header>
 
       {loading ? (
-        <div className="admin-security-loading">Carregando estado da credencial…</div>
+        <div className="admin-security-loading" aria-live="polite">Carregando segurança da conta…</div>
       ) : snapshot ? (
-        <div className="admin-security-facts" aria-label="Estado da credencial">
+        <div className="admin-security-facts" aria-label="Resumo de segurança da conta">
           <article>
-            <span>VERSÃO DA SENHA</span>
-            <strong>{snapshot.passwordVersion}</strong>
-            <small>Incrementa a cada alteração ou recuperação.</small>
-          </article>
-          <article>
-            <span>ÚLTIMA ALTERAÇÃO</span>
+            <span>ÚLTIMA TROCA DE SENHA</span>
             <strong>{formatDate(snapshot.credentialUpdatedAt)}</strong>
-            <small>Timestamp persistido no PostgreSQL.</small>
+            <small>Data da última alteração registrada.</small>
           </article>
           <article>
-            <span>SESSÕES ATIVAS</span>
+            <span>DISPOSITIVOS CONECTADOS</span>
             <strong>{snapshot.activeSessions}</strong>
-            <small>Ao trocar a senha, apenas esta sessão permanece.</small>
+            <small>Ao trocar a senha, este dispositivo permanece conectado e os demais saem da conta.</small>
           </article>
           <article>
-            <span>ESTADO</span>
-            <strong>{snapshot.disabled ? 'Desabilitada' : snapshot.lockedUntil ? 'Bloqueio temporário' : 'Ativa'}</strong>
-            <small>{snapshot.failedAttempts ? `${snapshot.failedAttempts} tentativa(s) inválida(s) acumulada(s).` : 'Sem tentativas inválidas acumuladas.'}</small>
+            <span>TENTATIVAS INCORRETAS</span>
+            <strong>{snapshot.failedAttempts}</strong>
+            <small>{snapshot.failedAttempts ? 'Tentativas recentes de senha incorreta.' : 'Nenhuma tentativa incorreta acumulada.'}</small>
+          </article>
+          <article>
+            <span>ESTADO DO ACESSO</span>
+            <strong>{snapshot.disabled ? 'Desativado' : snapshot.lockedUntil ? 'Bloqueado temporariamente' : 'Ativo'}</strong>
+            <small>{snapshot.lockedUntil ? `Bloqueado até ${formatDate(snapshot.lockedUntil)}.` : snapshot.disabled ? 'Este acesso foi desativado.' : 'Você pode entrar normalmente.'}</small>
           </article>
         </div>
       ) : null}
@@ -136,9 +136,9 @@ export function AdminSecurity() {
       <div className="admin-security-grid">
         <form className="admin-security-card admin-security-form" onSubmit={submit}>
           <div>
-            <p className="admin-eyebrow">CREDENCIAL</p>
-            <h2>Alterar senha</h2>
-            <p>A senha atual é verificada contra o hash Argon2id. A nova senha nunca é persistida em texto.</p>
+            <p className="admin-eyebrow">SENHA</p>
+            <h2>Trocar minha senha</h2>
+            <p>Use sua senha atual para escolher uma nova. Depois da troca, os outros dispositivos serão desconectados.</p>
           </div>
 
           <label>
@@ -148,31 +148,31 @@ export function AdminSecurity() {
           <label>
             Nova senha
             <input name="newPassword" type="password" autoComplete="new-password" minLength={12} required />
-            <small>Mínimo de 12 caracteres e diferente da senha atual.</small>
+            <small>Use pelo menos 12 caracteres e escolha uma senha diferente da atual.</small>
           </label>
           <label>
-            Confirmar nova senha
+            Digite a nova senha novamente
             <input name="confirmPassword" type="password" autoComplete="new-password" minLength={12} required />
           </label>
 
           {error && <p className="admin-security-error" role="alert">{error}</p>}
           {success && <p className="admin-security-success" role="status">{success}</p>}
-          <button className="admin-primary" type="submit" disabled={busy}>{busy ? 'Alterando…' : 'Alterar senha'}</button>
+          <button className="admin-primary" type="submit" disabled={busy}>{busy ? 'Salvando…' : 'Trocar minha senha'}</button>
         </form>
 
         <aside className="admin-security-card admin-security-recovery">
           <p className="admin-eyebrow">RECUPERAÇÃO</p>
-          <h2>Perdeu o acesso?</h2>
-          <p>A recuperação é uma operação separada da troca normal. Ela não acontece automaticamente quando uma variável da Railway muda.</p>
+          <h2>Não consegue entrar?</h2>
+          <p>A recuperação de acesso é separada da troca normal de senha. Use-a somente quando você não consegue entrar na conta.</p>
           <div className="admin-security-rule">
-            <strong>Troca normal</strong>
-            <span>Exige sessão autenticada + senha atual. Mantém esta sessão e encerra as demais.</span>
+            <strong>Se você ainda consegue entrar</strong>
+            <span>Troque a senha nesta tela. Este dispositivo permanece conectado e os outros são desconectados.</span>
           </div>
           <div className="admin-security-rule">
-            <strong>Recuperação operacional</strong>
-            <span>É executada fora da sessão, substitui a credencial persistida, limpa bloqueios e encerra todas as sessões.</span>
+            <strong>Se você perdeu o acesso</strong>
+            <span>Peça a recuperação da conta a um administrador autorizado. A recuperação substitui a senha atual e encerra todos os acessos abertos.</span>
           </div>
-          <p className="admin-security-note">A variável <code>CENTRO_BOOTSTRAP_ADMIN_PASSWORD</code> continua sendo somente a origem do primeiro bootstrap; ela não é uma fonte de verdade contínua da senha.</p>
+          <p className="admin-security-note">A equipe não deve compartilhar senhas entre usuários. Cada pessoa usa o próprio acesso.</p>
         </aside>
       </div>
     </section>

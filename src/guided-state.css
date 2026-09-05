@@ -1,0 +1,133 @@
+.guided-state {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  padding: 20px;
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-left-width: 4px;
+  border-radius: 18px;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+}
+
+.guided-state-copy {
+  min-width: 0;
+}
+
+.guided-state-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.guided-state-kicker span {
+  opacity: 0.62;
+}
+
+.guided-state-kicker strong {
+  font-size: 0.72rem;
+}
+
+.guided-state h2 {
+  margin: 0;
+  font-size: clamp(1.05rem, 2vw, 1.4rem);
+  line-height: 1.2;
+}
+
+.guided-state p {
+  margin: 8px 0 0;
+  max-width: 68ch;
+  line-height: 1.5;
+}
+
+.guided-state small {
+  display: block;
+  margin-top: 8px;
+  line-height: 1.45;
+  opacity: 0.72;
+}
+
+.guided-state-primary,
+.guided-state-secondary {
+  min-height: 44px;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.guided-state-primary {
+  padding: 0 18px;
+  border: 1px solid currentColor;
+  background: currentColor;
+  color: Canvas;
+}
+
+.guided-state-secondary {
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  background: transparent;
+  color: inherit;
+}
+
+.guided-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.guided-state-primary:focus-visible,
+.guided-state-secondary:focus-visible {
+  outline: 3px solid Highlight;
+  outline-offset: 3px;
+}
+
+.guided-state-ready {
+  border-left-color: #0a7f42;
+}
+
+.guided-state-waiting {
+  border-left-color: #6d6d72;
+}
+
+.guided-state-blocked {
+  border-left-color: #b42318;
+}
+
+.guided-state-done {
+  border-left-color: #267a55;
+}
+
+.guided-state-compact {
+  padding: 16px;
+  border-radius: 14px;
+}
+
+.guided-state-compact h2 {
+  font-size: 1rem;
+}
+
+@media (max-width: 720px) {
+  .guided-state {
+    grid-template-columns: 1fr;
+  }
+
+  .guided-state-primary {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guided-state,
+  .guided-state * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

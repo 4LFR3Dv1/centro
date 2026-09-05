@@ -34,7 +34,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (response.status === 204) return undefined as T;
   const body = await response.json().catch(() => ({})) as { error?: string } & T;
-  if (!response.ok) throw new Error(body.error || 'Não foi possível concluir a operação.');
+  if (!response.ok) throw new Error(body.error || 'Não foi possível concluir esta ação.');
   return body;
 }
 
@@ -54,7 +54,7 @@ function StudentLogin({ onAuthenticated }: { onAuthenticated: (session: StudentS
       setPassword('');
       onAuthenticated(session);
     } catch (candidate) {
-      setError(candidate instanceof Error ? candidate.message : 'Não foi possível entrar.');
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível entrar. Confira seu ID e sua senha.');
     } finally { setBusy(false); }
   }
 
@@ -64,9 +64,9 @@ function StudentLogin({ onAuthenticated }: { onAuthenticated: (session: StudentS
         <a className="student-wordmark" href="/">Centro</a>
         <p className="student-eyebrow">ÁREA DO ALUNO</p>
         <h1 id="student-login-title">Seu caminho para a CNH.</h1>
-        <p className="student-lead">Use o ID entregue pela Auto Escola Centro. CPF ou documento nunca são usados como login.</p>
+        <p className="student-lead">Entre com seu ID Centro e sua senha. Seu CPF e seus documentos não são usados para entrar.</p>
         <form className="student-form" onSubmit={submit}>
-          <label>ID do aluno<input value={publicId} onChange={(event) => setPublicId(event.target.value.toUpperCase())} placeholder="CEN-26-00001" autoComplete="username" required /></label>
+          <label>Seu ID Centro<input value={publicId} onChange={(event) => setPublicId(event.target.value.toUpperCase())} placeholder="CEN-26-00001" autoComplete="username" required /></label>
           <label>Senha<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required /></label>
           {error && <p className="student-error" role="alert">{error}</p>}
           <button className="student-primary" disabled={busy} type="submit">{busy ? 'Entrando…' : 'Entrar'}</button>
@@ -84,8 +84,8 @@ function ChangeInitialPassword({ onChanged }: { onChanged: (session: StudentSess
 
   async function submit(event: FormEvent) {
     event.preventDefault(); setError('');
-    if (newPassword.length < 12) { setError('Use pelo menos 12 caracteres.'); return; }
-    if (newPassword !== confirmation) { setError('As senhas não coincidem.'); return; }
+    if (newPassword.length < 12) { setError('Sua nova senha precisa ter pelo menos 12 caracteres.'); return; }
+    if (newPassword !== confirmation) { setError('As duas senhas precisam ser iguais.'); return; }
     setBusy(true);
     try {
       const session = await api<StudentSessionPayload>('/api/student/auth/change-initial-password', {
@@ -93,20 +93,20 @@ function ChangeInitialPassword({ onChanged }: { onChanged: (session: StudentSess
       });
       setNewPassword(''); setConfirmation(''); onChanged(session);
     } catch (candidate) {
-      setError(candidate instanceof Error ? candidate.message : 'Não foi possível alterar a senha.');
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível trocar sua senha. Tente novamente.');
     } finally { setBusy(false); }
   }
 
   return (
     <section className="student-focus-card" aria-labelledby="student-password-title">
-      <p className="student-eyebrow">PRIMEIRO ACESSO</p>
-      <h1 id="student-password-title">Crie sua senha definitiva.</h1>
-      <p>A senha entregue pela escola serve apenas para o primeiro acesso. Depois desta troca ela deixa de funcionar.</p>
+      <p className="student-eyebrow">ATUALIZAÇÃO DE ACESSO</p>
+      <h1 id="student-password-title">Crie uma nova senha.</h1>
+      <p>Este passo aparece apenas para contas antigas que ainda usam uma senha provisória. Depois da troca, use somente a nova senha.</p>
       <form className="student-form student-password-form" onSubmit={submit}>
-        <label>Nova senha<input type="password" minLength={12} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required /></label>
-        <label>Confirmar nova senha<input type="password" minLength={12} autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required /></label>
+        <label>Nova senha<input type="password" minLength={12} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required /><small>Use pelo menos 12 caracteres.</small></label>
+        <label>Digite a nova senha novamente<input type="password" minLength={12} autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required /></label>
         {error && <p className="student-error" role="alert">{error}</p>}
-        <button className="student-primary" disabled={busy} type="submit">{busy ? 'Salvando…' : 'Salvar nova senha'}</button>
+        <button className="student-primary" disabled={busy} type="submit">{busy ? 'Salvando…' : 'Trocar minha senha'}</button>
       </form>
     </section>
   );
@@ -149,7 +149,7 @@ export default function StudentApp() {
     navigate(value.credential.mustChangePassword ? '/aluno/trocar-senha' : '/aluno', { replace: true });
   }
 
-  if (checking) return <main className="student-loading">Abrindo sua área…</main>;
+  if (checking) return <main className="student-loading" aria-live="polite">Abrindo sua área…</main>;
   if (!session) {
     if (accessToken) {
       return <StudentAccessEntry publicToken={accessToken} onAuthenticated={acceptAuthentication} onManualLogin={() => navigate('/aluno/login', { replace: true })} />;
@@ -194,9 +194,9 @@ export default function StudentApp() {
         {!session.credential.mustChangePassword && (
           <nav className="student-topnav" aria-label="Área do aluno">
             <button type="button" className={homeActive ? 'is-active' : ''} onClick={() => navigate('/aluno')}>Início</button>
-            <button type="button" className={processActive ? 'is-active' : ''} onClick={() => navigate('/aluno/processo')}>Processo</button>
+            <button type="button" className={processActive ? 'is-active' : ''} onClick={() => navigate('/aluno/processo')}>Etapas</button>
             <button type="button" className={calendarActive ? 'is-active' : ''} onClick={() => navigate('/aluno/agenda')}>Agenda</button>
-            <button type="button" className={examsActive ? 'is-active' : ''} onClick={() => navigate('/aluno/exame')}>Exame</button>
+            <button type="button" className={examsActive ? 'is-active' : ''} onClick={() => navigate('/aluno/exame')}>Exames</button>
             <button type="button" className={guidesActive ? 'is-active' : ''} onClick={() => navigate('/aluno/guia')}>Guia</button>
             <button type="button" className={accountActive ? 'is-active' : ''} onClick={() => navigate('/aluno/conta')}>Conta</button>
           </nav>

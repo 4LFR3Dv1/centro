@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OperationalCommandDialog, type OperationalCommand } from './admin-operational-execution';
+import { GuidedStateCard, type GuidedStateKind } from './guided-state';
 import './admin-operational-guidance.css';
 
 type OperationalSeverity = 'BLOCKING' | 'ACTION_REQUIRED' | 'SCHEDULED' | 'WAITING' | 'COMPLETE';
@@ -45,12 +46,12 @@ const serviceLabels: Record<OperationalAction['serviceType'], string> = {
   LICENSED_TRAINING: 'Treinamento para habilitado',
 };
 
-const severityLabels: Record<OperationalSeverity, string> = {
-  BLOCKING: 'BLOQUEIO',
-  ACTION_REQUIRED: 'AÇÃO NECESSÁRIA',
-  SCHEDULED: 'JÁ AGENDADO',
-  WAITING: 'AGUARDANDO',
-  COMPLETE: 'CONCLUÍDO',
+const guidedKindBySeverity: Record<OperationalSeverity, GuidedStateKind> = {
+  BLOCKING: 'BLOCKED',
+  ACTION_REQUIRED: 'READY',
+  SCHEDULED: 'WAITING',
+  WAITING: 'WAITING',
+  COMPLETE: 'DONE',
 };
 
 async function loadOperationalContext(studentId: string): Promise<OperationalContext> {
@@ -58,7 +59,7 @@ async function loadOperationalContext(studentId: string): Promise<OperationalCon
     credentials: 'same-origin',
   });
   const body = await response.json().catch(() => ({})) as { operations?: OperationalContext; error?: string };
-  if (!response.ok || !body.operations) throw new Error(body.error || 'Não foi possível derivar a próxima ação.');
+  if (!response.ok || !body.operations) throw new Error(body.error || 'Não foi possível verificar o próximo passo.');
   return body.operations;
 }
 
@@ -128,7 +129,7 @@ function QuickLessonScheduler({ studentId, action, onClose, onScheduled }: {
       .then((value) => {
         if (!alive) return;
         if (!value.enrollments.some((enrollment) => enrollment.id === action.enrollmentId && enrollment.studentId === studentId)) {
-          throw new Error('A matrícula não está disponível para agendamento.');
+          throw new Error('Esta matrícula não está disponível para agendamento.');
         }
         setOptions(value);
         setStartsAtLocal(nextSlot(value.policy.slotMinutes));
@@ -148,7 +149,7 @@ function QuickLessonScheduler({ studentId, action, onClose, onScheduled }: {
     if (!options || !startsAtLocal) return;
     const startsAt = new Date(startsAtLocal);
     if (!Number.isFinite(startsAt.getTime())) {
-      setError('Data e hora inválidas.');
+      setError('Informe uma data e hora válidas.');
       return;
     }
     const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
@@ -171,7 +172,7 @@ function QuickLessonScheduler({ studentId, action, onClose, onScheduled }: {
       window.dispatchEvent(new CustomEvent('centro:process-changed', { detail: { studentId, enrollmentId: action.enrollmentId } }));
       onScheduled();
     } catch (candidate) {
-      setError(candidate instanceof Error ? candidate.message : 'Não foi possível agendar a aula.');
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível agendar a aula. Revise os dados e tente novamente.');
     } finally {
       setBusy(false);
     }
@@ -181,10 +182,10 @@ function QuickLessonScheduler({ studentId, action, onClose, onScheduled }: {
     <div className="admin-ops-modal-backdrop" role="presentation">
       <section className="admin-ops-modal" role="dialog" aria-modal="true" aria-labelledby="admin-ops-schedule-title">
         <div className="admin-card-title">
-          <div><span>PRÓXIMA AÇÃO</span><h2 id="admin-ops-schedule-title">Agendar aula prática</h2></div>
-          <button className="admin-ops-close" type="button" onClick={onClose} aria-label="Fechar">×</button>
+          <div><span>PRÓXIMO PASSO</span><h2 id="admin-ops-schedule-title">Agendar aula prática</h2></div>
+          <button className="admin-ops-close" type="button" onClick={onClose} aria-label="Fechar agendamento">×</button>
         </div>
-        <p>Este agendamento já está amarrado à matrícula que o Process Kernel derivou como etapa prática atual.</p>
+        <p>Escolha um horário, um instrutor e um veículo. O Centro impede conflitos de agenda e combinações incompatíveis.</p>
         <form className="admin-ops-form" onSubmit={submit}>
           {allowedCategories.length > 1 && (
             <label>Categoria
@@ -194,7 +195,7 @@ function QuickLessonScheduler({ studentId, action, onClose, onScheduled }: {
             </label>
           )}
           <div className="admin-ops-form-grid">
-            <label>Início<input type="datetime-local" value={startsAtLocal} onChange={(event) => setStartsAtLocal(event.target.value)} required /></label>
+            <label>Data e hora<input type="datetime-local" value={startsAtLocal} onChange={(event) => setStartsAtLocal(event.target.value)} required /></label>
             <label>Duração
               <select value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))} disabled={!options}>
                 {options && Array.from(
@@ -208,12 +209,14 @@ function QuickLessonScheduler({ studentId, action, onClose, onScheduled }: {
             <label>Instrutor<select value={instructorId} onChange={(event) => setInstructorId(event.target.value)}><option value="">Selecione</option>{instructors.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label>
             <label>Veículo<select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}><option value="">Selecione</option>{vehicles.map((item) => <option key={item.id} value={item.id}>{item.label} · {item.plate}</option>)}</select></label>
           </div>
-          <label>Observação<textarea rows={2} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
-          {options && (!instructors.length || !vehicles.length) && <p className="admin-ops-warning">A categoria {category} precisa de instrutor autorizado e veículo ativo antes do agendamento.</p>}
+          <label>Observação opcional<textarea rows={2} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
+          {options && (!instructors.length || !vehicles.length) && (
+            <p className="admin-ops-warning" role="status">Antes de agendar a categoria {category}, é preciso ter instrutor autorizado e veículo ativo disponíveis.</p>
+          )}
           {error && <p className="admin-error" role="alert">{error}</p>}
           <div className="admin-ops-form-actions">
             <button className="admin-secondary" type="button" onClick={onClose}>Cancelar</button>
-            <button className="admin-primary" type="submit" disabled={busy || !options || !startsAtLocal || !instructorId || !vehicleId}>{busy ? 'Agendando…' : 'Confirmar aula'}</button>
+            <button className="admin-primary" type="submit" disabled={busy || !options || !startsAtLocal || !instructorId || !vehicleId}>{busy ? 'Agendando…' : 'Agendar aula'}</button>
           </div>
         </form>
       </section>
@@ -240,7 +243,7 @@ export function AdminOperationalGuidance({ studentId, enrollmentId, embedded = f
     try {
       setContext(await loadOperationalContext(studentId));
     } catch (candidate) {
-      setError(candidate instanceof Error ? candidate.message : 'Não foi possível derivar a próxima ação.');
+      setError(candidate instanceof Error ? candidate.message : 'Não foi possível verificar o próximo passo.');
     } finally {
       setLoading(false);
     }
@@ -275,15 +278,29 @@ export function AdminOperationalGuidance({ studentId, enrollmentId, embedded = f
   }
 
   if (loading) {
-    return embedded
-      ? <section className="admin-process-command is-loading" aria-live="polite"><span>PRÓXIMA AÇÃO</span><strong>Derivando orientação…</strong></section>
-      : <section className="admin-operational-guidance is-loading" aria-live="polite"><span>O QUE PRECISA ACONTECER AGORA</span><strong>Derivando orientação operacional…</strong></section>;
+    return (
+      <GuidedStateCard
+        compact={embedded}
+        className={embedded ? 'admin-process-command' : 'admin-operational-guidance'}
+        state={{ kind: 'WAITING', eyebrow: 'PRÓXIMO PASSO', title: 'Verificando o próximo passo…' }}
+      />
+    );
   }
 
   if (error) {
-    return embedded
-      ? <section className="admin-process-command is-error" aria-live="polite"><span>PRÓXIMA AÇÃO</span><strong>Orientação indisponível.</strong><small>{error}</small></section>
-      : <section className="admin-operational-guidance is-error" aria-live="polite"><span>ORIENTAÇÃO OPERACIONAL</span><strong>Não foi possível derivar a próxima ação.</strong><small>{error}</small></section>;
+    return (
+      <GuidedStateCard
+        compact={embedded}
+        className={embedded ? 'admin-process-command' : 'admin-operational-guidance'}
+        state={{
+          kind: 'BLOCKED',
+          eyebrow: 'PRÓXIMO PASSO',
+          title: 'Não foi possível verificar o próximo passo agora.',
+          detail: error,
+          primaryAction: { label: 'Tentar novamente', onClick: () => void load() },
+        }}
+      />
+    );
   }
 
   const action = enrollmentId
@@ -293,7 +310,17 @@ export function AdminOperationalGuidance({ studentId, enrollmentId, embedded = f
   if (!action) {
     return embedded
       ? null
-      : <section className="admin-operational-guidance is-complete"><div><span>O QUE PRECISA ACONTECER AGORA</span><h2>Sem processo operacional aberto.</h2><p>Não existe matrícula ativa ou pausada exigindo orientação neste momento.</p></div></section>;
+      : (
+        <GuidedStateCard
+          className="admin-operational-guidance"
+          state={{
+            kind: 'DONE',
+            eyebrow: 'PRÓXIMO PASSO',
+            title: 'Nenhuma etapa precisa de atenção agora.',
+            detail: 'Quando alguma situação mudar, o próximo passo aparecerá aqui.',
+          }}
+        />
+      );
   }
 
   const execution = (
@@ -314,47 +341,33 @@ export function AdminOperationalGuidance({ studentId, enrollmentId, embedded = f
     </>
   );
 
-  if (embedded) {
-    return (
-      <>
-        <section className={`admin-process-command severity-${action.severity.toLowerCase()}`} aria-label="Próxima ação do processo">
-          <div className="admin-process-command-copy">
-            <div className="admin-process-command-kicker"><span>PRÓXIMA AÇÃO</span><strong>{severityLabels[action.severity]}</strong></div>
-            <strong className="admin-process-command-title">{action.title}</strong>
-            <p>{action.detail}</p>
-            {action.secondaryCommands.length > 0 && (
-              <div className="admin-ops-form-actions">
-                {action.secondaryCommands.map((command, index) => (
-                  <button className="admin-secondary" key={`${command.kind}-${index}`} type="button" onClick={() => execute(command)}>{command.label}</button>
-                ))}
-              </div>
-            )}
-          </div>
-          {action.primaryCommand && <button className="admin-primary" type="button" onClick={() => execute(action.primaryCommand!)}>{action.primaryCommand.label}</button>}
-        </section>
-        {execution}
-      </>
-    );
-  }
+  const secondaryActions = action.secondaryCommands.map((command) => ({
+    label: command.label,
+    onClick: () => execute(command),
+  }));
+
+  const consequence = action.severity === 'SCHEDULED' || action.severity === 'WAITING'
+    ? 'Se nada mudar, não é necessário fazer outra ação agora.'
+    : action.severity === 'ACTION_REQUIRED'
+      ? 'Depois desta ação, o Centro verifica automaticamente qual é o próximo passo.'
+      : undefined;
 
   return (
     <>
-      <section className={`admin-operational-guidance severity-${action.severity.toLowerCase()}`} aria-labelledby="admin-operational-title">
-        <div className="admin-operational-copy">
-          <div className="admin-operational-kicker"><span>O QUE PRECISA ACONTECER AGORA</span><strong>{severityLabels[action.severity]}</strong></div>
-          <h2 id="admin-operational-title">{action.title}</h2>
-          <p>{action.detail}</p>
-          <small>{serviceLabels[action.serviceType]} · Categoria {action.category} · Estado derivado {action.processStateCode}</small>
-          {action.secondaryCommands.length > 0 && (
-            <div className="admin-ops-form-actions">
-              {action.secondaryCommands.map((command, index) => (
-                <button className="admin-secondary" key={`${command.kind}-${index}`} type="button" onClick={() => execute(command)}>{command.label}</button>
-              ))}
-            </div>
-          )}
-        </div>
-        {action.primaryCommand && <button className="admin-primary" type="button" onClick={() => execute(action.primaryCommand!)}>{action.primaryCommand.label}</button>}
-      </section>
+      <GuidedStateCard
+        compact={embedded}
+        className={embedded ? 'admin-process-command' : 'admin-operational-guidance'}
+        state={{
+          kind: guidedKindBySeverity[action.severity],
+          eyebrow: 'PRÓXIMO PASSO',
+          title: action.title,
+          detail: action.detail,
+          consequence,
+          primaryAction: action.primaryCommand ? { label: action.primaryCommand.label, onClick: () => execute(action.primaryCommand!) } : null,
+          secondaryActions,
+        }}
+        footer={!embedded ? <small>{serviceLabels[action.serviceType]} · Categoria {action.category}</small> : undefined}
+      />
       {execution}
     </>
   );

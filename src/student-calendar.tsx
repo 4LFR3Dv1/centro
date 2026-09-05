@@ -34,7 +34,6 @@ type CalendarEvent = {
 };
 
 type CalendarPayload = { events: CalendarEvent[]; upcoming: StudentLesson[]; past: StudentLesson[] };
-
 type VisibleRange = { from: string; to: string; title: string };
 
 const statusLabels: Record<LessonStatus, string> = {
@@ -115,12 +114,12 @@ export function StudentCalendar() {
       <section className="student-calendar-hero-v2">
         <p className="student-eyebrow">MINHA AGENDA</p>
         <h1>Seus próximos compromissos.</h1>
-        <p>Aulas e exame prático aparecem na mesma linha do tempo. Esta agenda é somente leitura: qualquer mudança vem da operação da escola.</p>
+        <p>Aulas e exame prático aparecem juntos. Se a escola alterar algum horário, sua agenda é atualizada aqui.</p>
       </section>
 
       {error && <p className="student-error" role="alert">{error}</p>}
       <section className="student-calendar-shell">
-        {loading && <div className="student-calendar-loading-overlay">Atualizando agenda…</div>}
+        {loading && <div className="student-calendar-loading-overlay" aria-live="polite">Atualizando agenda…</div>}
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, listPlugin]}
           locale={ptBrLocale}
@@ -206,8 +205,8 @@ export function StudentLessonDetail({ lessonId }: { lessonId: string }) {
     return () => { alive = false; };
   }, [lessonId]);
 
-  if (error) return <section className="student-panel"><p className="student-error" role="alert">{error}</p><button className="student-secondary" type="button" onClick={() => navigate('/aluno/agenda')}>Voltar</button></section>;
-  if (!lesson) return <section className="student-panel"><p>Abrindo aula…</p></section>;
+  if (error) return <section className="student-panel"><p className="student-error" role="alert">{error}</p><button className="student-secondary" type="button" onClick={() => navigate('/aluno/agenda')}>Voltar para minha agenda</button></section>;
+  if (!lesson) return <section className="student-panel"><p aria-live="polite">Abrindo aula…</p></section>;
 
   return (
     <section className="student-panel student-lesson-detail" aria-labelledby="student-lesson-detail-title">
@@ -222,7 +221,7 @@ export function StudentLessonDetail({ lessonId }: { lessonId: string }) {
         <div><span>Categoria</span><strong>{lesson.category}</strong></div>
       </div>
       {lesson.notes && <div className="student-lesson-note"><span>Observação da escola</span><p>{lesson.notes}</p></div>}
-      <p className="student-lesson-source">Este horário é uma projeção do mesmo registro operacional usado pela escola.</p>
+      <p className="student-lesson-source">Se este horário mudar, a escola atualiza sua agenda automaticamente.</p>
     </section>
   );
 }
