@@ -3,7 +3,12 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const ts = require('typescript');
+const loadedTypeScript = require('typescript');
+const ts = loadedTypeScript?.createSourceFile ? loadedTypeScript : loadedTypeScript?.default;
+
+if (!ts?.createSourceFile) {
+  throw new Error('TypeScript compiler API unavailable for the zero-training language guard.');
+}
 
 const roots = ['src'];
 const explicitFiles = ['server/admin/student-operations.ts'];
@@ -49,8 +54,7 @@ function isStructuralLiteral(node) {
 }
 
 function uiTextSegments(file, source) {
-  const kind = file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
-  const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, kind);
+  const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget?.Latest ?? 99, true);
   const segments = [];
 
   function add(text, node) {
