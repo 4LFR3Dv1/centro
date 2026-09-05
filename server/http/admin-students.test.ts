@@ -10,7 +10,7 @@ import { createAdminApiHandler } from './admin-api.js';
 const ORIGIN = 'https://centro.test';
 const ADMIN_USER = 'admin-students-test';
 const ADMIN_PASSWORD = `Admin-${randomUUID()}-Test`;
-const TEST_DOCUMENT = '9'.repeat(11);
+const TEST_DOCUMENT = '98765432100';
 const TEST_IDENTITY = 'RG-STUDENT-DETAIL-002';
 const TEST_RENACH = 'RENACH-STUDENT-DETAIL-002';
 
