@@ -120,11 +120,21 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
     }
   }
 
+  const operationalKey = operational.map((enrollment) => `${enrollment.id}:${enrollment.status}`).join('|');
+
   useEffect(() => {
     void load();
     // IDs/statuses are the authority-changing inputs; the parent workspace is immutable during this view.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [operational.map((enrollment) => `${enrollment.id}:${enrollment.status}`).join('|')]);
+  }, [operationalKey]);
+
+  useEffect(() => {
+    const refresh = () => { void load(); };
+    window.addEventListener('centro:process-changed', refresh);
+    return () => window.removeEventListener('centro:process-changed', refresh);
+    // The event explicitly signals that a primitive observed by ProcessResolver changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operationalKey]);
 
   async function mutate(process: ProcessView, action: 'achieve' | 'revoke' | 'schedule', code: MilestoneCode) {
     const key = `${process.enrollment.id}:${action}:${code}`;
@@ -144,6 +154,9 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
         { method: 'POST', body: JSON.stringify(body) },
       );
       setProcesses((current) => current.map((item) => item.enrollment.id === process.enrollment.id ? result.process : item));
+      window.dispatchEvent(new CustomEvent('centro:process-changed', {
+        detail: { studentId: result.process.enrollment.studentId, enrollmentId: result.process.enrollment.id },
+      }));
       if (action === 'schedule') setExamDates((current) => ({ ...current, [process.enrollment.id]: '' }));
     } catch (candidate) {
       setError(candidate instanceof Error ? candidate.message : 'Não foi possível atualizar o processo.');

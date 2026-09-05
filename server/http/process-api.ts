@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type pg from 'pg';
+import { resolveStudentOperationalContext } from '../admin/student-operations.js';
 import {
   achieveProcessMilestone,
   ProcessConflictError,
@@ -105,6 +106,16 @@ export function createProcessApiHandler(pool: pg.Pool, options: ProcessApiOption
       }
 
       if (req.method === 'GET') {
+        const operationsMatch = url.pathname.match(new RegExp(`^/api/admin/process/students/(${UUID_PATH})/operations$`));
+        if (operationsMatch) {
+          await requireStaff(pool, req);
+          const exists = await pool.query('SELECT 1 FROM students WHERE id = $1', [operationsMatch[1]]);
+          if (!exists.rowCount) throw new HttpError(404, 'Aluno não encontrado.');
+          const operations = await resolveStudentOperationalContext(pool, operationsMatch[1]);
+          sendJson(res, 200, { operations });
+          return true;
+        }
+
         const match = url.pathname.match(new RegExp(`^/api/admin/process/enrollments/(${UUID_PATH})$`));
         if (match) {
           await requireStaff(pool, req);
