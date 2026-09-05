@@ -144,6 +144,9 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
         { method: 'POST', body: JSON.stringify(body) },
       );
       setProcesses((current) => current.map((item) => item.enrollment.id === process.enrollment.id ? result.process : item));
+      window.dispatchEvent(new CustomEvent('centro:process-changed', {
+        detail: { studentId: result.process.enrollment.studentId, enrollmentId: result.process.enrollment.id },
+      }));
       if (action === 'schedule') setExamDates((current) => ({ ...current, [process.enrollment.id]: '' }));
     } catch (candidate) {
       setError(candidate instanceof Error ? candidate.message : 'Não foi possível atualizar o processo.');
