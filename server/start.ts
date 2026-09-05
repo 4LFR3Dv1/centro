@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { createAdminApiHandler } from './http/admin-api.js';
+import { createAdminEnrollmentIntakeApiHandler } from './http/admin-enrollment-intake.js';
 import { createAdminExamsApiHandler } from './http/admin-exams.js';
 import { createAdminTodayApiHandler } from './http/admin-today.js';
 import { createProcessApiHandler } from './http/process-api.js';
@@ -107,6 +108,7 @@ export async function startCentroRuntime(): Promise<void> {
   const processApi = createProcessApiHandler(pool, { publicOrigin: publicOrigin || undefined });
   const studentAccessApi = createStudentAccessApiHandler(pool, { publicOrigin: publicOrigin || undefined });
   const studentExperienceApi = createStudentExperienceApiHandler(pool, { publicOrigin: publicOrigin || undefined });
+  const enrollmentIntakeApi = createAdminEnrollmentIntakeApiHandler(pool, { publicOrigin: publicOrigin || undefined });
   const examsApi = createAdminExamsApiHandler(pool, { publicOrigin: publicOrigin || undefined });
   const todayApi = createAdminTodayApiHandler(pool);
   const securityApi = createStaffSecurityApiHandler(pool, { publicOrigin: publicOrigin || undefined });
@@ -135,6 +137,7 @@ export async function startCentroRuntime(): Promise<void> {
       if (await processApi(req, res)) return;
       if (await studentAccessApi(req, res)) return;
       if (await studentExperienceApi(req, res)) return;
+      if (await enrollmentIntakeApi(req, res)) return;
       if (await examsApi(req, res)) return;
       if (await todayApi(req, res)) return;
       if (await securityApi(req, res)) return;
