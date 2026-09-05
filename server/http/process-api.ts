@@ -91,6 +91,12 @@ function assertMilestoneHttpAuthority(code: string): void {
       'A prova teórica é gerenciada pelo domínio THEORY-EXAM-001. Use uma tentativa de prova e reconcilie o resultado oficial.',
     );
   }
+  if (code === 'PRACTICAL_EXAM_PASSED') {
+    throw new HttpError(
+      409,
+      'O exame prático é gerenciado pelo domínio EXAMS-001. Use a lista de exame e reconcilie o resultado oficial.',
+    );
+  }
 }
 
 export type ProcessApiOptions = {

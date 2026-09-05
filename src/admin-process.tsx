@@ -60,7 +60,7 @@ const serviceLabels: Record<EnrollmentRef['serviceType'], string> = {
   LICENSED_TRAINING: 'Treinamento para habilitado',
 };
 
-const schedulable = new Set<MilestoneCode>(['THEORY_PASSED', 'PRACTICAL_EXAM_PASSED']);
+const ownerDomainMilestones = new Set<MilestoneCode>(['THEORY_PASSED', 'PRACTICAL_EXAM_PASSED']);
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -86,7 +86,9 @@ function dateTime(value: string): string {
 function latestReversible(process: ProcessView) {
   return [...process.milestones]
     .reverse()
-    .find((milestone) => milestone.code !== 'PROCESS_STARTED' && milestone.achieved) ?? null;
+    .find((milestone) => milestone.code !== 'PROCESS_STARTED'
+      && milestone.achieved
+      && !ownerDomainMilestones.has(milestone.code)) ?? null;
 }
 
 export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[] }) {
@@ -98,7 +100,6 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
-  const [examDates, setExamDates] = useState<Record<string, string>>({});
 
   async function load() {
     if (operational.length === 0) {
@@ -136,28 +137,19 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [operationalKey]);
 
-  async function mutate(process: ProcessView, action: 'achieve' | 'revoke' | 'schedule', code: MilestoneCode) {
+  async function mutate(process: ProcessView, action: 'achieve' | 'revoke', code: MilestoneCode) {
     const key = `${process.enrollment.id}:${action}:${code}`;
     setBusy(key);
     setError('');
     try {
-      let body: Record<string, unknown> = {};
-      if (action === 'schedule') {
-        const local = examDates[process.enrollment.id] ?? '';
-        if (!local) throw new Error('Informe a data e hora da prova.');
-        const instant = new Date(local);
-        if (!Number.isFinite(instant.getTime())) throw new Error('Data de prova inválida.');
-        body = { scheduledFor: instant.toISOString() };
-      }
       const result = await api<{ process: ProcessView }>(
         `/api/admin/process/enrollments/${process.enrollment.id}/milestones/${code}/${action}`,
-        { method: 'POST', body: JSON.stringify(body) },
+        { method: 'POST', body: JSON.stringify({}) },
       );
       setProcesses((current) => current.map((item) => item.enrollment.id === process.enrollment.id ? result.process : item));
       window.dispatchEvent(new CustomEvent('centro:process-changed', {
         detail: { studentId: result.process.enrollment.studentId, enrollmentId: result.process.enrollment.id },
       }));
-      if (action === 'schedule') setExamDates((current) => ({ ...current, [process.enrollment.id]: '' }));
     } catch (candidate) {
       setError(candidate instanceof Error ? candidate.message : 'Não foi possível atualizar o processo.');
     } finally {
@@ -183,12 +175,15 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
       {processes.map((process) => {
         const reversible = latestReversible(process);
         const currentCode = process.currentState.code;
+        const currentOwnedElsewhere = currentCode !== 'COMPLETE'
+          && currentCode !== 'UNMODELED_SERVICE'
+          && ownerDomainMilestones.has(currentCode as MilestoneCode);
         const canAchieve = process.modeled
           && process.enrollment.status === 'ACTIVE'
           && currentCode !== 'COMPLETE'
           && currentCode !== 'UNMODELED_SERVICE'
-          && currentCode !== 'PROCESS_STARTED';
-        const canSchedule = canAchieve && schedulable.has(currentCode as MilestoneCode);
+          && currentCode !== 'PROCESS_STARTED'
+          && !currentOwnedElsewhere;
 
         return (
           <div className="admin-detail-card admin-process-card" key={process.enrollment.id}>
@@ -244,25 +239,10 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
 
                 {process.nextAction && <p className="admin-process-guidance">{process.nextAction.detail}</p>}
 
-                {canSchedule && (
-                  <div className="admin-process-schedule">
-                    <label>
-                      Data da prova
-                      <input
-                        type="datetime-local"
-                        value={examDates[process.enrollment.id] ?? ''}
-                        onChange={(event) => setExamDates((current) => ({ ...current, [process.enrollment.id]: event.target.value }))}
-                      />
-                    </label>
-                    <button
-                      className="admin-secondary"
-                      type="button"
-                      disabled={Boolean(busy)}
-                      onClick={() => void mutate(process, 'schedule', currentCode as MilestoneCode)}
-                    >
-                      Registrar agendamento
-                    </button>
-                  </div>
+                {currentOwnedElsewhere && (
+                  <p className="admin-process-guidance">
+                    Esta etapa é executada pela orientação operacional acima e reconciliada pelo domínio proprietário de {currentCode === 'THEORY_PASSED' ? 'prova teórica' : 'exame prático'}. O painel de processo permanece somente como projeção institucional.
+                  </p>
                 )}
 
                 <div className="admin-process-actions">

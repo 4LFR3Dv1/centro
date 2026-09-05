@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { OperationalCommandDialog, type OperationalCommand } from './admin-operational-execution';
 import './admin-operational-guidance.css';
 
 type OperationalSeverity = 'BLOCKING' | 'ACTION_REQUIRED' | 'SCHEDULED' | 'WAITING' | 'COMPLETE';
@@ -14,6 +15,8 @@ type OperationalAction = {
   title: string;
   detail: string;
   severity: OperationalSeverity;
+  primaryCommand: OperationalCommand | null;
+  secondaryCommands: OperationalCommand[];
   actionLabel: string | null;
   href: string | null;
 };
@@ -224,6 +227,7 @@ export function AdminOperationalGuidance({ studentId }: { studentId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [schedulerOpen, setSchedulerOpen] = useState(false);
+  const [activeCommand, setActiveCommand] = useState<OperationalCommand | null>(null);
 
   const load = useCallback(async () => {
     setError('');
@@ -258,67 +262,55 @@ export function AdminOperationalGuidance({ studentId }: { studentId: string }) {
     navigate(href);
   }
 
+  function execute(command: OperationalCommand) {
+    if (command.kind === 'OPEN_URL') { follow(command.href); return; }
+    if (command.kind === 'SCHEDULE_LESSON') { setSchedulerOpen(true); return; }
+    setActiveCommand(command);
+  }
+
   if (loading) {
-    return (
-      <section className="admin-operational-guidance is-loading" aria-live="polite">
-        <span>O QUE PRECISA ACONTECER AGORA</span>
-        <strong>Derivando orientação operacional…</strong>
-      </section>
-    );
+    return <section className="admin-operational-guidance is-loading" aria-live="polite"><span>O QUE PRECISA ACONTECER AGORA</span><strong>Derivando orientação operacional…</strong></section>;
   }
 
   if (error) {
-    return (
-      <section className="admin-operational-guidance is-error" aria-live="polite">
-        <span>ORIENTAÇÃO OPERACIONAL</span>
-        <strong>Não foi possível derivar a próxima ação.</strong>
-        <small>{error}</small>
-      </section>
-    );
+    return <section className="admin-operational-guidance is-error" aria-live="polite"><span>ORIENTAÇÃO OPERACIONAL</span><strong>Não foi possível derivar a próxima ação.</strong><small>{error}</small></section>;
   }
 
   const action = context?.primaryAction;
   if (!action) {
-    return (
-      <section className="admin-operational-guidance is-complete">
-        <div>
-          <span>O QUE PRECISA ACONTECER AGORA</span>
-          <h2>Sem processo operacional aberto.</h2>
-          <p>Não existe matrícula ativa ou pausada exigindo orientação neste momento.</p>
-        </div>
-      </section>
-    );
+    return <section className="admin-operational-guidance is-complete"><div><span>O QUE PRECISA ACONTECER AGORA</span><h2>Sem processo operacional aberto.</h2><p>Não existe matrícula ativa ou pausada exigindo orientação neste momento.</p></div></section>;
   }
-
-  const schedulesLesson = action.code === 'SCHEDULE_FIRST_LESSON' || action.code === 'SCHEDULE_NEXT_LESSON';
 
   return (
     <>
       <section className={`admin-operational-guidance severity-${action.severity.toLowerCase()}`} aria-labelledby="admin-operational-title">
         <div className="admin-operational-copy">
-          <div className="admin-operational-kicker">
-            <span>O QUE PRECISA ACONTECER AGORA</span>
-            <strong>{severityLabels[action.severity]}</strong>
-          </div>
+          <div className="admin-operational-kicker"><span>O QUE PRECISA ACONTECER AGORA</span><strong>{severityLabels[action.severity]}</strong></div>
           <h2 id="admin-operational-title">{action.title}</h2>
           <p>{action.detail}</p>
           <small>{serviceLabels[action.serviceType]} · Categoria {action.category} · Estado derivado {action.processStateCode}</small>
+          {action.secondaryCommands.length > 0 && (
+            <div className="admin-ops-form-actions">
+              {action.secondaryCommands.map((command, index) => (
+                <button className="admin-secondary" key={`${command.kind}-${index}`} type="button" onClick={() => execute(command)}>{command.label}</button>
+              ))}
+            </div>
+          )}
         </div>
-        {action.actionLabel && (schedulesLesson || action.href) && (
-          <button className="admin-primary" type="button" onClick={() => schedulesLesson ? setSchedulerOpen(true) : action.href && follow(action.href)}>
-            {action.actionLabel}
-          </button>
-        )}
+        {action.primaryCommand && <button className="admin-primary" type="button" onClick={() => execute(action.primaryCommand!)}>{action.primaryCommand.label}</button>}
       </section>
+
       {schedulerOpen && (
-        <QuickLessonScheduler
+        <QuickLessonScheduler studentId={studentId} action={action} onClose={() => setSchedulerOpen(false)} onScheduled={() => { setSchedulerOpen(false); void load(); }} />
+      )}
+
+      {activeCommand && (
+        <OperationalCommandDialog
           studentId={studentId}
           action={action}
-          onClose={() => setSchedulerOpen(false)}
-          onScheduled={() => {
-            setSchedulerOpen(false);
-            void load();
-          }}
+          command={activeCommand}
+          onClose={() => setActiveCommand(null)}
+          onChanged={() => { setActiveCommand(null); void load(); }}
         />
       )}
     </>
