@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ExceptionGuidanceCard, scheduleExceptionGuidance } from './exception-guidance';
 
 type PhysicalCategory = 'A' | 'B' | 'D';
 type EnrollmentCategory = PhysicalCategory | 'AB';
@@ -180,7 +181,7 @@ export function ContextualLessonScheduler({
           {allowedCategories.length > 1 && (
             <label>
               Categoria desta aula
-              <select value={category} onChange={(event) => setCategory(event.target.value as PhysicalCategory | '')} required>
+              <select value={category} onChange={(event) => { setCategory(event.target.value as PhysicalCategory | ''); setError(''); }} required>
                 <option value="">Escolha A ou B</option>
                 {allowedCategories.map((value) => <option key={value} value={value}>{value}</option>)}
               </select>
@@ -189,10 +190,10 @@ export function ContextualLessonScheduler({
           )}
 
           <div className="admin-ops-form-grid">
-            <label>Data e hora<input type="datetime-local" value={startsAtLocal} onChange={(event) => setStartsAtLocal(event.target.value)} required /></label>
+            <label>Data e hora<input type="datetime-local" value={startsAtLocal} onChange={(event) => { setStartsAtLocal(event.target.value); setError(''); }} required /></label>
             <label>
               Duração
-              <select value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))} disabled={!options}>
+              <select value={durationMinutes} onChange={(event) => { setDurationMinutes(Number(event.target.value)); setError(''); }} disabled={!options}>
                 {options && Array.from(
                   { length: Math.floor((options.policy.lessonMaxMinutes - options.policy.lessonMinMinutes) / options.policy.slotMinutes) + 1 },
                   (_, index) => options.policy.lessonMinMinutes + index * options.policy.slotMinutes,
@@ -204,14 +205,14 @@ export function ContextualLessonScheduler({
           <div className="admin-ops-form-grid">
             <label>
               Instrutor
-              <select value={instructorId} onChange={(event) => setInstructorId(event.target.value)} disabled={!category} required>
+              <select value={instructorId} onChange={(event) => { setInstructorId(event.target.value); setError(''); }} disabled={!category} required>
                 <option value="">Selecione</option>
                 {instructors.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}
               </select>
             </label>
             <label>
               Veículo
-              <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)} disabled={!category} required>
+              <select value={vehicleId} onChange={(event) => { setVehicleId(event.target.value); setError(''); }} disabled={!category} required>
                 <option value="">Selecione</option>
                 {vehicles.map((item) => <option key={item.id} value={item.id}>{item.label} · {item.plate}</option>)}
               </select>
@@ -224,9 +225,23 @@ export function ContextualLessonScheduler({
             <p className="admin-ops-warning" role="status">Escolha A ou B para o Centro mostrar os instrutores e veículos compatíveis.</p>
           )}
           {options && category && (!instructors.length || !vehicles.length) && (
-            <p className="admin-ops-warning" role="status">Antes de agendar a categoria {category}, é preciso ter instrutor autorizado e veículo ativo disponíveis.</p>
+            <ExceptionGuidanceCard
+              compact
+              guidance={{
+                kind: 'MISSING_DEPENDENCY',
+                title: `Faltam recursos para a categoria ${category}.`,
+                detail: !instructors.length && !vehicles.length
+                  ? 'Não há instrutor autorizado nem veículo ativo para esta categoria.'
+                  : !instructors.length
+                    ? 'Não há instrutor autorizado disponível para esta categoria.'
+                    : 'Não há veículo ativo disponível para esta categoria.',
+                consequence: 'A aula não pode ser criada até que exista uma combinação compatível.',
+                actor: 'STAFF',
+                actionHint: 'Revise os recursos da agenda ou escolha outra categoria permitida pela matrícula.',
+              }}
+            />
           )}
-          {error && <p className="admin-error" role="alert">{error}</p>}
+          {error && <ExceptionGuidanceCard guidance={scheduleExceptionGuidance(error)} />}
 
           <div className="admin-ops-form-actions">
             <button className="admin-secondary" type="button" onClick={onClose}>Cancelar</button>
