@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   printStudentGuide,
   StudentGuideDocument,
@@ -74,6 +75,7 @@ export function AdminStudentGuides({
   const [guides, setGuides] = useState<StudentGuidePayload[]>([]);
   const [preview, setPreview] = useState<PreviewPayload | null>(null);
   const [selected, setSelected] = useState<StudentGuidePayload | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [previewing, setPreviewing] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -100,6 +102,20 @@ export function AdminStudentGuides({
     return () => { alive = false; };
   }, [studentId]);
 
+  useEffect(() => {
+    if (!viewerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setViewerOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [viewerOpen]);
+
   async function loadPreview() {
     if (!enrollmentId) return;
     setPreviewing(true);
@@ -111,6 +127,7 @@ export function AdminStudentGuides({
       );
       setPreview(value);
       setSelected(null);
+      setViewerOpen(true);
     } catch (candidate) {
       setError(candidate instanceof Error ? candidate.message : 'Não foi possível gerar a prévia.');
     } finally {
@@ -131,6 +148,7 @@ export function AdminStudentGuides({
       setGuides((current) => [value.guide, ...current.filter((item) => item.id !== value.guide.id)]);
       setSelected(value.guide);
       setPreview(null);
+      setViewerOpen(true);
     } catch (candidate) {
       setError(candidate instanceof Error ? candidate.message : 'Não foi possível gerar o guia.');
     } finally {
@@ -167,6 +185,45 @@ export function AdminStudentGuides({
     );
   }
 
+  const viewer = display && viewerOpen
+    ? createPortal(
+        <div
+          className="admin-guide-viewer-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setViewerOpen(false);
+          }}
+        >
+          <section
+            className="admin-guide-viewer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-guide-viewer-title"
+          >
+            <header className="admin-guide-viewer-toolbar">
+              <div>
+                <span>{display.preview ? 'PRÉ-VISUALIZAÇÃO' : 'VERSÃO IMUTÁVEL'}</span>
+                <strong id="admin-guide-viewer-title">Guia do aluno</strong>
+                <small>
+                  {display.preview
+                    ? `${display.templateId}@${display.templateVersion} · estado institucional atual`
+                    : `${display.templateId}@${display.templateVersion} · ${dateTime(display.generatedAt!)}`}
+                </small>
+              </div>
+              <div className="admin-guide-viewer-actions">
+                <button className="admin-secondary" type="button" onClick={printStudentGuide}>Imprimir</button>
+                <button className="admin-secondary" type="button" onClick={() => setViewerOpen(false)} aria-label="Fechar visualização do guia">Fechar</button>
+              </div>
+            </header>
+            <div className="admin-guide-viewer-canvas student-guide-print-root">
+              <StudentGuideDocument {...display} />
+            </div>
+          </section>
+        </div>,
+        document.body,
+      )
+    : null;
+
   return (
     <section className="admin-guide-workspace">
       <div className="admin-detail-card admin-guide-control">
@@ -180,6 +237,7 @@ export function AdminStudentGuides({
             setPreview(null);
             setSelected(null);
             setReceipt(null);
+            setViewerOpen(false);
           }}>
             {enrollments.map((enrollment) => (
               <option value={enrollment.id} key={enrollment.id}>
@@ -196,7 +254,11 @@ export function AdminStudentGuides({
           <button className="admin-primary" type="button" disabled={generating || previewing} onClick={() => void generate()}>
             {generating ? 'Gerando…' : 'Gerar nova versão'}
           </button>
-          {display && <button className="admin-secondary" type="button" onClick={printStudentGuide}>Imprimir</button>}
+          {display && (
+            <button className="admin-secondary" type="button" onClick={() => setViewerOpen(true)}>
+              Abrir guia
+            </button>
+          )}
         </div>
 
         {error && <p className="admin-error" role="alert">{error}</p>}
@@ -215,6 +277,7 @@ export function AdminStudentGuides({
               setSelected(guide);
               setPreview(null);
               setReceipt(null);
+              setViewerOpen(true);
             }}>
               <span>{dateTime(guide.generatedAt)}</span>
               <small>{guide.template.id}@{guide.template.version} · {guide.contentSha256.slice(0, 12)}…</small>
@@ -223,11 +286,7 @@ export function AdminStudentGuides({
         </div>
       </div>
 
-      {display && (
-        <div className="admin-guide-preview student-guide-print-root">
-          <StudentGuideDocument {...display} />
-        </div>
-      )}
+      {viewer}
     </section>
   );
 }

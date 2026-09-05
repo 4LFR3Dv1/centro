@@ -83,7 +83,85 @@
   color: #6c7278;
 }
 
-.admin-guide-preview,
+.admin-guide-viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 17, 20, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.admin-guide-viewer {
+  width: min(1180px, calc(100vw - 48px));
+  height: calc(100vh - 48px);
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #efede7;
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.34);
+}
+
+.admin-guide-viewer-toolbar {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--admin-line, #d8d8d8);
+  background: var(--admin-paper, #fffdf9);
+}
+
+.admin-guide-viewer-toolbar > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.admin-guide-viewer-toolbar span {
+  color: var(--admin-muted, #667079);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.admin-guide-viewer-toolbar strong {
+  font-size: 1.05rem;
+  letter-spacing: -0.025em;
+}
+
+.admin-guide-viewer-toolbar small {
+  overflow: hidden;
+  color: var(--admin-muted, #667079);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-guide-viewer-actions {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.admin-guide-viewer-canvas {
+  min-height: 0;
+  overflow: auto;
+  padding: clamp(20px, 3vw, 42px);
+  overscroll-behavior: contain;
+}
+
+.admin-guide-viewer-canvas .student-guide-document {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  box-shadow: 0 12px 38px rgba(26, 28, 31, 0.12);
+}
+
 .student-guide-portal-document {
   overflow-x: auto;
   padding-bottom: 8px;
@@ -164,5 +242,59 @@
   .student-guides-history {
     position: static;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .admin-guide-viewer-backdrop {
+    padding: 0;
+  }
+
+  .admin-guide-viewer {
+    width: 100vw;
+    height: 100vh;
+    border: 0;
+  }
+
+  .admin-guide-viewer-toolbar {
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .admin-guide-viewer-toolbar small {
+    max-width: 62vw;
+  }
+
+  .admin-guide-viewer-actions {
+    flex-direction: column;
+  }
+
+  .admin-guide-viewer-canvas {
+    padding: 12px;
+  }
+}
+
+@media print {
+  .admin-guide-viewer-backdrop,
+  .admin-guide-viewer,
+  .admin-guide-viewer-canvas {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .admin-guide-viewer-toolbar {
+    display: none !important;
+  }
+
+  .admin-guide-viewer-canvas .student-guide-document {
+    box-shadow: none !important;
   }
 }
