@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminStudentGuides } from './admin-student-guides';
 import './admin-process.css';
+import './admin-student-workspace.css';
 
 type EnrollmentRef = {
   id: string;
   serviceType: 'FIRST_LICENSE' | 'CATEGORY_ADDITION' | 'CATEGORY_CHANGE' | 'LICENSED_TRAINING';
   category: 'A' | 'B' | 'AB' | 'D';
   status: 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+  openedAt?: string;
+  renach?: string | null;
 };
 
 type MilestoneCode =
@@ -60,6 +63,14 @@ const serviceLabels: Record<EnrollmentRef['serviceType'], string> = {
   LICENSED_TRAINING: 'Treinamento para habilitado',
 };
 
+const enrollmentStatusLabels: Record<EnrollmentRef['status'], string> = {
+  DRAFT: 'Rascunho',
+  ACTIVE: 'Ativa',
+  PAUSED: 'Pausada',
+  COMPLETED: 'Concluída',
+  CANCELLED: 'Cancelada',
+};
+
 const ownerDomainMilestones = new Set<MilestoneCode>(['THEORY_PASSED', 'PRACTICAL_EXAM_PASSED']);
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -81,6 +92,10 @@ function dateTime(value: string): string {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function dateOnly(value: string): string {
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(value));
 }
 
 function latestReversible(process: ProcessView) {
@@ -157,10 +172,10 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
     }
   }
 
-  if (loading) return <div className="admin-detail-card"><p className="admin-empty">Derivando processo…</p></div>;
+  if (loading) return <div className="admin-detail-card admin-student-operation-column"><p className="admin-empty">Derivando processo…</p></div>;
   if (operational.length === 0) {
     return (
-      <div className="admin-detail-card">
+      <div className="admin-detail-card admin-student-operation-column">
         <div className="admin-card-title"><span>PROCESSO</span><strong>Sem matrícula aberta</strong></div>
         <p>Não existe processo operacional enquanto não houver matrícula ativa ou pausada.</p>
       </div>
@@ -168,112 +183,136 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
   }
 
   const studentId = processes[0]?.enrollment.studentId ?? '';
+  const currentEnrollment = operational.find((enrollment) => enrollment.status === 'ACTIVE') ?? operational[0] ?? null;
 
   return (
-    <div className="admin-process-stack">
-      {error && <p className="admin-error" role="alert">{error}</p>}
-      {processes.map((process) => {
-        const reversible = latestReversible(process);
-        const currentCode = process.currentState.code;
-        const currentOwnedElsewhere = currentCode !== 'COMPLETE'
-          && currentCode !== 'UNMODELED_SERVICE'
-          && ownerDomainMilestones.has(currentCode as MilestoneCode);
-        const canAchieve = process.modeled
-          && process.enrollment.status === 'ACTIVE'
-          && currentCode !== 'COMPLETE'
-          && currentCode !== 'UNMODELED_SERVICE'
-          && currentCode !== 'PROCESS_STARTED'
-          && !currentOwnedElsewhere;
+    <>
+      <div className="admin-process-stack admin-student-operation-column">
+        {error && <p className="admin-error" role="alert">{error}</p>}
+        {processes.map((process) => {
+          const reversible = latestReversible(process);
+          const currentCode = process.currentState.code;
+          const currentOwnedElsewhere = currentCode !== 'COMPLETE'
+            && currentCode !== 'UNMODELED_SERVICE'
+            && ownerDomainMilestones.has(currentCode as MilestoneCode);
+          const canAchieve = process.modeled
+            && process.enrollment.status === 'ACTIVE'
+            && currentCode !== 'COMPLETE'
+            && currentCode !== 'UNMODELED_SERVICE'
+            && currentCode !== 'PROCESS_STARTED'
+            && !currentOwnedElsewhere;
 
-        return (
-          <div className="admin-detail-card admin-process-card" key={process.enrollment.id}>
-            <div className="admin-card-title">
-              <span>PROCESSO · {serviceLabels[process.enrollment.serviceType]} · {process.enrollment.category}</span>
-              <strong>{process.modeled ? `${process.currentState.percent}%` : 'Não modelado'}</strong>
+          return (
+            <div className="admin-detail-card admin-process-card" key={process.enrollment.id}>
+              <div className="admin-card-title">
+                <span>PROCESSO · {serviceLabels[process.enrollment.serviceType]} · {process.enrollment.category}</span>
+                <strong>{process.modeled ? `${process.currentState.percent}%` : 'Não modelado'}</strong>
+              </div>
+
+              {!process.modeled ? (
+                <p>O Centro não fabrica uma sequência para este tipo de serviço. Um modelo próprio precisa ser admitido antes de projetar etapas.</p>
+              ) : (
+                <>
+                  <div className="admin-process-current">
+                    <div>
+                      <small>ESTADO ATUAL DERIVADO</small>
+                      <h3>{process.currentState.label}</h3>
+                      <p>{process.nextAction?.title ?? 'Nenhuma ação pendente.'}</p>
+                    </div>
+                    <div className="admin-process-meter" aria-label={`${process.currentState.percent}% concluído`}>
+                      <span style={{ width: `${process.currentState.percent}%` }} />
+                    </div>
+                  </div>
+
+                  <ol className="admin-process-milestones">
+                    {process.milestones.map((milestone) => {
+                      const isCurrent = currentCode === milestone.code;
+                      return (
+                        <li key={milestone.code} className={`${milestone.achieved ? 'is-done' : ''} ${isCurrent ? 'is-current' : ''}`}>
+                          <span>{milestone.achieved ? '✓' : '•'}</span>
+                          <div>
+                            <strong>{milestone.label}</strong>
+                            <small>
+                              {milestone.achievedAt
+                                ? `Concluído em ${dateTime(milestone.achievedAt)}`
+                                : milestone.scheduledFor
+                                  ? `Agendado para ${dateTime(milestone.scheduledFor)}`
+                                  : milestone.description}
+                            </small>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+
+                  {currentCode === 'PRACTICE_DONE' && (
+                    <div className="admin-process-evidence">
+                      <div><span>Aulas concluídas</span><strong>{process.progress.completedLessons}</strong></div>
+                      <div><span>Minutos registrados</span><strong>{process.progress.completedMinutes}</strong></div>
+                      <div><span>Faltas</span><strong>{process.progress.noShows}</strong></div>
+                      <div><span>Próxima aula</span><strong>{process.progress.nextLessonAt ? dateTime(process.progress.nextLessonAt) : 'Sem aula futura'}</strong></div>
+                    </div>
+                  )}
+
+                  {process.nextAction && <p className="admin-process-guidance">{process.nextAction.detail}</p>}
+
+                  {currentOwnedElsewhere && (
+                    <p className="admin-process-guidance">
+                      Esta etapa é executada pela orientação operacional acima e reconciliada pelo domínio proprietário de {currentCode === 'THEORY_PASSED' ? 'prova teórica' : 'exame prático'}. O painel de processo permanece somente como projeção institucional.
+                    </p>
+                  )}
+
+                  <div className="admin-process-actions">
+                    {reversible && (
+                      <button
+                        className="admin-secondary"
+                        type="button"
+                        disabled={Boolean(busy)}
+                        onClick={() => void mutate(process, 'revoke', reversible.code)}
+                      >
+                        Reverter “{reversible.label}”
+                      </button>
+                    )}
+                    {canAchieve && (
+                      <button
+                        className="admin-primary"
+                        type="button"
+                        disabled={Boolean(busy)}
+                        onClick={() => void mutate(process, 'achieve', currentCode as MilestoneCode)}
+                      >
+                        {busy.includes(':achieve:') ? 'Registrando…' : `Concluir “${process.currentState.label}”`}
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
+          );
+        })}
+      </div>
 
-            {!process.modeled ? (
-              <p>O Centro não fabrica uma sequência para este tipo de serviço. Um modelo próprio precisa ser admitido antes de projetar etapas.</p>
-            ) : (
-              <>
-                <div className="admin-process-current">
-                  <div>
-                    <small>ESTADO ATUAL DERIVADO</small>
-                    <h3>{process.currentState.label}</h3>
-                    <p>{process.nextAction?.title ?? 'Nenhuma ação pendente.'}</p>
-                  </div>
-                  <div className="admin-process-meter" aria-label={`${process.currentState.percent}% concluído`}>
-                    <span style={{ width: `${process.currentState.percent}%` }} />
-                  </div>
-                </div>
-
-                <ol className="admin-process-milestones">
-                  {process.milestones.map((milestone) => {
-                    const isCurrent = currentCode === milestone.code;
-                    return (
-                      <li key={milestone.code} className={`${milestone.achieved ? 'is-done' : ''} ${isCurrent ? 'is-current' : ''}`}>
-                        <span>{milestone.achieved ? '✓' : '•'}</span>
-                        <div>
-                          <strong>{milestone.label}</strong>
-                          <small>
-                            {milestone.achievedAt
-                              ? `Concluído em ${dateTime(milestone.achievedAt)}`
-                              : milestone.scheduledFor
-                                ? `Agendado para ${dateTime(milestone.scheduledFor)}`
-                                : milestone.description}
-                          </small>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-
-                {currentCode === 'PRACTICE_DONE' && (
-                  <div className="admin-process-evidence">
-                    <div><span>Aulas concluídas</span><strong>{process.progress.completedLessons}</strong></div>
-                    <div><span>Minutos registrados</span><strong>{process.progress.completedMinutes}</strong></div>
-                    <div><span>Faltas</span><strong>{process.progress.noShows}</strong></div>
-                    <div><span>Próxima aula</span><strong>{process.progress.nextLessonAt ? dateTime(process.progress.nextLessonAt) : 'Sem aula futura'}</strong></div>
-                  </div>
-                )}
-
-                {process.nextAction && <p className="admin-process-guidance">{process.nextAction.detail}</p>}
-
-                {currentOwnedElsewhere && (
-                  <p className="admin-process-guidance">
-                    Esta etapa é executada pela orientação operacional acima e reconciliada pelo domínio proprietário de {currentCode === 'THEORY_PASSED' ? 'prova teórica' : 'exame prático'}. O painel de processo permanece somente como projeção institucional.
-                  </p>
-                )}
-
-                <div className="admin-process-actions">
-                  {reversible && (
-                    <button
-                      className="admin-secondary"
-                      type="button"
-                      disabled={Boolean(busy)}
-                      onClick={() => void mutate(process, 'revoke', reversible.code)}
-                    >
-                      Reverter “{reversible.label}”
-                    </button>
-                  )}
-                  {canAchieve && (
-                    <button
-                      className="admin-primary"
-                      type="button"
-                      disabled={Boolean(busy)}
-                      onClick={() => void mutate(process, 'achieve', currentCode as MilestoneCode)}
-                    >
-                      {busy.includes(':achieve:') ? 'Registrando…' : `Concluir “${process.currentState.label}”`}
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
+      {studentId && currentEnrollment && (
+        <aside className="admin-student-context-secondary" aria-label="Contexto da matrícula atual">
+          <div className="admin-detail-card admin-current-enrollment-card">
+            <div className="admin-card-title">
+              <span>MATRÍCULA ATUAL</span>
+              <strong className={`admin-state admin-state-${currentEnrollment.status === 'ACTIVE' ? 'ok' : 'pending'}`}>
+                {enrollmentStatusLabels[currentEnrollment.status]}
+              </strong>
+            </div>
+            <div className="admin-current-enrollment-title">
+              <strong>{serviceLabels[currentEnrollment.serviceType]}</strong>
+              <span>Categoria {currentEnrollment.category}</span>
+            </div>
+            <dl className="admin-detail-list admin-current-enrollment-facts">
+              <div><dt>RENACH</dt><dd>{currentEnrollment.renach || 'Não informado'}</dd></div>
+              <div><dt>Aberta em</dt><dd>{currentEnrollment.openedAt ? dateOnly(currentEnrollment.openedAt) : '—'}</dd></div>
+            </dl>
           </div>
-        );
-      })}
 
-      {studentId && <AdminStudentGuides studentId={studentId} enrollments={operational} />}
-    </div>
+          <AdminStudentGuides studentId={studentId} enrollments={operational} />
+        </aside>
+      )}
+    </>
   );
 }
