@@ -6,6 +6,7 @@ import { createDatabasePool } from '../db/pool.js';
 import { materializeEnrollment } from '../enrollments/materialize.js';
 import { authenticateStaff, bootstrapFirstAdmin } from '../staff/auth.js';
 import { activateStudentAccessQr } from '../student/access.js';
+import { createAdminTheoryExamsApiHandler } from './admin-theory-exams.js';
 import { createProcessApiHandler } from './process-api.js';
 
 const ORIGIN = 'https://centro-process.test';
@@ -27,6 +28,7 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<voi
     const enrollments = await pool.query<{ id: string }>('SELECT id FROM enrollments WHERE student_id = ANY($1::uuid[])', [studentIds]);
     const enrollmentIds = enrollments.rows.map((row) => row.id);
     if (enrollmentIds.length > 0) {
+      await pool.query('DELETE FROM theory_exam_attempts WHERE enrollment_id = ANY($1::uuid[])', [enrollmentIds]);
       await pool.query('DELETE FROM lessons WHERE enrollment_id = ANY($1::uuid[])', [enrollmentIds]);
       await pool.query('DELETE FROM enrollment_milestones WHERE enrollment_id = ANY($1::uuid[])', [enrollmentIds]);
       await pool.query('DELETE FROM audit_events WHERE entity_id = ANY($1::uuid[])', [enrollmentIds]);
@@ -38,6 +40,7 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<voi
   }
 
   if (staffId) {
+    await pool.query('DELETE FROM theory_exam_attempts WHERE created_by_staff_user_id = $1 OR updated_by_staff_user_id = $1', [staffId]);
     await pool.query('DELETE FROM lessons WHERE created_by_staff_user_id = $1', [staffId]);
     await pool.query('DELETE FROM enrollment_milestones WHERE updated_by_staff_user_id = $1 OR achieved_by_staff_user_id = $1', [staffId]);
     await pool.query('DELETE FROM sessions WHERE staff_user_id = $1', [staffId]);
@@ -62,7 +65,7 @@ async function post(base: string, path: string, adminToken: string, body: unknow
   });
 }
 
-test('PROCESS-001 derives a linear first-license process, projects Lesson evidence and isolates Student authority', async () => {
+test('PROCESS-001 derives a linear first-license process while theory mutations enter through THEORY-EXAM-001', async () => {
   const pool = createDatabasePool();
   await cleanup(pool);
 
@@ -94,14 +97,17 @@ test('PROCESS-001 derives a linear first-license process, projects Lesson eviden
     password: `Process-${randomUUID()}-Student`,
   });
 
-  const handler = createProcessApiHandler(pool, { publicOrigin: ORIGIN });
+  const theoryHandler = createAdminTheoryExamsApiHandler(pool, { publicOrigin: ORIGIN });
+  const processHandler = createProcessApiHandler(pool, { publicOrigin: ORIGIN });
   const server = createServer((req, res) => {
-    void handler(req, res).then((handled) => {
-      if (!handled && !res.writableEnded) {
+    void (async () => {
+      if (await theoryHandler(req, res)) return;
+      if (await processHandler(req, res)) return;
+      if (!res.writableEnded) {
         res.statusCode = 404;
         res.end();
       }
-    });
+    })();
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
@@ -128,8 +134,9 @@ test('PROCESS-001 derives a linear first-license process, projects Lesson eviden
     assert.equal(initialBody.process.milestones[0].code, 'PROCESS_STARTED');
     assert.equal(initialBody.process.milestones[0].achieved, true);
 
-    const skip = await post(base, `/api/admin/process/enrollments/${receipt.enrollmentId}/milestones/THEORY_PASSED/achieve`, staffAuth.token);
-    assert.equal(skip.status, 409);
+    const theoryBypassBeforeFrontier = await post(base, `/api/admin/process/enrollments/${receipt.enrollmentId}/milestones/THEORY_PASSED/achieve`, staffAuth.token);
+    assert.equal(theoryBypassBeforeFrontier.status, 409);
+    assert.match((await theoryBypassBeforeFrontier.json() as any).error, /THEORY-EXAM-001/);
 
     const registration = await post(base, `/api/admin/process/enrollments/${receipt.enrollmentId}/milestones/REGISTRATION_DONE/achieve`, staffAuth.token);
     assert.equal(registration.status, 200);
@@ -140,16 +147,31 @@ test('PROCESS-001 derives a linear first-license process, projects Lesson eviden
     assert.equal((await health.json() as any).process.currentState.code, 'THEORY_PASSED');
 
     const theoryAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const theorySchedule = await post(
+    const directTheorySchedule = await post(
       base,
       `/api/admin/process/enrollments/${receipt.enrollmentId}/milestones/THEORY_PASSED/schedule`,
       staffAuth.token,
       { scheduledFor: theoryAt },
     );
-    assert.equal(theorySchedule.status, 200);
-    const theoryScheduleBody = await theorySchedule.json() as { process: any };
-    assert.equal(theoryScheduleBody.process.nextAction.code, 'ATTEND_THEORY_EXAM');
-    assert.equal(theoryScheduleBody.process.milestones.find((m: any) => m.code === 'THEORY_PASSED').scheduledFor, theoryAt);
+    assert.equal(directTheorySchedule.status, 409);
+    assert.match((await directTheorySchedule.json() as any).error, /THEORY-EXAM-001/);
+
+    const theoryAttemptResponse = await post(base, '/api/admin/theory-exams', staffAuth.token, {
+      enrollmentId: receipt.enrollmentId,
+      scheduledFor: theoryAt,
+      bookingSource: 'SCHOOL',
+      protocol: 'PROCESS-001-THEORY',
+    });
+    assert.equal(theoryAttemptResponse.status, 201);
+    const theoryAttempt = (await theoryAttemptResponse.json() as any).attempt;
+
+    const processWithScheduledTheory = await fetch(`${base}/api/admin/process/enrollments/${receipt.enrollmentId}`, {
+      headers: { Cookie: adminCookie },
+    });
+    assert.equal(processWithScheduledTheory.status, 200);
+    const scheduledTheoryProcess = (await processWithScheduledTheory.json() as any).process;
+    assert.equal(scheduledTheoryProcess.nextAction.code, 'ATTEND_THEORY_EXAM');
+    assert.equal(scheduledTheoryProcess.milestones.find((m: any) => m.code === 'THEORY_PASSED').scheduledFor, theoryAt);
 
     const studentTheory = await fetch(`${base}/api/student/process`, { headers: { Cookie: studentCookie } });
     assert.equal(studentTheory.status, 200);
@@ -157,9 +179,18 @@ test('PROCESS-001 derives a linear first-license process, projects Lesson eviden
     assert.equal(studentTheoryBody.processes.length, 1);
     assert.equal(studentTheoryBody.processes[0].currentState.code, 'THEORY_PASSED');
 
-    const theory = await post(base, `/api/admin/process/enrollments/${receipt.enrollmentId}/milestones/THEORY_PASSED/achieve`, staffAuth.token);
-    assert.equal(theory.status, 200);
-    assert.equal((await theory.json() as any).process.currentState.code, 'PRACTICE_DONE');
+    const directTheoryAchieve = await post(base, `/api/admin/process/enrollments/${receipt.enrollmentId}/milestones/THEORY_PASSED/achieve`, staffAuth.token);
+    assert.equal(directTheoryAchieve.status, 409);
+    assert.match((await directTheoryAchieve.json() as any).error, /THEORY-EXAM-001/);
+
+    assert.equal((await post(base, `/api/admin/theory-exams/${theoryAttempt.id}/attendance`, staffAuth.token, { attendanceStatus: 'PRESENT' })).status, 200);
+    assert.equal((await post(base, `/api/admin/theory-exams/${theoryAttempt.id}/observed-result`, staffAuth.token, { result: 'APPROVED' })).status, 200);
+    const theoryOfficial = await post(base, `/api/admin/theory-exams/${theoryAttempt.id}/official-result`, staffAuth.token, { result: 'APPROVED' });
+    assert.equal(theoryOfficial.status, 200);
+
+    const afterTheory = await fetch(`${base}/api/admin/process/enrollments/${receipt.enrollmentId}`, { headers: { Cookie: adminCookie } });
+    assert.equal(afterTheory.status, 200);
+    assert.equal((await afterTheory.json() as any).process.currentState.code, 'PRACTICE_DONE');
 
     await pool.query(`INSERT INTO instructors(id, display_name) VALUES ($1, 'PROCESS-001 Instrutor')`, [instructorId]);
     await pool.query(`INSERT INTO instructor_categories(instructor_id, category) VALUES ($1, 'B')`, [instructorId]);
@@ -198,6 +229,8 @@ test('PROCESS-001 derives a linear first-license process, projects Lesson eviden
     assert.equal(practiceDone.status, 200);
     assert.equal((await practiceDone.json() as any).process.currentState.code, 'PRACTICAL_EXAM_PASSED');
 
+    // Practical exam owner-domain cutover is performed by PROCESS-OPS-002; PROCESS-001
+    // still proves its inherited generic transition here until that dependent cut lands.
     const examAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
     const examSchedule = await post(
       base,
