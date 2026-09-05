@@ -5,6 +5,7 @@ import test from 'node:test';
 import { createDatabasePool } from '../db/pool.js';
 import { materializeEnrollment } from '../enrollments/materialize.js';
 import { bootstrapFirstAdmin } from '../staff/auth.js';
+import { activateStudentAccessQr } from '../student/access.js';
 import { createStudentApiHandler } from './student-api.js';
 import { createStudentExperienceApiHandler } from './student-experience-api.js';
 
@@ -35,7 +36,7 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<voi
     for (const { session_id } of examSessions.rows) await pool.query('DELETE FROM practical_exam_sessions WHERE id=$1', [session_id]);
     await pool.query('DELETE FROM lessons WHERE student_id=$1', [studentId]);
     await pool.query('DELETE FROM enrollment_milestones WHERE enrollment_id IN (SELECT id FROM enrollments WHERE student_id=$1)', [studentId]);
-    await pool.query('DELETE FROM audit_events WHERE actor_student_id=$1', [studentId]);
+    await pool.query('DELETE FROM audit_events WHERE actor_student_id=$1 OR entity_id=$1 OR entity_id IN (SELECT id FROM student_access_qrs WHERE student_id=$1)', [studentId]);
     await pool.query('DELETE FROM sessions WHERE student_id=$1', [studentId]);
     await pool.query('DELETE FROM enrollments WHERE student_id=$1', [studentId]);
     await pool.query('DELETE FROM students WHERE id=$1', [studentId]);
@@ -54,22 +55,7 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<voi
   }
 }
 
-async function rotateInitialPassword(base: string, publicId: string, initialPassword: string, finalPassword: string): Promise<string> {
-  const login = await fetch(`${base}/api/student/auth/login`, {
-    method: 'POST', headers: { Origin: ORIGIN, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ publicId, password: initialPassword }),
-  });
-  assert.equal(login.status, 200);
-  const cookie = cookieValue(login.headers.get('set-cookie'));
-  const changed = await fetch(`${base}/api/student/auth/change-initial-password`, {
-    method: 'POST', headers: { Origin: ORIGIN, Cookie: cookie, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ newPassword: finalPassword }),
-  });
-  assert.equal(changed.status, 200);
-  return cookie;
-}
-
-test('STUDENT-003..007 projects one journey, isolates exam ownership and secures student sessions', async () => {
+test('STUDENT-003..007 projects one journey, isolates exam ownership and secures QR-activated student sessions', async () => {
   const pool = createDatabasePool();
   await cleanup(pool);
   const adminPassword = testPassword('admin');
@@ -88,7 +74,11 @@ test('STUDENT-003..007 projects one journey, isolates exam ownership and secures
     fullName: 'Aluno Experience Dois', phone: '11922222222', document: DOC_TWO,
     serviceType: 'FIRST_LICENSE', category: 'B', actorStaffUserId: bootstrap.staffUserId,
   });
-  assert.ok(first.initialPassword);
+  const firstActivation = await activateStudentAccessQr(pool, {
+    publicToken: first.accessQr.publicToken,
+    password: firstPassword,
+  });
+  const firstCookie = `centro_student_session=${encodeURIComponent(firstActivation.token)}`;
 
   const instructorOne = randomUUID();
   const instructorTwo = randomUUID();
@@ -161,8 +151,6 @@ test('STUDENT-003..007 projects one journey, isolates exam ownership and secures
   const base = `http://127.0.0.1:${address.port}`;
 
   try {
-    const firstCookie = await rotateInitialPassword(base, first.studentPublicId, first.initialPassword!, firstPassword);
-
     const home = await fetch(`${base}/api/student/home`, { headers: { Cookie: firstCookie } });
     assert.equal(home.status, 200);
     const homeBody = await home.json() as { primaryAction: { kind: string }; lessonSummary: { scheduled: number }; nextExam: { candidateId: string } | null };
@@ -196,7 +184,7 @@ test('STUDENT-003..007 projects one journey, isolates exam ownership and secures
     const securityBody = await security.json() as { activeSessions: number; passwordVersion: number };
     assert.equal(security.status, 200);
     assert.ok(securityBody.activeSessions >= 2);
-    assert.equal(securityBody.passwordVersion, 2);
+    assert.equal(securityBody.passwordVersion, 1);
 
     const badOrigin = await fetch(`${base}/api/student/security/password`, {
       method: 'POST', headers: { Origin: 'https://evil.test', Cookie: firstCookie, 'Content-Type': 'application/json' },
