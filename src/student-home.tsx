@@ -75,6 +75,11 @@ export function StudentHome({ student }: { student: StudentIdentity }) {
   if (error) return <section className="student-panel"><p className="student-error" role="alert">{error}</p></section>;
   if (!home) return <section className="student-panel"><p aria-live="polite">Preparando sua área…</p></section>;
 
+  const lessonHref = home.nextLesson ? `/aluno/agenda/${home.nextLesson.id}` : null;
+  const examHref = home.nextExam ? `/aluno/exame/${home.nextExam.candidateId}` : null;
+  const lessonIsPrimary = Boolean(lessonHref && home.primaryAction?.href === lessonHref);
+  const examIsPrimary = Boolean(examHref && home.primaryAction?.href === examHref);
+
   return (
     <div className="student-home-v2">
       <section className="student-home-welcome">
@@ -122,13 +127,25 @@ export function StudentHome({ student }: { student: StudentIdentity }) {
         <div>
           <p className="student-eyebrow">PRÓXIMA AULA</p>
           {home.nextLesson ? (
-            <><h3>{dateTime(home.nextLesson.startsAt)}</h3><p>Categoria {home.nextLesson.category} · {home.nextLesson.instructorName} · {home.nextLesson.vehicleLabel}</p><button type="button" onClick={() => navigate(`/aluno/agenda/${home.nextLesson!.id}`)}>Ver minha aula →</button></>
+            <>
+              <h3>{dateTime(home.nextLesson.startsAt)}</h3>
+              <p>Categoria {home.nextLesson.category} · {home.nextLesson.instructorName} · {home.nextLesson.vehicleLabel}</p>
+              {lessonIsPrimary
+                ? <small>Esta aula já é o seu próximo passo acima.</small>
+                : <button type="button" onClick={() => navigate(lessonHref!)}>Ver minha aula →</button>}
+            </>
           ) : <><h3>Nenhuma aula marcada.</h3><p>Quando a escola marcar um horário, ele aparecerá aqui e na sua agenda.</p></>}
         </div>
         <div>
           <p className="student-eyebrow">EXAME PRÁTICO</p>
           {home.nextExam ? (
-            <><h3>{dateTime(home.nextExam.officialScheduledFor)}</h3><p>{home.nextExam.locationLabel} · Categoria {home.nextExam.category}</p><button type="button" onClick={() => navigate(`/aluno/exame/${home.nextExam!.candidateId}`)}>Ver meu exame →</button></>
+            <>
+              <h3>{dateTime(home.nextExam.officialScheduledFor)}</h3>
+              <p>{home.nextExam.locationLabel} · Categoria {home.nextExam.category}</p>
+              {examIsPrimary
+                ? <small>Este exame já é o seu próximo passo acima.</small>
+                : <button type="button" onClick={() => navigate(examHref!)}>Ver meu exame →</button>}
+            </>
           ) : <><h3>Ainda não está marcado.</h3><p>Quando a escola marcar seu exame, ele aparecerá aqui.</p></>}
         </div>
       </section>

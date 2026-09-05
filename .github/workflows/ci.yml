@@ -40,6 +40,9 @@ jobs:
       - name: Validate zero-training UI language
         run: npm run ux:language:check
 
+      - name: Validate operational friction budget
+        run: npm run ux:friction:check
+
       - name: Apply operational migrations twice
         run: |
           npm run db:migrate
