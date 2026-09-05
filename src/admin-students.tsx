@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AccessQr, studentAccessUrl } from './access-qr';
-import { AdminOperationalGuidance } from './admin-operational-guidance';
 import { AdminProcessPanel } from './admin-process';
 import { AdminQrScanner } from './admin-qr-scanner';
 import { AdminStudentGuides } from './admin-student-guides';
@@ -294,7 +293,7 @@ export function AdminStudents() {
   );
 }
 
-export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: string; onNewEnrollment: () => void }) {
+export function AdminStudentDetail({ studentId }: { studentId: string; onNewEnrollment: () => void }) {
   const navigate = useNavigate();
   const [workspace, setWorkspace] = useState<StudentWorkspace | null>(null);
   const [accessQr, setAccessQr] = useState<AccessQrPayload['qr'] | null>(null);
@@ -366,17 +365,14 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
 
       <div className="admin-student-hero">
         <div>
-          <p className="admin-eyebrow">{student.publicId}</p>
+          <div className="admin-student-identity-meta">
+            <p className="admin-eyebrow">{student.publicId}</p>
+            <span className={`admin-state admin-state-${student.status === 'ACTIVE' ? 'ok' : 'neutral'}`}>{student.status === 'ACTIVE' ? 'ATIVO' : 'ARQUIVADO'}</span>
+          </div>
           <h1 id="student-detail-title">{student.fullName}</h1>
           <p>{student.phone}{student.email ? ` · ${student.email}` : ''}</p>
         </div>
-        <div className="admin-student-hero-actions">
-          <span className={`admin-state admin-state-${student.status === 'ACTIVE' ? 'ok' : 'neutral'}`}>{student.status === 'ACTIVE' ? 'ALUNO ATIVO' : 'ARQUIVADO'}</span>
-          <button className="admin-primary" type="button" onClick={onNewEnrollment}>Nova matrícula</button>
-        </div>
       </div>
-
-      <AdminOperationalGuidance studentId={studentId} />
 
       <div className="admin-student-facts">
         <div><span>CPF</span><strong>{documentLabel(student.cpf)}</strong></div>
@@ -385,8 +381,11 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
         <div><span>Aluno desde</span><strong>{dateOnly(student.createdAt)}</strong></div>
       </div>
 
-      <div className="admin-detail-card">
-        <div className="admin-card-title"><span>REGISTRO INSTITUCIONAL</span><strong>Dados do aluno</strong></div>
+      <details className="admin-detail-card admin-student-record-details">
+        <summary>
+          <span>REGISTRO INSTITUCIONAL</span>
+          <strong>Ver todos os dados</strong>
+        </summary>
         <dl className="admin-detail-list">
           <div><dt>CPF</dt><dd>{documentLabel(student.cpf)}</dd></div>
           <div><dt>Documento de identidade</dt><dd>{identityLabel(student.identityDocument)}</dd></div>
@@ -395,7 +394,7 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
           <div><dt>E-mail</dt><dd>{student.email || 'Não informado'}</dd></div>
           <div><dt>Endereço</dt><dd>{addressLabel(student.address)}</dd></div>
         </dl>
-      </div>
+      </details>
 
       <div className="admin-student-workspace-grid">
         <aside className="admin-student-context-rail" aria-label="Contexto do aluno">
