@@ -92,6 +92,102 @@
   background: #fff7f4;
 }
 
+.admin-ops-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(17, 19, 22, .62);
+}
+
+.admin-ops-modal {
+  width: min(680px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  border: 1px solid var(--admin-line);
+  background: var(--admin-paper);
+  padding: 24px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .22);
+}
+
+.admin-ops-modal h2 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -.035em;
+}
+
+.admin-ops-modal > p {
+  margin: -4px 0 18px;
+  color: var(--admin-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.admin-ops-close {
+  border: 0;
+  background: transparent;
+  color: var(--admin-ink);
+  font: inherit;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.admin-ops-form {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-ops-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--admin-ink);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.admin-ops-form input,
+.admin-ops-form select,
+.admin-ops-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  border: 1px solid var(--admin-line);
+  background: #fff;
+  color: var(--admin-ink);
+  padding: 10px 11px;
+  font: inherit;
+  font-weight: 500;
+}
+
+.admin-ops-form textarea {
+  resize: vertical;
+}
+
+.admin-ops-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-ops-warning {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #d7c788;
+  background: #fff9e9;
+  color: #6e5717;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.admin-ops-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 6px;
+}
+
 @media (max-width: 680px) {
   .admin-operational-guidance {
     align-items: stretch;
@@ -100,6 +196,15 @@
 
   .admin-operational-kicker {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-ops-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-ops-form-actions {
+    align-items: stretch;
     flex-direction: column;
   }
 }
