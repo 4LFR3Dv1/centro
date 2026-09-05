@@ -112,6 +112,22 @@ async function loadOpenPracticalCandidate(pool: pg.Pool, enrollmentId: string) {
   return result.rows[0] ?? null;
 }
 
+async function loadLatestLesson(pool: pg.Pool, enrollmentId: string) {
+  const result = await pool.query<{
+    status: 'SCHEDULED' | 'COMPLETED' | 'NO_SHOW' | 'CANCELLED';
+    starts_at: Date;
+    resolved_at: Date | null;
+  }>(
+    `SELECT status, starts_at, resolved_at
+     FROM lessons
+     WHERE enrollment_id = $1
+     ORDER BY starts_at DESC
+     LIMIT 1`,
+    [enrollmentId],
+  );
+  return result.rows[0] ?? null;
+}
+
 function milestoneCommand(
   milestoneCode: PersistentMilestoneCode,
   label: string,
@@ -291,7 +307,35 @@ async function actionForProcess(pool: pg.Pool, studentId: string, process: Enrol
           ...compat(primaryCommand),
         };
       }
-      const primaryCommand: SchoolOperationalCommand = { kind: 'SCHEDULE_LESSON', label: 'Agendar aula' };
+
+      const latestLesson = await loadLatestLesson(pool, process.enrollment.id);
+      const primaryCommand: SchoolOperationalCommand = { kind: 'SCHEDULE_LESSON', label: 'Agendar nova aula' };
+      if (latestLesson?.status === 'NO_SHOW') {
+        return {
+          ...common,
+          code: 'LESSON_NO_SHOW_RECOVERY',
+          title: 'A última aula terminou como falta',
+          detail: 'Essa aula não conta como concluída e não há outra aula futura marcada. O aluno precisa de um novo horário para continuar.',
+          severity: 'ACTION_REQUIRED',
+          primaryCommand,
+          secondaryCommands: [completePractice],
+          ...compat(primaryCommand),
+        };
+      }
+      if (latestLesson?.status === 'CANCELLED') {
+        return {
+          ...common,
+          code: 'LESSON_CANCELLED_RECOVERY',
+          title: 'A última aula foi cancelada',
+          detail: 'O horário cancelado não está mais comprometido e não há outra aula futura marcada. Agende um novo horário se o aluno ainda precisa continuar a prática.',
+          severity: 'ACTION_REQUIRED',
+          primaryCommand,
+          secondaryCommands: [completePractice],
+          ...compat(primaryCommand),
+        };
+      }
+
+      primaryCommand.label = 'Agendar aula';
       return {
         ...common,
         code: process.progress.completedLessons > 0 ? 'SCHEDULE_NEXT_LESSON' : 'SCHEDULE_FIRST_LESSON',
