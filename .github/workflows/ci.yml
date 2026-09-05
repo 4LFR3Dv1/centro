@@ -37,6 +37,9 @@ jobs:
       - name: Install
         run: npm install
 
+      - name: Validate zero-training UI language
+        run: npm run ux:language:check
+
       - name: Apply operational migrations twice
         run: |
           npm run db:migrate
