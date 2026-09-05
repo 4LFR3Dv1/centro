@@ -120,11 +120,21 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
     }
   }
 
+  const operationalKey = operational.map((enrollment) => `${enrollment.id}:${enrollment.status}`).join('|');
+
   useEffect(() => {
     void load();
     // IDs/statuses are the authority-changing inputs; the parent workspace is immutable during this view.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [operational.map((enrollment) => `${enrollment.id}:${enrollment.status}`).join('|')]);
+  }, [operationalKey]);
+
+  useEffect(() => {
+    const refresh = () => { void load(); };
+    window.addEventListener('centro:process-changed', refresh);
+    return () => window.removeEventListener('centro:process-changed', refresh);
+    // The event explicitly signals that a primitive observed by ProcessResolver changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operationalKey]);
 
   async function mutate(process: ProcessView, action: 'achieve' | 'revoke' | 'schedule', code: MilestoneCode) {
     const key = `${process.enrollment.id}:${action}:${code}`;
