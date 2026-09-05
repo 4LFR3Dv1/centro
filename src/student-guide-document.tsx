@@ -156,7 +156,7 @@ export function StudentGuideDocument({
         <div className={`student-guide-badge ${preview ? 'is-preview' : ''}`}>
           {preview ? 'PRÉVIA' : 'GUIA DO ALUNO'}
         </div>
-        <p>Seu processo, sua agenda e a próxima ação em uma única versão.</p>
+        <p>Suas etapas, sua agenda e o que acontece em seguida.</p>
         <h1>{student.fullName}</h1>
         <div className="student-guide-cover-facts">
           <div><span>ID DO ALUNO</span><strong>{student.publicId}</strong></div>
@@ -169,7 +169,7 @@ export function StudentGuideDocument({
       <section className="student-guide-section">
         <div className="student-guide-section-head">
           <span>01</span>
-          <div><small>PROCESSO</small><h2>{process.currentState.label}</h2></div>
+          <div><small>MINHAS ETAPAS</small><h2>{process.currentState.label}</h2></div>
           {process.modeled && <strong>{process.currentState.percent}%</strong>}
         </div>
 
@@ -186,10 +186,10 @@ export function StudentGuideDocument({
                       {milestone.achievedAt
                         ? `Concluído em ${dateOnly(milestone.achievedAt)}`
                         : milestone.scheduledFor
-                          ? `Agendado para ${dateTime(milestone.scheduledFor)}`
+                          ? `Marcado para ${dateTime(milestone.scheduledFor)}`
                           : process.currentState.code === milestone.code
                             ? 'Etapa atual'
-                            : 'Etapa posterior'}
+                            : 'Etapa futura'}
                     </small>
                   </div>
                 </li>
@@ -197,16 +197,16 @@ export function StudentGuideDocument({
             </ol>
           </>
         ) : (
-          <p className="student-guide-empty">Este serviço ainda não possui uma sequência processual institucional publicada pelo Centro.</p>
+          <p className="student-guide-empty">Este tipo de matrícula ainda não tem acompanhamento passo a passo disponível no Centro.</p>
         )}
       </section>
 
       <section className="student-guide-section student-guide-next">
         <div className="student-guide-section-head">
           <span>02</span>
-          <div><small>PRÓXIMA AÇÃO</small><h2>{process.nextAction?.title ?? 'Nenhuma ação pendente'}</h2></div>
+          <div><small>AGORA</small><h2>{process.nextAction?.title ?? 'Nenhuma ação pendente'}</h2></div>
         </div>
-        <p>{process.nextAction?.detail ?? 'Não existe uma próxima ação derivada nesta versão do guia.'}</p>
+        <p>{process.nextAction?.detail ?? 'Você não precisa fazer nada agora.'}</p>
         {process.currentState.code === 'PRACTICE_DONE' && (
           <div className="student-guide-practice">
             <div><span>Aulas concluídas</span><strong>{process.progress.completedLessons}</strong></div>
@@ -222,7 +222,7 @@ export function StudentGuideDocument({
           <div><small>AGENDA</small><h2>Próximas aulas</h2></div>
           <strong>{agenda.upcoming.length}</strong>
         </div>
-        <AgendaRows lessons={agenda.upcoming} empty="Nenhuma aula futura estava registrada quando este guia foi gerado." />
+        <AgendaRows lessons={agenda.upcoming} empty="Nenhuma aula futura estava marcada quando este guia foi preparado." />
       </section>
 
       {agenda.recent.length > 0 && (
@@ -231,17 +231,21 @@ export function StudentGuideDocument({
             <span>04</span>
             <div><small>HISTÓRICO</small><h2>Aulas recentes</h2></div>
           </div>
-          <AgendaRows lessons={agenda.recent} empty="Nenhum histórico recente." />
+          <AgendaRows lessons={agenda.recent} empty="Nenhuma aula recente." />
         </section>
       )}
 
       <footer className="student-guide-footer">
         <div>
-          <strong>{templateId}@{templateVersion}</strong>
-          <span>{generatedAt ? `Gerado em ${dateTime(generatedAt)}` : 'Prévia baseada no estado atual; ainda não gerada.'}</span>
+          <strong>{generatedAt ? `Guia preparado em ${dateTime(generatedAt)}` : 'Prévia do guia'}</strong>
+          <span>Se alguma informação mudar, consulte sua área do aluno para ver o estado mais recente.</span>
         </div>
-        {contentSha256 && <code>{contentSha256}</code>}
-        <p>Este documento é uma fotografia do estado institucional no momento da geração. Mudanças posteriores aparecem em uma nova versão e no portal do aluno.</p>
+        <details>
+          <summary>Informações do documento</summary>
+          <small>{templateId}@{templateVersion}</small>
+          {contentSha256 && <code>{contentSha256}</code>}
+        </details>
+        <p>Este guia registra as informações disponíveis no momento em que foi preparado. Mudanças posteriores aparecem em uma nova versão e na sua área do aluno.</p>
       </footer>
     </article>
   );

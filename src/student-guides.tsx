@@ -37,14 +37,14 @@ export function StudentGuides() {
     return () => { alive = false; };
   }, []);
 
-  if (loading) return <section className="student-panel"><p>Carregando seus guias…</p></section>;
+  if (loading) return <section className="student-panel"><p aria-live="polite">Carregando seus guias…</p></section>;
   if (error) return <section className="student-panel"><p className="student-error" role="alert">{error}</p></section>;
   if (guides.length === 0) {
     return (
       <section className="student-panel student-guide-empty-state">
         <p className="student-eyebrow">GUIA DO ALUNO</p>
-        <h1>Nenhuma versão foi entregue ainda.</h1>
-        <p>Quando a escola gerar seu guia, ele aparecerá aqui com o processo e a agenda fotografados naquele momento.</p>
+        <h1>Seu guia ainda não foi entregue.</h1>
+        <p>Quando a escola preparar seu guia, ele aparecerá aqui com as informações daquele momento.</p>
       </section>
     );
   }
@@ -54,24 +54,24 @@ export function StudentGuides() {
       <div className="student-guides-heading">
         <div>
           <p className="student-eyebrow">GUIA DO ALUNO</p>
-          <h1 id="student-guides-title">Suas versões.</h1>
-          <p>Cada guia preserva exatamente o estado que existia quando a escola o gerou.</p>
+          <h1 id="student-guides-title">Seus guias.</h1>
+          <p>Cada versão mostra as informações que estavam confirmadas quando a escola preparou o documento.</p>
         </div>
         {selected && <button className="student-primary" type="button" onClick={printStudentGuide}>Imprimir guia</button>}
       </div>
 
       <div className="student-guides-layout">
-        <aside className="student-guides-history" aria-label="Versões do guia">
+        <aside className="student-guides-history" aria-label="Histórico de guias">
           {guides.map((guide, index) => (
             <button
               key={guide.id}
               type="button"
               className={selected?.id === guide.id ? 'is-active' : ''}
               onClick={() => setSelected(guide)}
+              aria-label={`Ver guia de ${dateTime(guide.generatedAt)}`}
             >
-              <strong>{index === 0 ? 'Versão mais recente' : `Versão ${guides.length - index}`}</strong>
+              <strong>{index === 0 ? 'Mais recente' : `Versão ${guides.length - index}`}</strong>
               <span>{dateTime(guide.generatedAt)}</span>
-              <small>{guide.template.id}@{guide.template.version}</small>
             </button>
           ))}
         </aside>

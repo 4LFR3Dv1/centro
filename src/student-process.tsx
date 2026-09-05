@@ -52,7 +52,7 @@ type ProcessView = {
 async function loadProcesses(): Promise<ProcessView[]> {
   const response = await fetch('/api/student/process', { credentials: 'same-origin' });
   const body = await response.json().catch(() => ({})) as { processes?: ProcessView[]; error?: string };
-  if (!response.ok) throw new Error(body.error || 'Não foi possível carregar seu processo.');
+  if (!response.ok) throw new Error(body.error || 'Não foi possível carregar suas etapas.');
   return body.processes ?? [];
 }
 
@@ -64,6 +64,12 @@ function actionHref(code: string): string {
   if (code.includes('LESSON') || code === 'CONTINUE_PRACTICE') return '/aluno/agenda';
   if (code.includes('PRACTICAL_EXAM')) return '/aluno/exame';
   return '/aluno/processo';
+}
+
+function actionLabel(code: string): string {
+  if (code.includes('LESSON') || code === 'CONTINUE_PRACTICE') return 'Ver minha agenda';
+  if (code.includes('PRACTICAL_EXAM')) return 'Ver meu exame';
+  return 'Ver esta etapa';
 }
 
 function stepState(process: ProcessView, code: MilestoneCode): 'DONE' | 'CURRENT' | 'UPCOMING' {
@@ -78,9 +84,9 @@ function ProcessCard({ process, compact = false }: { process: ProcessView; compa
   if (!process.modeled) {
     return (
       <section className="student-panel student-process-card">
-        <p className="student-eyebrow">PROCESSO</p>
+        <p className="student-eyebrow">MINHAS ETAPAS</p>
         <h2>{process.currentState.label}</h2>
-        <p>O Centro não inventa uma sequência para este serviço: ela só aparece quando existir um modelo institucional.</p>
+        <p>A escola ainda não oferece acompanhamento passo a passo para este tipo de matrícula. Fale com a equipe se precisar saber o que acontece em seguida.</p>
       </section>
     );
   }
@@ -89,9 +95,9 @@ function ProcessCard({ process, compact = false }: { process: ProcessView; compa
     <section className="student-process-journey" aria-labelledby={`student-process-${process.enrollment.id}`}>
       <header className="student-process-summary">
         <div>
-          <p className="student-eyebrow">SEU PROCESSO · {process.enrollment.category}</p>
+          <p className="student-eyebrow">MINHAS ETAPAS · CATEGORIA {process.enrollment.category}</p>
           <h1 id={`student-process-${process.enrollment.id}`}>{process.currentState.label}</h1>
-          <p>{process.enrollment.status === 'ACTIVE' ? 'Seu processo está em andamento.' : 'Seu processo está pausado pela escola.'}</p>
+          <p>{process.enrollment.status === 'ACTIVE' ? 'Sua habilitação está em andamento.' : 'Sua matrícula está pausada. A escola precisa reativá-la para continuar.'}</p>
         </div>
         <div className="student-process-score"><strong>{process.currentState.percent}%</strong><span>concluído</span></div>
       </header>
@@ -100,11 +106,11 @@ function ProcessCard({ process, compact = false }: { process: ProcessView; compa
 
       {process.nextAction ? (
         <section className="student-process-action">
-          <div><span>PRÓXIMA AÇÃO</span><strong>{process.nextAction.title}</strong><p>{process.nextAction.detail}</p></div>
-          <button className="student-primary" type="button" onClick={() => navigate(actionHref(process.nextAction!.code))}>Abrir</button>
+          <div><span>AGORA</span><strong>{process.nextAction.title}</strong><p>{process.nextAction.detail}</p></div>
+          <button className="student-primary" type="button" onClick={() => navigate(actionHref(process.nextAction!.code))}>{actionLabel(process.nextAction.code)}</button>
         </section>
       ) : (
-        <section className="student-process-action is-complete"><div><span>PROCESSO</span><strong>Concluído.</strong><p>Todos os marcos deste modelo foram confirmados.</p></div></section>
+        <section className="student-process-action is-complete"><div><span>CONCLUÍDO</span><strong>Não há nenhuma etapa pendente.</strong><p>Todas as etapas acompanhadas pelo Centro foram concluídas.</p></div></section>
       )}
 
       {process.currentState.code === 'PRACTICE_DONE' && (
@@ -112,7 +118,7 @@ function ProcessCard({ process, compact = false }: { process: ProcessView; compa
           <div><span>Aulas concluídas</span><strong>{process.progress.completedLessons}</strong></div>
           <div><span>Tempo registrado</span><strong>{process.progress.completedMinutes} min</strong></div>
           <div><span>Faltas</span><strong>{process.progress.noShows}</strong></div>
-          <div><span>Próxima aula</span><strong>{process.progress.nextLessonAt ? dateTime(process.progress.nextLessonAt) : 'Ainda não agendada'}</strong></div>
+          <div><span>Próxima aula</span><strong>{process.progress.nextLessonAt ? dateTime(process.progress.nextLessonAt) : 'Ainda não marcada'}</strong></div>
         </section>
       )}
 
@@ -126,9 +132,9 @@ function ProcessCard({ process, compact = false }: { process: ProcessView; compa
                 <div className="student-process-step-body">
                   <div><span>{state === 'DONE' ? 'CONCLUÍDO' : state === 'CURRENT' ? 'AGORA' : 'DEPOIS'}</span><strong>{milestone.label}</strong></div>
                   <p>{milestone.description}</p>
-                  <small>{milestone.achievedAt ? `Concluído em ${dateTime(milestone.achievedAt)}` : milestone.scheduledFor ? `Agendado para ${dateTime(milestone.scheduledFor)}` : state === 'CURRENT' ? 'Etapa atual derivada' : 'Ainda não iniciada'}</small>
-                  {state === 'CURRENT' && milestone.code === 'PRACTICE_DONE' && <button type="button" onClick={() => navigate('/aluno/agenda')}>Abrir agenda →</button>}
-                  {state === 'CURRENT' && milestone.code === 'PRACTICAL_EXAM_PASSED' && <button type="button" onClick={() => navigate('/aluno/exame')}>Abrir exame →</button>}
+                  <small>{milestone.achievedAt ? `Concluído em ${dateTime(milestone.achievedAt)}` : milestone.scheduledFor ? `Marcado para ${dateTime(milestone.scheduledFor)}` : state === 'CURRENT' ? 'Esta é sua etapa atual' : 'Ainda não começou'}</small>
+                  {state === 'CURRENT' && milestone.code === 'PRACTICE_DONE' && <button type="button" onClick={() => navigate('/aluno/agenda')}>Ver minha agenda →</button>}
+                  {state === 'CURRENT' && milestone.code === 'PRACTICAL_EXAM_PASSED' && <button type="button" onClick={() => navigate('/aluno/exame')}>Ver meu exame →</button>}
                 </div>
               </li>
             );
@@ -148,14 +154,14 @@ export function StudentProcess({ compact = false }: { compact?: boolean }) {
     let alive = true;
     void loadProcesses()
       .then((value) => { if (alive) setProcesses(value); })
-      .catch((candidate) => { if (alive) setError(candidate instanceof Error ? candidate.message : 'Não foi possível carregar seu processo.'); })
+      .catch((candidate) => { if (alive) setError(candidate instanceof Error ? candidate.message : 'Não foi possível carregar suas etapas.'); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, []);
 
-  if (loading) return <section className="student-panel"><p>Derivando seu processo…</p></section>;
+  if (loading) return <section className="student-panel"><p aria-live="polite">Carregando suas etapas…</p></section>;
   if (error) return <section className="student-panel"><p className="student-error" role="alert">{error}</p></section>;
-  if (processes.length === 0) return <section className="student-panel"><p className="student-eyebrow">PROCESSO</p><h2>Nenhuma matrícula operacional.</h2><p>O processo aparece quando existe uma matrícula ativa ou pausada vinculada ao seu acesso.</p></section>;
+  if (processes.length === 0) return <section className="student-panel"><p className="student-eyebrow">MINHAS ETAPAS</p><h2>Nenhuma matrícula em andamento.</h2><p>Quando você tiver uma matrícula ativa ou pausada, suas etapas aparecerão aqui.</p></section>;
 
   return <div className="student-process-stack">{processes.map((process) => <ProcessCard key={process.enrollment.id} process={process} compact={compact} />)}</div>;
 }

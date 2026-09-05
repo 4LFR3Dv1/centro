@@ -42,23 +42,23 @@ function dateTime(value: string): string {
 function resultLabel(value: StudentExam['officialResult']): string {
   if (value === 'APPROVED') return 'Aprovado';
   if (value === 'FAILED') return 'Reprovado';
-  return 'Aguardando';
+  return 'Aguardando confirmação';
 }
 
 function observedLabel(value: StudentExam['observedResult']): string {
-  if (value === 'APPROVED') return 'Aprovado informado';
-  if (value === 'FAILED') return 'Reprovado informado';
-  return 'Sem resultado informado';
+  if (value === 'APPROVED') return 'Aprovação informada pela escola';
+  if (value === 'FAILED') return 'Reprovação informada pela escola';
+  return 'Ainda não informado';
 }
 
 function ExamCard({ exam, onOpen }: { exam: StudentExam; onOpen: () => void }) {
   const future = new Date(exam.officialScheduledFor).getTime() >= Date.now();
   return (
-    <button className="student-exam-card" type="button" onClick={onOpen}>
+    <button className="student-exam-card" type="button" onClick={onOpen} aria-label={`Ver exame de ${dateTime(exam.officialScheduledFor)}`}>
       <span className="student-exam-date"><strong>{dateTime(exam.officialScheduledFor)}</strong><small>{exam.locationLabel}</small></span>
       <span><strong>Categoria {exam.category}</strong><small>{exam.instructorName} · {exam.vehicleLabel}</small></span>
       <span className={`student-exam-state is-${exam.officialResult.toLowerCase()}`}>{exam.officialResult === 'PENDING' ? (future ? 'AGENDADO' : 'AGUARDANDO RESULTADO') : resultLabel(exam.officialResult).toUpperCase()}</span>
-      <span>→</span>
+      <span aria-hidden="true">→</span>
     </button>
   );
 }
@@ -77,17 +77,17 @@ export function StudentExams() {
   }, []);
 
   if (error) return <section className="student-panel"><p className="student-error" role="alert">{error}</p></section>;
-  if (!exams) return <section className="student-panel"><p>Carregando seus exames…</p></section>;
+  if (!exams) return <section className="student-panel"><p aria-live="polite">Carregando seus exames…</p></section>;
 
   const upcoming = exams.filter((exam) => exam.officialResult === 'PENDING' && new Date(exam.officialScheduledFor).getTime() >= Date.now());
   const history = exams.filter((exam) => !upcoming.includes(exam));
 
   return (
     <div className="student-exams-page">
-      <section className="student-exams-hero"><p className="student-eyebrow">EXAME PRÁTICO</p><h1>Seu exame.</h1><p>Horário, local, veículo e resultado vêm da mesma lista operacional usada pela escola.</p></section>
+      <section className="student-exams-hero"><p className="student-eyebrow">EXAME PRÁTICO</p><h1>Seus exames.</h1><p>Aqui você encontra data, horário, local, veículo e resultado assim que essas informações forem confirmadas pela escola.</p></section>
       <section className="student-panel">
-        <div className="student-panel-head"><div><p className="student-eyebrow">PRÓXIMOS</p><h2>Agendamentos</h2></div><span>{upcoming.length}</span></div>
-        <div className="student-exam-list">{upcoming.length ? upcoming.map((exam) => <ExamCard key={exam.candidateId} exam={exam} onOpen={() => navigate(`/aluno/exame/${exam.candidateId}`)} />) : <div className="student-exam-empty"><strong>Nenhum exame futuro.</strong><span>Quando sua matrícula entrar em uma lista de exame, ela aparecerá aqui.</span></div>}</div>
+        <div className="student-panel-head"><div><p className="student-eyebrow">PRÓXIMOS</p><h2>Exames marcados</h2></div><span>{upcoming.length}</span></div>
+        <div className="student-exam-list">{upcoming.length ? upcoming.map((exam) => <ExamCard key={exam.candidateId} exam={exam} onOpen={() => navigate(`/aluno/exame/${exam.candidateId}`)} />) : <div className="student-exam-empty"><strong>Nenhum exame marcado.</strong><span>Quando a escola marcar seu exame, ele aparecerá aqui.</span></div>}</div>
       </section>
       {history.length > 0 && <section className="student-panel"><div className="student-panel-head"><div><p className="student-eyebrow">HISTÓRICO</p><h2>Exames anteriores</h2></div><span>{history.length}</span></div><div className="student-exam-list">{history.map((exam) => <ExamCard key={exam.candidateId} exam={exam} onOpen={() => navigate(`/aluno/exame/${exam.candidateId}`)} />)}</div></section>}
     </div>
@@ -107,8 +107,8 @@ export function StudentExamDetail({ candidateId }: { candidateId: string }) {
     return () => { alive = false; };
   }, [candidateId]);
 
-  if (error) return <section className="student-panel"><p className="student-error" role="alert">{error}</p><button className="student-secondary" type="button" onClick={() => navigate('/aluno/exame')}>Voltar</button></section>;
-  if (!exam) return <section className="student-panel"><p>Abrindo exame…</p></section>;
+  if (error) return <section className="student-panel"><p className="student-error" role="alert">{error}</p><button className="student-secondary" type="button" onClick={() => navigate('/aluno/exame')}>Voltar para meus exames</button></section>;
+  if (!exam) return <section className="student-panel"><p aria-live="polite">Abrindo exame…</p></section>;
 
   return (
     <div className="student-exam-detail">
@@ -122,15 +122,15 @@ export function StudentExamDetail({ candidateId }: { candidateId: string }) {
       <section className="student-exam-facts">
         <div><span>Instrutor responsável</span><strong>{exam.instructorName}</strong></div>
         <div><span>Veículo</span><strong>{exam.vehicleLabel} · {exam.vehiclePlate}</strong></div>
-        <div><span>Agendamento</span><strong>{exam.bookingSource === 'SELF' ? 'Feito pelo aluno' : 'Feito pela escola'}</strong></div>
+        <div><span>Agendamento</span><strong>{exam.bookingSource === 'SELF' ? 'Feito por você' : 'Feito pela escola'}</strong></div>
         <div><span>Protocolo</span><strong>{exam.protocol || 'Não informado'}</strong></div>
-        <div><span>LADV</span><strong>{exam.ladvStatus === 'READY' ? 'Pronta' : 'A confirmar'}</strong></div>
-        <div><span>Taxa</span><strong>{exam.feeStatus === 'PAID' ? 'Paga' : exam.feeStatus === 'PENDING' ? 'Pendente' : 'A confirmar'}</strong></div>
+        <div><span>LADV</span><strong>{exam.ladvStatus === 'READY' ? 'Pronta' : 'Confirme com a escola'}</strong></div>
+        <div><span>Taxa</span><strong>{exam.feeStatus === 'PAID' ? 'Paga' : exam.feeStatus === 'PENDING' ? 'Pendente' : 'Confirme com a escola'}</strong></div>
       </section>
 
       <section className="student-exam-results">
-        <div><span>RESULTADO INFORMADO</span><strong>{observedLabel(exam.observedResult)}</strong><p>É uma observação operacional até existir reconciliação oficial.</p></div>
-        <div className={exam.officialResult === 'PENDING' ? '' : `is-${exam.officialResult.toLowerCase()}`}><span>RESULTADO OFICIAL</span><strong>{resultLabel(exam.officialResult)}</strong><p>{exam.resultReconciledAt ? `Confirmado em ${dateTime(exam.resultReconciledAt)}` : 'Aguardando confirmação institucional.'}</p></div>
+        <div><span>INFORMAÇÃO DA ESCOLA</span><strong>{observedLabel(exam.observedResult)}</strong><p>Esta informação pode aparecer antes da confirmação oficial.</p></div>
+        <div className={exam.officialResult === 'PENDING' ? '' : `is-${exam.officialResult.toLowerCase()}`}><span>RESULTADO OFICIAL</span><strong>{resultLabel(exam.officialResult)}</strong><p>{exam.resultReconciledAt ? `Confirmado em ${dateTime(exam.resultReconciledAt)}` : 'Você não precisa fazer nada enquanto a confirmação estiver pendente.'}</p></div>
       </section>
 
       <section className="student-exam-checklist">
