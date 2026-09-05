@@ -84,6 +84,15 @@ async function requireStudent(pool: pg.Pool, req: IncomingMessage) {
   return session;
 }
 
+function assertMilestoneHttpAuthority(code: string): void {
+  if (code === 'THEORY_PASSED') {
+    throw new HttpError(
+      409,
+      'A prova teórica é gerenciada pelo domínio THEORY-EXAM-001. Use uma tentativa de prova e reconcilie o resultado oficial.',
+    );
+  }
+}
+
 export type ProcessApiOptions = {
   publicOrigin?: string;
 };
@@ -133,6 +142,7 @@ export function createProcessApiHandler(pool: pg.Pool, options: ProcessApiOption
         if (match) {
           const session = await requireStaff(pool, req);
           const [, enrollmentId, code, action] = match;
+          assertMilestoneHttpAuthority(code);
           const body = await readJson<{ scheduledFor?: string; note?: string | null }>(req);
 
           if (action === 'achieve') {
