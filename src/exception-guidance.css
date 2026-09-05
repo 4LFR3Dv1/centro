@@ -1,0 +1,42 @@
+.exception-guidance {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+
+.exception-guidance-kind {
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+
+.exception-guidance > strong {
+  font-size: 1rem;
+}
+
+.exception-guidance p,
+.exception-guidance small {
+  margin: 0;
+}
+
+.exception-guidance footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding-top: 2px;
+  font-size: 0.82rem;
+}
+
+.exception-guidance.is-compact {
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+@media (forced-colors: active) {
+  .exception-guidance {
+    border: 1px solid CanvasText;
+  }
+}
