@@ -43,6 +43,9 @@ jobs:
       - name: Validate operational friction budget
         run: npm run ux:friction:check
 
+      - name: Validate exception-first operations
+        run: npm run ux:exceptions:check
+
       - name: Apply operational migrations twice
         run: |
           npm run db:migrate

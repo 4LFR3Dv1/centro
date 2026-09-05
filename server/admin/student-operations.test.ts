@@ -8,6 +8,7 @@ import {
   createScheduleInstructor,
   createScheduleLesson,
   createScheduleVehicle,
+  resolveLesson,
 } from '../schedule/admin.js';
 import { bootstrapFirstAdmin } from '../staff/auth.js';
 import { getCurrentStudentAccessQr, resolveStudentAccessQr } from '../student/access.js';
@@ -145,7 +146,7 @@ test('PROCESS-OPS-002 resolves QR identity into executable Lesson commands and r
     if (startsAt.getUTCMinutes() === 0) startsAt.setUTCHours(startsAt.getUTCHours() + 1);
     const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
 
-    await createScheduleLesson(pool, {
+    const firstLesson = await createScheduleLesson(pool, {
       enrollmentId: receipt.enrollmentId,
       studentId: receipt.studentId,
       instructorId: instructor.id,
@@ -165,6 +166,34 @@ test('PROCESS-OPS-002 resolves QR identity into executable Lesson commands and r
     assert.equal(after.primaryAction.primaryCommand?.kind, 'OPEN_URL');
     assert.equal(after.primaryAction.href, '/admin/agenda');
     assert.ok(after.primaryAction.secondaryCommands.some((command) => command.kind === 'ACHIEVE_MILESTONE' && command.milestoneCode === 'PRACTICE_DONE'));
+
+    await resolveLesson(pool, firstLesson.id, {
+      status: 'NO_SHOW',
+      actorStaffUserId: bootstrap.staffUserId,
+    });
+    const afterNoShow = await resolveStudentOperationalContext(pool, resolvedQr.studentId);
+    assert.equal(afterNoShow.primaryAction?.code, 'LESSON_NO_SHOW_RECOVERY');
+    assert.equal(afterNoShow.primaryAction?.primaryCommand?.kind, 'SCHEDULE_LESSON');
+    assert.equal(afterNoShow.primaryAction?.primaryCommand?.label, 'Agendar nova aula');
+
+    const secondStartsAt = new Date(startsAt.getTime() + 24 * 60 * 60 * 1000);
+    const secondLesson = await createScheduleLesson(pool, {
+      enrollmentId: receipt.enrollmentId,
+      studentId: receipt.studentId,
+      instructorId: instructor.id,
+      vehicleId: vehicle.id,
+      category: 'B',
+      startsAt: secondStartsAt,
+      endsAt: new Date(secondStartsAt.getTime() + 60 * 60 * 1000),
+      actorStaffUserId: bootstrap.staffUserId,
+    });
+    await resolveLesson(pool, secondLesson.id, {
+      status: 'CANCELLED',
+      actorStaffUserId: bootstrap.staffUserId,
+    });
+    const afterCancellation = await resolveStudentOperationalContext(pool, resolvedQr.studentId);
+    assert.equal(afterCancellation.primaryAction?.code, 'LESSON_CANCELLED_RECOVERY');
+    assert.equal(afterCancellation.primaryAction?.primaryCommand?.kind, 'SCHEDULE_LESSON');
   } finally {
     await cleanup(pool);
     await pool.end();
@@ -247,9 +276,25 @@ test('PROCESS-OPS-002 derives theory commands from the THEORY-EXAM-001 attempt l
       result: 'FAILED',
       actorStaffUserId: bootstrap.staffUserId,
     });
-    const retry = await resolveStudentOperationalContext(pool, receipt.studentId);
-    assert.equal(retry.primaryAction?.code, 'SCHEDULE_THEORY_EXAM');
-    assert.equal(retry.primaryAction?.primaryCommand?.kind, 'SCHEDULE_THEORY_EXAM');
+    const retryAfterFailure = await resolveStudentOperationalContext(pool, receipt.studentId);
+    assert.equal(retryAfterFailure.primaryAction?.code, 'THEORY_EXAM_FAILED_RECOVERY');
+    assert.equal(retryAfterFailure.primaryAction?.primaryCommand?.kind, 'SCHEDULE_THEORY_EXAM');
+    assert.equal(retryAfterFailure.primaryAction?.primaryCommand?.label, 'Agendar nova prova');
+
+    const absentAttempt = await createTheoryExamAttempt(pool, {
+      enrollmentId: receipt.enrollmentId,
+      scheduledFor: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+      bookingSource: 'SCHOOL',
+      actorStaffUserId: bootstrap.staffUserId,
+    });
+    await recordTheoryExamAttendance(pool, {
+      attemptId: absentAttempt.id,
+      attendanceStatus: 'ABSENT',
+      actorStaffUserId: bootstrap.staffUserId,
+    });
+    const retryAfterAbsence = await resolveStudentOperationalContext(pool, receipt.studentId);
+    assert.equal(retryAfterAbsence.primaryAction?.code, 'THEORY_EXAM_ABSENCE_RECOVERY');
+    assert.equal(retryAfterAbsence.primaryAction?.primaryCommand?.kind, 'SCHEDULE_THEORY_EXAM');
   } finally {
     await cleanup(pool);
     await pool.end();

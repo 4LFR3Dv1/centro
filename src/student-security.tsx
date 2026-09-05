@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { ExceptionGuidanceCard, type ExceptionGuidance } from './exception-guidance';
 import './student-security.css';
 
 type SecuritySnapshot = {
@@ -27,6 +28,30 @@ async function securityApi<T>(path: string, init?: RequestInit): Promise<T> {
 
 function dateTime(value: string): string {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+}
+
+function accessState(snapshot: SecuritySnapshot | null): ExceptionGuidance | null {
+  if (!snapshot) return null;
+  if (snapshot.disabledAt) {
+    return {
+      kind: 'ACCESS_BLOCKED',
+      title: 'Seu acesso foi desativado pela escola.',
+      detail: 'Você não conseguirá iniciar novas entradas enquanto o acesso estiver desativado.',
+      consequence: 'Sua matrícula e seu histórico não são apagados por causa disso.',
+      actor: 'STAFF',
+      actionHint: 'Entre em contato com a escola para solicitar a liberação.',
+    };
+  }
+  if (snapshot.lockedUntil && new Date(snapshot.lockedUntil).getTime() > Date.now()) {
+    return {
+      kind: 'ACCESS_BLOCKED',
+      title: 'Novas tentativas estão temporariamente bloqueadas.',
+      detail: `Você poderá tentar entrar novamente depois de ${dateTime(snapshot.lockedUntil)}.`,
+      consequence: 'Não é necessário trocar sua senha apenas por causa deste bloqueio temporário.',
+      actor: 'NONE',
+    };
+  }
+  return null;
 }
 
 export function StudentSecurity({ publicId }: { publicId: string }) {
@@ -74,6 +99,8 @@ export function StudentSecurity({ publicId }: { publicId: string }) {
     } finally { setBusy(false); }
   }
 
+  const exception = accessState(snapshot);
+
   return (
     <div className="student-security-page">
       <section className="student-security-hero"><p className="student-eyebrow">MINHA CONTA</p><h1>Seu acesso.</h1><p>Use seu ID Centro e sua senha para entrar. CPF e documento não são usados no login.</p></section>
@@ -82,6 +109,8 @@ export function StudentSecurity({ publicId }: { publicId: string }) {
         <div><span>DISPOSITIVOS CONECTADOS</span><strong>{snapshot?.activeSessions ?? '—'}</strong></div>
         <div><span>ÚLTIMA TROCA DE SENHA</span><strong>{snapshot ? dateTime(snapshot.credentialUpdatedAt) : '—'}</strong></div>
       </section>
+
+      {exception && <ExceptionGuidanceCard guidance={exception} />}
 
       <section className="student-panel student-security-form-card">
         <div><p className="student-eyebrow">SENHA</p><h2>Trocar minha senha</h2><p>Depois da troca, este dispositivo continua conectado e os outros são desconectados.</p></div>

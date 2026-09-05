@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { ExceptionGuidanceCard, type ExceptionGuidance } from './exception-guidance';
 import './admin-exams.css';
 
 type Category = 'A' | 'B' | 'D';
@@ -145,6 +146,51 @@ function serviceLabel(value: string): string {
   if (value === 'CATEGORY_CHANGE') return 'Mudança de categoria';
   if (value === 'LICENSED_TRAINING') return 'Treinamento';
   return value;
+}
+
+function candidateExceptionGuidance(candidate: Candidate): ExceptionGuidance | null {
+  if (candidate.attendanceStatus === 'ABSENT') {
+    return {
+      kind: 'ABSENCE',
+      title: 'Ausência registrada nesta tentativa.',
+      detail: 'Nenhum resultado deve ser informado para uma prova em que o aluno não compareceu.',
+      consequence: 'Depois que a lista for encerrada, o próximo passo do aluno poderá indicar uma nova tentativa.',
+      actor: 'NONE',
+    };
+  }
+
+  if (candidate.observedResult !== 'PENDING' && candidate.officialResult === 'PENDING') {
+    return {
+      kind: 'MISSING_DEPENDENCY',
+      title: 'Falta confirmar o resultado oficial.',
+      detail: `A escola registrou o resultado como ${resultLabel[candidate.observedResult].toLowerCase()}. O resultado oficial ainda não foi informado.`,
+      consequence: 'O processo do aluno não usa o registro da escola como aprovação oficial.',
+      actor: 'STAFF',
+      actionHint: 'Quando tiver a confirmação oficial, registre-a nos botões abaixo.',
+    };
+  }
+
+  if (candidate.observedResult !== 'PENDING' && candidate.officialResult !== 'PENDING' && candidate.observedResult !== candidate.officialResult) {
+    return {
+      kind: 'DIVERGENCE',
+      title: 'O resultado oficial é diferente do registro da escola.',
+      detail: `Registro da escola: ${resultLabel[candidate.observedResult]}. Resultado oficial: ${resultLabel[candidate.officialResult]}.`,
+      consequence: 'O resultado oficial é o que orienta o processo. O registro anterior permanece visível como histórico.',
+      actor: 'NONE',
+    };
+  }
+
+  if (candidate.officialResult === 'FAILED') {
+    return {
+      kind: 'REJECTION',
+      title: 'Reprovação oficial registrada.',
+      detail: 'Esta tentativa terminou como reprovada no resultado oficial.',
+      consequence: 'Quando uma nova tentativa puder ser marcada, o próximo passo do aluno será atualizado.',
+      actor: 'NONE',
+    };
+  }
+
+  return null;
 }
 
 function emptySessionWindow(): { startsAt: string; endsAt: string } {
@@ -339,7 +385,7 @@ export function AdminExams() {
         <div>
           <p className="admin-eyebrow">EXAMES PRÁTICOS</p>
           <h1 id="exams-title">Listas de exame</h1>
-          <p>Organize alunos, horário oficial, responsável, veículo, presença e reconciliação do resultado.</p>
+          <p>Organize alunos, horário oficial, responsável, veículo, presença, resultado informado e resultado oficial.</p>
         </div>
         <div className="exams-head-actions">
           <button className="admin-secondary" type="button" onClick={() => window.print()}>Imprimir</button>
@@ -475,7 +521,9 @@ export function AdminExams() {
                 <div className="exams-empty-panel compact"><strong>Lista vazia</strong><span>Inclua os alunos elegíveis acima.</span></div>
               ) : (
                 <div className="exams-roster">
-                  {detail.candidates.map((candidate, index) => (
+                  {detail.candidates.map((candidate, index) => {
+                    const exception = candidateExceptionGuidance(candidate);
+                    return (
                     <article key={candidate.id} className="exams-candidate">
                       <div className="exams-order">{String(index + 1).padStart(2, '0')}</div>
                       <div className="exams-candidate-main">
@@ -505,15 +553,17 @@ export function AdminExams() {
 
                             <div className="exams-state-row">
                               <span className={`exam-chip attendance-${candidate.attendanceStatus.toLowerCase()}`}>{attendanceLabel[candidate.attendanceStatus]}</span>
-                              <span className={`exam-chip result-${candidate.observedResult.toLowerCase()}`}>Observado: {resultLabel[candidate.observedResult]}</span>
+                              <span className={`exam-chip result-${candidate.observedResult.toLowerCase()}`}>Informado: {resultLabel[candidate.observedResult]}</span>
                               <span className={`exam-chip result-${candidate.officialResult.toLowerCase()}`}>Oficial: {resultLabel[candidate.officialResult]}</span>
                             </div>
+
+                            {exception && <ExceptionGuidanceCard compact guidance={exception} />}
 
                             {(detail.status === 'PLANNED' || detail.status === 'CONFIRMED') && candidate.officialResult === 'PENDING' && (
                               <div className="exams-candidate-actions">
                                 <button type="button" disabled={busy} onClick={() => beginCandidateEdit(candidate)}>Editar dados</button>
                                 {candidate.attendanceStatus === 'PENDING' && <><button type="button" disabled={busy} onClick={() => void mutate(`/api/admin/exams/${detail.id}/candidates/${candidate.id}/attendance`, { attendanceStatus: 'PRESENT' })}>Presente</button><button type="button" disabled={busy} onClick={() => void mutate(`/api/admin/exams/${detail.id}/candidates/${candidate.id}/attendance`, { attendanceStatus: 'ABSENT' })}>Falta</button></>}
-                                {candidate.attendanceStatus === 'PRESENT' && <><button type="button" disabled={busy} onClick={() => void mutate(`/api/admin/exams/${detail.id}/candidates/${candidate.id}/observed-result`, { result: 'APPROVED' })}>Observado: aprovado</button><button type="button" disabled={busy} onClick={() => void mutate(`/api/admin/exams/${detail.id}/candidates/${candidate.id}/observed-result`, { result: 'FAILED' })}>Observado: reprovado</button></>}
+                                {candidate.attendanceStatus === 'PRESENT' && <><button type="button" disabled={busy} onClick={() => void mutate(`/api/admin/exams/${detail.id}/candidates/${candidate.id}/observed-result`, { result: 'APPROVED' })}>Informado: aprovado</button><button type="button" disabled={busy} onClick={() => void mutate(`/api/admin/exams/${detail.id}/candidates/${candidate.id}/observed-result`, { result: 'FAILED' })}>Informado: reprovado</button></>}
                                 {candidate.observedResult !== 'PENDING' && <><button className="is-official" type="button" disabled={busy} onClick={() => void mutate(`/api/admin/exams/${detail.id}/candidates/${candidate.id}/official-result`, { result: 'APPROVED' })}>Oficial: aprovado</button><button className="is-official" type="button" disabled={busy} onClick={() => void mutate(`/api/admin/exams/${detail.id}/candidates/${candidate.id}/official-result`, { result: 'FAILED' })}>Oficial: reprovado</button></>}
                                 {candidate.attendanceStatus === 'PENDING' && candidate.observedResult === 'PENDING' && <button className="is-danger" type="button" disabled={busy} onClick={() => void mutate(`/api/admin/exams/${detail.id}/candidates/${candidate.id}`, undefined, 'DELETE')}>Remover</button>}
                               </div>
@@ -522,7 +572,8 @@ export function AdminExams() {
                         )}
                       </div>
                     </article>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </>
