@@ -86,7 +86,8 @@
 }
 
 .admin-form input,
-.admin-form textarea {
+.admin-form textarea,
+.admin-form select {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--admin-line);
@@ -99,13 +100,19 @@
   border-radius: 0;
 }
 
+.admin-form select {
+  cursor: pointer;
+}
+
 .admin-form textarea {
   resize: vertical;
 }
 
 .admin-form input:focus-visible,
 .admin-form textarea:focus-visible,
+.admin-form select:focus-visible,
 .admin-choice-grid button:focus-visible,
+.admin-intake-grid button:focus-visible,
 .admin-primary:focus-visible,
 .admin-secondary:focus-visible,
 .admin-rail button:focus-visible,
@@ -273,6 +280,10 @@
   padding: 30px;
 }
 
+.admin-enrollment-card {
+  max-width: 1080px;
+}
+
 .admin-section-head {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(240px, .75fr);
@@ -299,20 +310,38 @@
   line-height: 1.6;
 }
 
+.admin-enrollment-form {
+  gap: 26px;
+}
+
 .admin-enrollment-form fieldset {
   margin: 0;
-  padding: 0 0 24px;
+  padding: 0 0 30px;
   border: 0;
   border-bottom: 1px solid var(--admin-line);
 }
 
 .admin-enrollment-form legend {
-  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
   padding: 0;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: .12em;
   text-transform: uppercase;
+}
+
+.admin-enrollment-form legend span {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--admin-line);
+  color: var(--admin-blue-dark);
+  font-size: 9px;
+  letter-spacing: 0;
 }
 
 .admin-field-grid {
@@ -321,8 +350,51 @@
   gap: 15px;
 }
 
+.admin-field-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .admin-field-wide {
   grid-column: 1 / -1;
+}
+
+.admin-subsection {
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--admin-line);
+}
+
+.admin-subsection-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 14px;
+}
+
+.admin-subsection-title strong,
+.admin-form-block-label {
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.admin-subsection-title span,
+.admin-fieldset-note {
+  color: var(--admin-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.admin-form-block {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.admin-form-block:last-child {
+  margin-bottom: 0;
 }
 
 .admin-choice-grid {
@@ -349,6 +421,52 @@
   color: var(--admin-blue-dark);
 }
 
+.admin-intake-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-intake-grid button {
+  min-height: 118px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid var(--admin-line);
+  background: #fff;
+  color: var(--admin-ink);
+  padding: 14px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.admin-intake-grid button strong {
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.admin-intake-grid button span {
+  color: var(--admin-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.admin-intake-grid button.is-selected {
+  border-color: var(--admin-blue);
+  background: #f2f5ff;
+}
+
+.admin-intake-grid button.is-selected strong {
+  color: var(--admin-blue-dark);
+}
+
+.admin-fieldset-note {
+  margin: -5px 0 16px;
+  max-width: 680px;
+}
+
 .admin-submit-row {
   display: flex;
   align-items: center;
@@ -357,7 +475,7 @@
 }
 
 .admin-submit-row > span {
-  max-width: 430px;
+  max-width: 520px;
   font-size: 10px;
   line-height: 1.5;
   color: var(--admin-muted);
@@ -429,6 +547,12 @@
   margin-top: 24px;
 }
 
+@media (max-width: 1050px) {
+  .admin-intake-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 800px) {
   .admin-topbar {
     padding: 0 18px;
@@ -464,8 +588,15 @@
 
   .admin-section-head,
   .admin-field-grid,
+  .admin-field-grid-three,
   .admin-access-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-subsection-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
   }
 
   .admin-access-grid > div + div {
@@ -473,7 +604,8 @@
     border-top: 1px solid var(--admin-line);
   }
 
-  .admin-choice-grid {
+  .admin-choice-grid,
+  .admin-intake-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -481,6 +613,17 @@
   .admin-receipt-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-choice-grid,
+  .admin-intake-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-intake-grid button {
+    min-height: auto;
   }
 }
 
