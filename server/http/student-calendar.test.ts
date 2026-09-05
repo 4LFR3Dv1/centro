@@ -11,6 +11,7 @@ import {
   resolveLesson,
 } from '../schedule/admin.js';
 import { bootstrapFirstAdmin } from '../staff/auth.js';
+import { activateStudentAccessQr } from '../student/access.js';
 import { createStudentApiHandler } from './student-api.js';
 
 const ORIGIN = 'https://centro.test';
@@ -18,11 +19,6 @@ const ADMIN_USER = 'student-calendar-admin-test';
 const ADMIN_PASSWORD = `Calendar-${randomUUID()}-Admin`;
 const DOCUMENT_ONE = '6'.repeat(11);
 const DOCUMENT_TWO = '5'.repeat(11);
-
-function cookieValue(setCookie: string | null): string {
-  assert.ok(setCookie, 'login must return Set-Cookie');
-  return setCookie.split(';', 1)[0];
-}
 
 async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<void> {
   const staff = await pool.query<{ id: string }>('SELECT id FROM staff_users WHERE lower(username) = lower($1)', [ADMIN_USER]);
@@ -40,7 +36,7 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<voi
   }
 
   for (const studentId of studentIds) {
-    await pool.query('DELETE FROM audit_events WHERE actor_student_id = $1 OR entity_id = $1 OR entity_id IN (SELECT id FROM enrollments WHERE student_id = $1)', [studentId]);
+    await pool.query('DELETE FROM audit_events WHERE actor_student_id = $1 OR entity_id = $1 OR entity_id IN (SELECT id FROM enrollments WHERE student_id = $1) OR entity_id IN (SELECT id FROM student_access_qrs WHERE student_id = $1)', [studentId]);
     await pool.query('DELETE FROM sessions WHERE student_id = $1', [studentId]);
     await pool.query('DELETE FROM enrollments WHERE student_id = $1', [studentId]);
     await pool.query('DELETE FROM student_credentials WHERE student_id = $1', [studentId]);
@@ -57,19 +53,7 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<voi
   }
 }
 
-async function postJson(base: string, path: string, cookie: string | null, body: unknown): Promise<Response> {
-  return fetch(`${base}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Origin: ORIGIN,
-      ...(cookie ? { Cookie: cookie } : {}),
-    },
-    body: JSON.stringify(body),
-  });
-}
-
-test('STUDENT-002 projects only the authenticated Student lessons with future, past and detail views', async () => {
+test('STUDENT-002 projects only the QR-activated Student lessons with future, past and detail views', async () => {
   const pool = createDatabasePool();
   await cleanup(pool);
 
@@ -82,86 +66,46 @@ test('STUDENT-002 projects only the authenticated Student lessons with future, p
   assert.ok(bootstrap.staffUserId);
 
   const first = await materializeEnrollment(pool, {
-    fullName: 'Aluno Calendar Um',
-    phone: '11966666661',
-    email: 'calendar-one@example.test',
-    document: DOCUMENT_ONE,
-    birthDate: '2000-01-01',
-    serviceType: 'FIRST_LICENSE',
-    category: 'B',
-    notes: 'STUDENT-002 witness one',
-    actorStaffUserId: bootstrap.staffUserId,
+    fullName: 'Aluno Calendar Um', phone: '11966666661', email: 'calendar-one@example.test', document: DOCUMENT_ONE,
+    birthDate: '2000-01-01', serviceType: 'FIRST_LICENSE', category: 'B', notes: 'STUDENT-002 witness one', actorStaffUserId: bootstrap.staffUserId,
   });
   const second = await materializeEnrollment(pool, {
-    fullName: 'Aluno Calendar Dois',
-    phone: '11966666662',
-    email: 'calendar-two@example.test',
-    document: DOCUMENT_TWO,
-    birthDate: '2001-01-01',
-    serviceType: 'FIRST_LICENSE',
-    category: 'B',
-    notes: 'STUDENT-002 witness two',
-    actorStaffUserId: bootstrap.staffUserId,
+    fullName: 'Aluno Calendar Dois', phone: '11966666662', email: 'calendar-two@example.test', document: DOCUMENT_TWO,
+    birthDate: '2001-01-01', serviceType: 'FIRST_LICENSE', category: 'B', notes: 'STUDENT-002 witness two', actorStaffUserId: bootstrap.staffUserId,
   });
-  assert.ok(first.initialPassword);
-  assert.ok(second.initialPassword);
+  const activation = await activateStudentAccessQr(pool, {
+    publicToken: first.accessQr.publicToken,
+    password: `Calendar-${randomUUID()}-Student`,
+  });
+  const cookie = `centro_student_session=${encodeURIComponent(activation.token)}`;
 
   const instructor = await createScheduleInstructor(pool, {
-    displayName: 'Student Calendar Instructor',
-    categories: ['B'],
-    actorStaffUserId: bootstrap.staffUserId,
+    displayName: 'Student Calendar Instructor', categories: ['B'], actorStaffUserId: bootstrap.staffUserId,
   });
   const vehicle = await createScheduleVehicle(pool, {
-    plate: 'STC2B01',
-    label: 'Student Calendar Vehicle',
-    category: 'B',
-    actorStaffUserId: bootstrap.staffUserId,
+    plate: 'STC2B01', label: 'Student Calendar Vehicle', category: 'B', actorStaffUserId: bootstrap.staffUserId,
   });
 
   const future = await createScheduleLesson(pool, {
-    enrollmentId: first.enrollmentId,
-    studentId: first.studentId,
-    instructorId: instructor.id,
-    vehicleId: vehicle.id,
-    category: 'B',
-    startsAt: '2030-06-10T12:00:00.000Z',
-    endsAt: '2030-06-10T13:00:00.000Z',
-    notes: 'Levar documento original',
-    actorStaffUserId: bootstrap.staffUserId,
+    enrollmentId: first.enrollmentId, studentId: first.studentId, instructorId: instructor.id, vehicleId: vehicle.id,
+    category: 'B', startsAt: '2030-06-10T12:00:00.000Z', endsAt: '2030-06-10T13:00:00.000Z',
+    notes: 'Levar documento original', actorStaffUserId: bootstrap.staffUserId,
   });
   const past = await createScheduleLesson(pool, {
-    enrollmentId: first.enrollmentId,
-    studentId: first.studentId,
-    instructorId: instructor.id,
-    vehicleId: vehicle.id,
-    category: 'B',
-    startsAt: '2020-06-10T12:00:00.000Z',
-    endsAt: '2020-06-10T13:00:00.000Z',
-    notes: 'Aula histórica',
-    actorStaffUserId: bootstrap.staffUserId,
+    enrollmentId: first.enrollmentId, studentId: first.studentId, instructorId: instructor.id, vehicleId: vehicle.id,
+    category: 'B', startsAt: '2020-06-10T12:00:00.000Z', endsAt: '2020-06-10T13:00:00.000Z',
+    notes: 'Aula histórica', actorStaffUserId: bootstrap.staffUserId,
   });
-  await resolveLesson(pool, past.id, {
-    status: 'COMPLETED',
-    actorStaffUserId: bootstrap.staffUserId,
-  });
+  await resolveLesson(pool, past.id, { status: 'COMPLETED', actorStaffUserId: bootstrap.staffUserId });
   const otherStudentLesson = await createScheduleLesson(pool, {
-    enrollmentId: second.enrollmentId,
-    studentId: second.studentId,
-    instructorId: instructor.id,
-    vehicleId: vehicle.id,
-    category: 'B',
-    startsAt: '2030-06-10T14:00:00.000Z',
-    endsAt: '2030-06-10T15:00:00.000Z',
-    actorStaffUserId: bootstrap.staffUserId,
+    enrollmentId: second.enrollmentId, studentId: second.studentId, instructorId: instructor.id, vehicleId: vehicle.id,
+    category: 'B', startsAt: '2030-06-10T14:00:00.000Z', endsAt: '2030-06-10T15:00:00.000Z', actorStaffUserId: bootstrap.staffUserId,
   });
 
   const handler = createStudentApiHandler(pool, { publicOrigin: ORIGIN, secureCookies: false });
   const server = createServer((req, res) => {
     void handler(req, res).then((handled) => {
-      if (!handled && !res.writableEnded) {
-        res.statusCode = 404;
-        res.end();
-      }
+      if (!handled && !res.writableEnded) { res.statusCode = 404; res.end(); }
     });
   });
 
@@ -173,21 +117,6 @@ test('STUDENT-002 projects only the authenticated Student lessons with future, p
   try {
     const unauthenticated = await fetch(`${base}/api/student/calendar`);
     assert.equal(unauthenticated.status, 401);
-
-    const login = await postJson(base, '/api/student/auth/login', null, {
-      publicId: first.studentPublicId,
-      password: first.initialPassword,
-    });
-    assert.equal(login.status, 200);
-    const cookie = cookieValue(login.headers.get('set-cookie'));
-
-    const blockedBeforeRotation = await fetch(`${base}/api/student/calendar`, { headers: { Cookie: cookie } });
-    assert.equal(blockedBeforeRotation.status, 403);
-
-    const changed = await postJson(base, '/api/student/auth/change-initial-password', cookie, {
-      newPassword: `Student-${randomUUID()}-Final`,
-    });
-    assert.equal(changed.status, 200);
 
     const calendarResponse = await fetch(`${base}/api/student/calendar`, { headers: { Cookie: cookie } });
     assert.equal(calendarResponse.status, 200);
