@@ -1,44 +1,37 @@
-.admin-student-detail .admin-student-columns {
+.admin-student-workspace-grid {
+  display: grid;
   grid-template-columns: minmax(320px, 340px) minmax(0, 1fr);
-  align-items: start;
   gap: 22px;
+  align-items: start;
+  margin-top: 22px;
+  margin-bottom: 22px;
 }
 
-.admin-student-detail .admin-student-columns > .admin-access-card {
-  grid-column: 1;
-  grid-row: 1;
-  min-width: 0;
-}
-
-.admin-student-detail .admin-student-columns > #processo {
-  display: contents;
-}
-
+.admin-student-context-rail,
 .admin-student-operation-column {
-  grid-column: 2;
-  grid-row: 1 / 3;
   min-width: 0;
 }
 
-.admin-student-context-secondary {
-  grid-column: 1;
-  grid-row: 2;
-  min-width: 0;
+.admin-student-context-rail {
   display: grid;
   gap: 22px;
   align-content: start;
 }
 
-.admin-student-detail .admin-student-columns > .admin-access-card .admin-access-qr-layout {
+.admin-student-operation-column {
+  scroll-margin-top: 18px;
+}
+
+.admin-student-context-rail .admin-access-qr-layout {
   grid-template-columns: 1fr;
   align-items: start;
 }
 
-.admin-student-detail .admin-student-columns > .admin-access-card .access-qr {
+.admin-student-context-rail .admin-access-qr-layout .access-qr {
   justify-self: center;
 }
 
-.admin-student-detail .admin-student-columns > .admin-access-card .admin-access-qr-layout > div {
+.admin-student-context-rail .admin-access-qr-layout > div {
   min-width: 0;
 }
 
@@ -76,82 +69,78 @@
   overflow-wrap: anywhere;
 }
 
-.admin-student-context-secondary .admin-guide-workspace {
+.admin-student-context-rail .admin-guide-workspace {
   min-width: 0;
   gap: 0;
 }
 
-.admin-student-context-secondary .admin-guide-control {
+.admin-student-context-rail .admin-guide-control {
   min-width: 0;
 }
 
-.admin-student-context-secondary .admin-guide-enrollment select {
+.admin-student-context-rail .admin-guide-enrollment select {
   min-width: 0;
 }
 
-.admin-student-context-secondary .admin-guide-actions > button {
+.admin-student-context-rail .admin-guide-actions > button {
   flex: 1 1 122px;
 }
 
-.admin-student-context-secondary .admin-guide-history button,
-.admin-student-context-secondary .admin-guide-history small {
+.admin-student-context-rail .admin-guide-history button,
+.admin-student-context-rail .admin-guide-history small {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.admin-student-context-secondary .admin-guide-history button {
+.admin-student-context-rail .admin-guide-history button {
   overflow: hidden;
 }
 
 @media (max-width: 900px) {
-  .admin-student-detail .admin-student-columns {
+  .admin-student-workspace-grid {
     grid-template-columns: 1fr;
   }
 
   .admin-student-operation-column {
-    grid-column: 1;
     grid-row: 1;
   }
 
-  .admin-student-detail .admin-student-columns > .admin-access-card {
-    grid-column: 1;
+  .admin-student-context-rail {
     grid-row: 2;
   }
 
-  .admin-student-context-secondary {
-    grid-column: 1;
-    grid-row: 3;
-  }
-
-  .admin-student-detail .admin-student-columns > .admin-access-card .admin-access-qr-layout {
+  .admin-student-context-rail .admin-access-qr-layout {
     grid-template-columns: 190px minmax(0, 1fr);
     align-items: center;
   }
 
-  .admin-student-detail .admin-student-columns > .admin-access-card .access-qr {
+  .admin-student-context-rail .admin-access-qr-layout .access-qr {
     justify-self: start;
   }
 }
 
 @media (max-width: 680px) {
-  .admin-student-detail .admin-student-columns > .admin-access-card .admin-access-qr-layout {
+  .admin-student-context-rail .admin-access-qr-layout {
     grid-template-columns: 1fr;
     align-items: start;
   }
 
-  .admin-student-detail .admin-student-columns > .admin-access-card .access-qr {
+  .admin-student-context-rail .admin-access-qr-layout .access-qr {
     justify-self: center;
   }
 
-  .admin-student-context-secondary .admin-guide-actions > button {
+  .admin-student-context-rail .admin-guide-actions > button {
     flex-basis: 100%;
   }
 }
 
 @media print {
+  .admin-student-workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
   .admin-student-operation-column,
-  .admin-student-context-secondary {
-    grid-column: 1 / -1;
+  .admin-student-context-rail {
     grid-row: auto;
   }
 }
