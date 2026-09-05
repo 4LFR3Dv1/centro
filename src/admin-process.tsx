@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { AdminOperationalGuidance } from './admin-operational-guidance';
 import './admin-process.css';
 
 type EnrollmentRef = {
@@ -136,13 +137,13 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [operationalKey]);
 
-  async function mutate(process: ProcessView, action: 'achieve' | 'revoke', code: MilestoneCode) {
-    const key = `${process.enrollment.id}:${action}:${code}`;
+  async function revoke(process: ProcessView, code: MilestoneCode) {
+    const key = `${process.enrollment.id}:revoke:${code}`;
     setBusy(key);
     setError('');
     try {
       const result = await api<{ process: ProcessView }>(
-        `/api/admin/process/enrollments/${process.enrollment.id}/milestones/${code}/${action}`,
+        `/api/admin/process/enrollments/${process.enrollment.id}/milestones/${code}/revoke`,
         { method: 'POST', body: JSON.stringify({}) },
       );
       setProcesses((current) => current.map((item) => item.enrollment.id === process.enrollment.id ? result.process : item));
@@ -172,15 +173,6 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
       {processes.map((process) => {
         const reversible = latestReversible(process);
         const currentCode = process.currentState.code;
-        const currentOwnedElsewhere = currentCode !== 'COMPLETE'
-          && currentCode !== 'UNMODELED_SERVICE'
-          && ownerDomainMilestones.has(currentCode as MilestoneCode);
-        const canAchieve = process.modeled
-          && process.enrollment.status === 'ACTIVE'
-          && currentCode !== 'COMPLETE'
-          && currentCode !== 'UNMODELED_SERVICE'
-          && currentCode !== 'PROCESS_STARTED'
-          && !currentOwnedElsewhere;
 
         return (
           <div className="admin-detail-card admin-process-card" key={process.enrollment.id}>
@@ -197,7 +189,6 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
                   <div>
                     <small>ESTADO ATUAL DERIVADO</small>
                     <h3>{process.currentState.label}</h3>
-                    <p>{process.nextAction?.title ?? 'Nenhuma ação pendente.'}</p>
                   </div>
                   <div className="admin-process-meter" aria-label={`${process.currentState.percent}% concluído`}>
                     <span style={{ width: `${process.currentState.percent}%` }} />
@@ -234,36 +225,24 @@ export function AdminProcessPanel({ enrollments }: { enrollments: EnrollmentRef[
                   </div>
                 )}
 
-                {process.nextAction && <p className="admin-process-guidance">{process.nextAction.detail}</p>}
+                <AdminOperationalGuidance
+                  studentId={process.enrollment.studentId}
+                  enrollmentId={process.enrollment.id}
+                  embedded
+                />
 
-                {currentOwnedElsewhere && (
-                  <p className="admin-process-guidance">
-                    Esta etapa é executada pela orientação operacional acima e reconciliada pelo domínio proprietário de {currentCode === 'THEORY_PASSED' ? 'prova teórica' : 'exame prático'}. O painel de processo permanece somente como projeção institucional.
-                  </p>
-                )}
-
-                <div className="admin-process-actions">
-                  {reversible && (
+                {reversible && (
+                  <div className="admin-process-actions admin-process-correction-actions">
                     <button
                       className="admin-secondary"
                       type="button"
                       disabled={Boolean(busy)}
-                      onClick={() => void mutate(process, 'revoke', reversible.code)}
+                      onClick={() => void revoke(process, reversible.code)}
                     >
-                      Reverter “{reversible.label}”
+                      {busy ? 'Revertendo…' : `Reverter “${reversible.label}”`}
                     </button>
-                  )}
-                  {canAchieve && (
-                    <button
-                      className="admin-primary"
-                      type="button"
-                      disabled={Boolean(busy)}
-                      onClick={() => void mutate(process, 'achieve', currentCode as MilestoneCode)}
-                    >
-                      {busy.includes(':achieve:') ? 'Registrando…' : `Concluir “${process.currentState.label}”`}
-                    </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </>
             )}
           </div>
