@@ -8,6 +8,7 @@ import {
   createScheduleInstructor,
   createScheduleLesson,
   createScheduleVehicle,
+  resolveLesson,
 } from '../schedule/admin.js';
 import { bootstrapFirstAdmin } from '../staff/auth.js';
 import { getCurrentStudentAccessQr, resolveStudentAccessQr } from '../student/access.js';
@@ -145,7 +146,7 @@ test('PROCESS-OPS-002 resolves QR identity into executable Lesson commands and r
     if (startsAt.getUTCMinutes() === 0) startsAt.setUTCHours(startsAt.getUTCHours() + 1);
     const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
 
-    await createScheduleLesson(pool, {
+    const firstLesson = await createScheduleLesson(pool, {
       enrollmentId: receipt.enrollmentId,
       studentId: receipt.studentId,
       instructorId: instructor.id,
@@ -165,6 +166,34 @@ test('PROCESS-OPS-002 resolves QR identity into executable Lesson commands and r
     assert.equal(after.primaryAction.primaryCommand?.kind, 'OPEN_URL');
     assert.equal(after.primaryAction.href, '/admin/agenda');
     assert.ok(after.primaryAction.secondaryCommands.some((command) => command.kind === 'ACHIEVE_MILESTONE' && command.milestoneCode === 'PRACTICE_DONE'));
+
+    await resolveLesson(pool, firstLesson.id, {
+      status: 'NO_SHOW',
+      actorStaffUserId: bootstrap.staffUserId,
+    });
+    const afterNoShow = await resolveStudentOperationalContext(pool, resolvedQr.studentId);
+    assert.equal(afterNoShow.primaryAction?.code, 'LESSON_NO_SHOW_RECOVERY');
+    assert.equal(afterNoShow.primaryAction?.primaryCommand?.kind, 'SCHEDULE_LESSON');
+    assert.equal(afterNoShow.primaryAction?.primaryCommand?.label, 'Agendar nova aula');
+
+    const secondStartsAt = new Date(startsAt.getTime() + 24 * 60 * 60 * 1000);
+    const secondLesson = await createScheduleLesson(pool, {
+      enrollmentId: receipt.enrollmentId,
+      studentId: receipt.studentId,
+      instructorId: instructor.id,
+      vehicleId: vehicle.id,
+      category: 'B',
+      startsAt: secondStartsAt,
+      endsAt: new Date(secondStartsAt.getTime() + 60 * 60 * 1000),
+      actorStaffUserId: bootstrap.staffUserId,
+    });
+    await resolveLesson(pool, secondLesson.id, {
+      status: 'CANCELLED',
+      actorStaffUserId: bootstrap.staffUserId,
+    });
+    const afterCancellation = await resolveStudentOperationalContext(pool, resolvedQr.studentId);
+    assert.equal(afterCancellation.primaryAction?.code, 'LESSON_CANCELLED_RECOVERY');
+    assert.equal(afterCancellation.primaryAction?.primaryCommand?.kind, 'SCHEDULE_LESSON');
   } finally {
     await cleanup(pool);
     await pool.end();
