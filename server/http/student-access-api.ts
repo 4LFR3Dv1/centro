@@ -2,12 +2,16 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type pg from 'pg';
 import { resolveStaffSession } from '../staff/auth.js';
 import {
+  activateStudentAccessQr,
   getCurrentStudentAccessQr,
   resolveStudentAccessQr,
   rotateStudentAccessQr,
+  StudentAccessActivationError,
 } from '../student/access.js';
+import type { StudentSession } from '../student/auth.js';
 
 const ADMIN_COOKIE = 'centro_admin_session';
+const STUDENT_COOKIE = 'centro_student_session';
 const TOKEN_PATH = '[A-Za-z0-9_-]{20,80}';
 const UUID_PATH = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}';
 const MAX_BODY_BYTES = 16 * 1024;
@@ -53,6 +57,18 @@ function assertOrigin(req: IncomingMessage, publicOrigin?: string): void {
   if (req.headers.origin !== publicOrigin) throw new HttpError(403, 'Request origin is not allowed.');
 }
 
+function setStudentSessionCookie(res: ServerResponse, token: string, secure: boolean): void {
+  const attributes = [
+    `${STUDENT_COOKIE}=${encodeURIComponent(token)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=43200',
+  ];
+  if (secure) attributes.push('Secure');
+  res.setHeader('Set-Cookie', attributes.join('; '));
+}
+
 async function requireStaff(pool: pg.Pool, req: IncomingMessage) {
   const token = parseCookies(req)[ADMIN_COOKIE] ?? '';
   const session = await resolveStaffSession(pool, token);
@@ -73,16 +89,42 @@ function extractToken(value: string): string {
   throw new HttpError(400, 'QR code is not a Centro student access code.');
 }
 
-export type StudentAccessApiOptions = { publicOrigin?: string };
+function sessionPayload(session: StudentSession) {
+  return {
+    student: {
+      id: session.studentId,
+      publicId: session.publicId,
+      fullName: session.fullName,
+    },
+    credential: { mustChangePassword: session.mustChangePassword },
+    enrollments: session.enrollments.map((enrollment) => ({
+      id: enrollment.id,
+      serviceType: enrollment.serviceType,
+      category: enrollment.category,
+      status: enrollment.status,
+      openedAt: enrollment.openedAt.toISOString(),
+    })),
+    nextAction: null,
+    expiresAt: session.expiresAt.toISOString(),
+  };
+}
+
+export type StudentAccessApiOptions = {
+  publicOrigin?: string;
+  secureCookies?: boolean;
+};
 
 export function createStudentAccessApiHandler(pool: pg.Pool, options: StudentAccessApiOptions = {}) {
+  const secureCookies = options.secureCookies ?? process.env.NODE_ENV === 'production';
+
   return async function handle(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
     const url = new URL(req.url ?? '/', 'http://centro.local');
     const publicMatch = url.pathname.match(new RegExp(`^/api/student/access/(${TOKEN_PATH})$`));
+    const activationMatch = url.pathname.match(new RegExp(`^/api/student/access/(${TOKEN_PATH})/activate$`));
     const currentMatch = url.pathname.match(new RegExp(`^/api/admin/students/(${UUID_PATH})/access-qr$`));
     const rotateMatch = url.pathname.match(new RegExp(`^/api/admin/students/(${UUID_PATH})/access-qr/rotate$`));
     const lookup = url.pathname === '/api/admin/student-access/lookup';
-    if (!publicMatch && !currentMatch && !rotateMatch && !lookup) return false;
+    if (!publicMatch && !activationMatch && !currentMatch && !rotateMatch && !lookup) return false;
 
     try {
       if (req.method === 'POST') assertOrigin(req, options.publicOrigin);
@@ -93,7 +135,22 @@ export function createStudentAccessApiHandler(pool: pg.Pool, options: StudentAcc
         if (resolved.revokedAt || resolved.studentStatus !== 'ACTIVE') {
           throw new HttpError(410, 'Este QR de acesso foi substituído. Use o QR atual ou digite seu ID Centro.');
         }
-        sendJson(res, 200, { publicId: resolved.publicId });
+        sendJson(res, 200, {
+          publicId: resolved.publicId,
+          firstName: resolved.fullName.trim().split(/\s+/)[0] || 'Aluno',
+          activationRequired: resolved.activationRequired,
+        });
+        return true;
+      }
+
+      if (req.method === 'POST' && activationMatch) {
+        const body = await readJson<{ password?: string }>(req);
+        const activated = await activateStudentAccessQr(pool, {
+          publicToken: activationMatch[1],
+          password: body.password ?? '',
+        });
+        setStudentSessionCookie(res, activated.token, secureCookies);
+        sendJson(res, 201, sessionPayload(activated.session));
         return true;
       }
 
@@ -101,11 +158,14 @@ export function createStudentAccessApiHandler(pool: pg.Pool, options: StudentAcc
         await requireStaff(pool, req);
         const qr = await getCurrentStudentAccessQr(pool, currentMatch[1]);
         if (!qr) throw new HttpError(404, 'QR ativo não encontrado.');
+        const resolved = await resolveStudentAccessQr(pool, qr.publicToken);
         sendJson(res, 200, {
           qr: {
             id: qr.id,
             publicToken: qr.publicToken,
             createdAt: qr.createdAt.toISOString(),
+            activatedAt: qr.activatedAt?.toISOString() ?? null,
+            activationRequired: resolved?.activationRequired ?? true,
           },
         });
         return true;
@@ -127,6 +187,8 @@ export function createStudentAccessApiHandler(pool: pg.Pool, options: StudentAcc
             id: resolved.id,
             active: !resolved.revokedAt,
             revokedAt: resolved.revokedAt?.toISOString() ?? null,
+            activatedAt: resolved.activatedAt?.toISOString() ?? null,
+            activationRequired: resolved.activationRequired,
           },
         });
         return true;
@@ -138,11 +200,14 @@ export function createStudentAccessApiHandler(pool: pg.Pool, options: StudentAcc
           studentId: rotateMatch[1],
           actorStaffUserId: session.staffUserId,
         });
+        const resolved = await resolveStudentAccessQr(pool, qr.publicToken);
         sendJson(res, 200, {
           qr: {
             id: qr.id,
             publicToken: qr.publicToken,
             createdAt: qr.createdAt.toISOString(),
+            activatedAt: qr.activatedAt?.toISOString() ?? null,
+            activationRequired: resolved?.activationRequired ?? true,
           },
         });
         return true;
@@ -153,6 +218,14 @@ export function createStudentAccessApiHandler(pool: pg.Pool, options: StudentAcc
     } catch (error) {
       if (error instanceof HttpError) {
         sendJson(res, error.status, { error: error.message });
+        return true;
+      }
+      if (error instanceof StudentAccessActivationError) {
+        const status = error.code === 'NOT_FOUND' ? 404
+          : error.code === 'GONE' ? 410
+            : error.code === 'ALREADY_ACTIVATED' || error.code === 'NO_ACTIVE_ENROLLMENT' ? 409
+              : 400;
+        sendJson(res, status, { error: error.message, code: error.code });
         return true;
       }
       console.error('[centro-student-access-api] request failed', error instanceof Error ? error.message : error);
