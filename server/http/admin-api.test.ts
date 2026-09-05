@@ -29,7 +29,8 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<voi
     await pool.query(
       `DELETE FROM audit_events
        WHERE entity_id = $1
-          OR entity_id IN (SELECT id FROM enrollments WHERE student_id = $1)`,
+          OR entity_id IN (SELECT id FROM enrollments WHERE student_id = $1)
+          OR entity_id IN (SELECT id FROM student_access_qrs WHERE student_id = $1)`,
       [studentId],
     );
     await pool.query('DELETE FROM enrollments WHERE student_id = $1', [studentId]);
@@ -38,7 +39,7 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<voi
   if (staffId) await pool.query('DELETE FROM staff_users WHERE id = $1', [staffId]);
 }
 
-test('ADMIN-002 admin API derives audit authority from Staff session and returns credential once', async () => {
+test('ACCESS-002 admin enrollment API derives Staff authority and never issues a student password', async () => {
   const pool = createDatabasePool();
   await cleanup(pool);
 
@@ -104,9 +105,7 @@ test('ADMIN-002 admin API derives audit authority from Staff session and returns
     assert.equal(loginBody.staff?.role, 'ADMIN');
     assert.equal('token' in loginBody, false);
 
-    const session = await fetch(`${base}/api/admin/auth/session`, {
-      headers: { Cookie: cookie },
-    });
+    const session = await fetch(`${base}/api/admin/auth/session`, { headers: { Cookie: cookie } });
     assert.equal(session.status, 200);
 
     const first = await fetch(`${base}/api/admin/enrollments`, {
@@ -123,15 +122,27 @@ test('ADMIN-002 admin API derives audit authority from Staff session and returns
     });
     assert.equal(first.status, 201);
     const firstBody = await first.json() as {
-      student: { publicId: string };
+      student: { id: string; publicId: string };
       credential: { created: boolean; initialPassword: string | null; mustChangePassword: boolean };
       passwordHash?: string;
     };
     assert.match(firstBody.student.publicId, /^CEN-\d{2}-\d{5,}$/);
-    assert.equal(firstBody.credential.created, true);
-    assert.match(firstBody.credential.initialPassword ?? '', /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
-    assert.equal(firstBody.credential.mustChangePassword, true);
+    assert.equal(firstBody.credential.created, false);
+    assert.equal(firstBody.credential.initialPassword, null);
+    assert.equal(firstBody.credential.mustChangePassword, false);
     assert.equal('passwordHash' in firstBody, false);
+
+    const credentialCount = await pool.query<{ count: string }>(
+      'SELECT count(*)::text AS count FROM student_credentials WHERE student_id = $1',
+      [firstBody.student.id],
+    );
+    assert.equal(credentialCount.rows[0]?.count, '0');
+
+    const qrCount = await pool.query<{ count: string }>(
+      'SELECT count(*)::text AS count FROM student_access_qrs WHERE student_id = $1 AND revoked_at IS NULL',
+      [firstBody.student.id],
+    );
+    assert.equal(qrCount.rows[0]?.count, '1');
 
     const second = await fetch(`${base}/api/admin/enrollments`, {
       method: 'POST',
