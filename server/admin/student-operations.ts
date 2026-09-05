@@ -194,6 +194,16 @@ function actionForProcess(studentId: string, process: EnrollmentProcessView): Sc
         href: processHref(studentId),
       };
   }
+
+  return {
+    ...common,
+    code: 'PROCESS_STATE_UNAVAILABLE',
+    title: 'Estado processual sem projeção operacional',
+    detail: 'O Process Kernel derivou um estado que ainda não possui orientação específica para a escola.',
+    severity: 'WAITING',
+    actionLabel: 'Abrir processo',
+    href: processHref(studentId),
+  };
 }
 
 export async function resolveStudentOperationalContext(
