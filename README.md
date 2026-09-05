@@ -1,22 +1,45 @@
 # Centro
 
-Public traffic platform for São José dos Campos, with **Auto Escola Centro** as the first premium provider.
+Centro is a **public traffic platform and operational driving-school system** with Auto Escola Centro as its first institutional operator.
+
+It is no longer only a public static product. The repository now contains three projections over one institutional core:
+
+```text
+PUBLIC                    STUDENT                    SCHOOL
+/ /cnh /guias ...         /aluno                     /admin
+self-service               enrolled experience        operations
+      \                         |                         /
+       \________________________|________________________/
+                                |
+                           CENTRO CORE
+                                |
+                         PostgreSQL state
+```
 
 ## Constitutional product boundary
 
 ```text
+PUBLIC VISITOR != STUDENT.
+
 PUBLIC VALUE MUST NOT REQUIRE
 AUTO ESCOLA CENTRO ENROLLMENT.
 
 STUDENT STATE MUST NOT EXIST
 WITHOUT AN ENROLLMENT.
+
+STUDENT != ENROLLMENT.
+
+PROCESS STATE IS DERIVED FROM FACTS,
+NOT FROM AN ARBITRARY current_step.
 ```
 
-Centro is not a landing page for a driving school. The public product must remain independently useful to any driver or future driver.
+The public product remains independently useful to any driver or future driver. Institutional Student state exists only after a confirmed Enrollment.
 
-## R3B — Public Traffic Platform
+## Current regimes
 
-The public information architecture is now:
+### Public
+
+Public routes remain accountless and independently useful:
 
 ```text
 /
@@ -29,44 +52,172 @@ The public information architecture is now:
 └── /auto-escola-centro
 ```
 
-### Public regime
+The public journey is a browser-local self-declared checkpoint and is **not** an institutional Student record.
 
-No login and no account creation.
+### Student
 
-The user can:
+The Student surface is an authenticated projection of real institutional state:
 
-- understand the current CNH process;
-- distinguish public fees from private services;
-- explore official traffic and mobility sources;
-- read situational guides;
-- build a self-declared CNH checkpoint locally in the browser;
-- continue independently without contacting Auto Escola Centro.
+```text
+/aluno
+├── home
+├── calendar
+├── process
+├── exams
+├── guides
+└── account / security
+```
 
-The public journey is persisted only in `localStorage` under `centro.publicJourney.v1`. It is not an institutional student record.
+The Student sees a simplified projection of the same Enrollment, Lesson, Process, Exam and Guide state operated by the School.
 
-### Premium provider regime
+### School
 
-`Auto Escola Centro` is represented as a provider, not as the owner of the public journey.
+`/admin` is an operational cockpit, not a generic CRUD.
 
-Verified state:
+Current school capabilities include:
 
-- Auto Escola Centro;
-- Avenida São José, 1.009 — Centro — São José dos Campos, SP;
-- WhatsApp / phone `(12) 9 8177-9745`;
-- categories A, B and D;
-- first-license, category-addition and licensed-driver training intents.
+- modern Enrollment intake;
+- Student search and institutional record;
+- persistent Student QR identity lookup;
+- operational Process actions;
+- theory exam attempts;
+- practical exam rosters and results;
+- Lesson scheduling with conflict rejection;
+- school calendar;
+- immutable Student guides;
+- operational Home with current, upcoming and attention-required work;
+- Staff security and audit evidence.
 
-Explicitly unknown commercial state remains modeled in `src/commercial.ts`:
+## Identity and access
 
-- pricing;
-- fleet;
-- opening hours;
-- lesson availability;
-- payment methods.
+### Student identity
+
+A Student has an internal UUID and a human-facing institutional ID:
+
+```text
+Student UUID      internal identity
+CEN-YY-NNNNN      public institutional identity
+StudentAccessQr   persistent physical/digital locator
+```
+
+CPF and identity documents are institutional attributes. They are never login credentials.
+
+### QR-first activation
+
+`ACCESS-002` superseded the old staff-issued temporary-password model.
+
+A new Enrollment materializes the Student, Enrollment and persistent QR, but **does not create a StudentCredential**.
+
+```text
+Staff enrollment
+  -> Student
+  -> Enrollment
+  -> persistent active QR
+  -> NO StudentCredential
+
+Student scans active QR
+  -> public identity resolution
+  -> activationRequired=true
+  -> Student chooses password
+  -> Argon2id StudentCredential
+  -> Student Session
+  -> AuditEvent
+  -> /aluno
+```
+
+After activation, the QR is an **identity locator only**. It never authenticates the Student or Staff by itself.
+
+Staff never creates, receives, stores, displays, recovers or resets the Student's chosen password through Enrollment.
+
+## Institutional core
+
+The server is organized by domain authority instead of one generic workflow engine:
+
+```text
+server/
+├── admin
+├── db
+├── enrollments
+├── exams
+├── guides
+├── http
+├── ops
+├── process
+├── schedule
+├── staff
+├── student
+└── theory-exams
+```
+
+### Durable schema evolution
+
+Current migrations:
+
+```text
+0001 operational constitution
+0002 audit actor preservation
+0003 open enrollment uniqueness
+0004 lesson kernel
+0005 process milestones
+0006 student guides
+0007 practical exam rosters
+0008 student access QR
+0009 QR-first activation
+0010 modern enrollment intake
+0011 theory exam attempts
+```
+
+PostgreSQL is the institutional source of truth.
+
+## Process model
+
+Centro deliberately does **not** persist an arbitrary `current_step`.
+
+The Process is derived from institutional facts and milestones. Student and School render different projections over that same state.
+
+Operational execution also does not introduce a generic `/actions/execute` authority or a parallel task/workflow table. Typed operational commands are dispatched only to the domain that owns the fact being changed.
+
+Examples:
+
+```text
+Process milestone       -> PROCESS
+Theory exam             -> THEORY-EXAM-001
+Lesson scheduling       -> SCHEDULE / Lesson Kernel
+Practical exam          -> EXAMS-001
+Student access           -> ACCESS
+```
+
+The current Student detail keeps the Process card as the normal action surface. Identity remains identity; contextual access/enrollment information does not compete with operational commands.
+
+## Scheduling
+
+`SCHEDULE-001` is the Lesson conflict authority.
+
+A Lesson is bound to Student, Enrollment, Instructor, Vehicle and SchedulePolicy. Overlapping active intervals for Student, Instructor or Vehicle are rejected before creation.
+
+`/admin/agenda` and the Student calendar are projections over the same Lesson domain. There is no second calendar authority.
+
+## Exams
+
+Theory and practical exams have explicit domain ownership.
+
+`THEORY-EXAM-001` stores immutable theory attempts and separates attendance, observed result and official result. Only an official approved result materializes `THEORY_PASSED`.
+
+`EXAMS-001` owns practical exam scheduling/rosters/results. Process cannot bypass those authorities by directly writing exam milestones.
+
+## Guides
+
+`DOCS-001` owns versioned immutable Student Guide snapshots, preview, print and generation receipts. Guides reflect institutional state but do not create new process authority.
+
+## Operational Home
+
+`ADMIN-HOME-002` replaces the earlier heuristic Today surface with a derived operational projection.
+
+The Home aggregates typed actions and upcoming institutional events without introducing task tables, manual priority state or a parallel workflow engine.
 
 ## Public data provenance
 
-`src/platform-data.ts` is the R3B source registry. Each public source carries:
+The public traffic product keeps a source registry with explicit provenance fields:
 
 ```text
 source
@@ -76,85 +227,65 @@ checkedAt
 status
 ```
 
-Current source families include:
+Public source families include Detran-SP guidance/data and São José dos Campos traffic/mobility sources. The UI must not fabricate indicators for data that has not been ingested.
 
-- Detran-SP CNH guidance;
-- Detran-SP practical exams;
-- Detran-SP theoretical exams;
-- Detran-SP active fleet;
-- Detran-SP traffic infractions;
-- São José dos Campos municipal traffic monitoring;
-- São José dos Campos mobility updates.
+## Stack
 
-R3B exposes source availability and verified public facts only. Historical ingestion and municipal indicators belong to R3C; the UI must not fabricate a number when a dataset has not yet been ingested.
-
-## Architecture
-
-Current client stack:
+Current product stack includes:
 
 - React + TypeScript;
 - Vite;
-- React Router;
-- deterministic public journey tool;
-- local browser persistence;
-- canonical business/commercial state;
-- canonical official-guidance snapshot;
-- public source registry.
+- Node.js server runtime;
+- PostgreSQL;
+- Argon2id credentials;
+- HttpOnly sessions;
+- FullCalendar-based school calendar;
+- Docker deployment;
+- Railway production runtime.
 
-No backend is required for R3B.
+## Operational contracts
+
+Durable implementation contracts live in `docs/operations/` and include, among others:
+
+```text
+ADMIN-001..004
+ACCESS-001..002
+SCHEDULE-001..002
+PROCESS-001
+PROCESS-OPS-001..002
+DOCS-001
+EXAMS-001
+THEORY-EXAM-001
+ENROLLMENT-002
+STUDENT-001..007
+STUDENT-DETAIL-002..004
+ADMIN-HOME-002
+```
+
+`docs/operations/CENTRO-STATE-001.md` records the reconciliation that established this README as the current repository narrative.
 
 ## Deployment contract
 
-The repository is deploy-ready as a static SPA using the included multi-stage Docker image:
+The production image builds the frontend and server runtime and runs the institutional service against PostgreSQL.
+
+Health/runtime validation remains part of the admission gate. Production admission is not inferred from source changes alone: CI and deployment evidence remain required.
+
+## Current state
+
+As of `CENTRO-STATE-001`, the canonical architecture is:
 
 ```text
-Node build
-   ↓
-/dist
-   ↓
-nginx
-   ↓
-SPA fallback to /index.html
+PUBLIC              STUDENT              SCHOOL
+   |                    |                    |
+accountless         enrolled UX         operations
+   |                    |                    |
+   +--------------------+--------------------+
+                        |
+                   CENTRO CORE
+                        |
+              institutional facts
+                        |
+                   PostgreSQL
 ```
 
-Files:
-
-- `Dockerfile`
-- `nginx.conf`
-- `railway.toml`
-
-Health endpoint:
-
-```text
-GET /healthz → 200 ok
-```
-
-The deployment boundary is deliberately after CI. No production URL is part of R3B itself.
-
-## Next regimes
-
-### R3C — Public Intelligence
-
-Ingest official snapshots, normalize municipal observations and publish provenance-bearing indicators for São José dos Campos.
-
-### R3D — Public Tools
-
-Add official-cost and document/checklist tools without requiring authentication.
-
-### R4 — Student Identity
-
-Student identity is issued only after enrollment. No public self-registration.
-
-```text
-Student UUID (internal)
-Student code (public)
-Credential issued by school
-```
-
-### R5 — Student Portal
-
-Checkpoint-oriented private surface for enrolled students: real process, lessons, next lesson, documents, exam and financial state.
-
-## Status
-
-`CENTRO-R3B / PUBLIC-TRAFFIC-PLATFORM` — implementation candidate; deploy gate requires green CI.
+The next product work should be selected from **actual operational gaps in this architecture**, not from the superseded R3B/R4/R5 roadmap.
