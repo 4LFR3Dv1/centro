@@ -221,7 +221,13 @@ function QuickLessonScheduler({ studentId, action, onClose, onScheduled }: {
   );
 }
 
-export function AdminOperationalGuidance({ studentId }: { studentId: string }) {
+type AdminOperationalGuidanceProps = {
+  studentId: string;
+  enrollmentId?: string;
+  embedded?: boolean;
+};
+
+export function AdminOperationalGuidance({ studentId, enrollmentId, embedded = false }: AdminOperationalGuidanceProps) {
   const navigate = useNavigate();
   const [context, setContext] = useState<OperationalContext | null>(null);
   const [loading, setLoading] = useState(true);
@@ -269,16 +275,66 @@ export function AdminOperationalGuidance({ studentId }: { studentId: string }) {
   }
 
   if (loading) {
-    return <section className="admin-operational-guidance is-loading" aria-live="polite"><span>O QUE PRECISA ACONTECER AGORA</span><strong>Derivando orientação operacional…</strong></section>;
+    return embedded
+      ? <section className="admin-process-command is-loading" aria-live="polite"><span>PRÓXIMA AÇÃO</span><strong>Derivando orientação…</strong></section>
+      : <section className="admin-operational-guidance is-loading" aria-live="polite"><span>O QUE PRECISA ACONTECER AGORA</span><strong>Derivando orientação operacional…</strong></section>;
   }
 
   if (error) {
-    return <section className="admin-operational-guidance is-error" aria-live="polite"><span>ORIENTAÇÃO OPERACIONAL</span><strong>Não foi possível derivar a próxima ação.</strong><small>{error}</small></section>;
+    return embedded
+      ? <section className="admin-process-command is-error" aria-live="polite"><span>PRÓXIMA AÇÃO</span><strong>Orientação indisponível.</strong><small>{error}</small></section>
+      : <section className="admin-operational-guidance is-error" aria-live="polite"><span>ORIENTAÇÃO OPERACIONAL</span><strong>Não foi possível derivar a próxima ação.</strong><small>{error}</small></section>;
   }
 
-  const action = context?.primaryAction;
+  const action = enrollmentId
+    ? context?.actions.find((candidate) => candidate.enrollmentId === enrollmentId) ?? null
+    : context?.primaryAction ?? null;
+
   if (!action) {
-    return <section className="admin-operational-guidance is-complete"><div><span>O QUE PRECISA ACONTECER AGORA</span><h2>Sem processo operacional aberto.</h2><p>Não existe matrícula ativa ou pausada exigindo orientação neste momento.</p></div></section>;
+    return embedded
+      ? null
+      : <section className="admin-operational-guidance is-complete"><div><span>O QUE PRECISA ACONTECER AGORA</span><h2>Sem processo operacional aberto.</h2><p>Não existe matrícula ativa ou pausada exigindo orientação neste momento.</p></div></section>;
+  }
+
+  const execution = (
+    <>
+      {schedulerOpen && (
+        <QuickLessonScheduler studentId={studentId} action={action} onClose={() => setSchedulerOpen(false)} onScheduled={() => { setSchedulerOpen(false); void load(); }} />
+      )}
+
+      {activeCommand && (
+        <OperationalCommandDialog
+          studentId={studentId}
+          action={action}
+          command={activeCommand}
+          onClose={() => setActiveCommand(null)}
+          onChanged={() => { setActiveCommand(null); void load(); }}
+        />
+      )}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        <section className={`admin-process-command severity-${action.severity.toLowerCase()}`} aria-label="Próxima ação do processo">
+          <div className="admin-process-command-copy">
+            <div className="admin-process-command-kicker"><span>PRÓXIMA AÇÃO</span><strong>{severityLabels[action.severity]}</strong></div>
+            <strong className="admin-process-command-title">{action.title}</strong>
+            <p>{action.detail}</p>
+            {action.secondaryCommands.length > 0 && (
+              <div className="admin-ops-form-actions">
+                {action.secondaryCommands.map((command, index) => (
+                  <button className="admin-secondary" key={`${command.kind}-${index}`} type="button" onClick={() => execute(command)}>{command.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
+          {action.primaryCommand && <button className="admin-primary" type="button" onClick={() => execute(action.primaryCommand!)}>{action.primaryCommand.label}</button>}
+        </section>
+        {execution}
+      </>
+    );
   }
 
   return (
@@ -299,20 +355,7 @@ export function AdminOperationalGuidance({ studentId }: { studentId: string }) {
         </div>
         {action.primaryCommand && <button className="admin-primary" type="button" onClick={() => execute(action.primaryCommand!)}>{action.primaryCommand.label}</button>}
       </section>
-
-      {schedulerOpen && (
-        <QuickLessonScheduler studentId={studentId} action={action} onClose={() => setSchedulerOpen(false)} onScheduled={() => { setSchedulerOpen(false); void load(); }} />
-      )}
-
-      {activeCommand && (
-        <OperationalCommandDialog
-          studentId={studentId}
-          action={action}
-          command={activeCommand}
-          onClose={() => setActiveCommand(null)}
-          onChanged={() => { setActiveCommand(null); void load(); }}
-        />
-      )}
+      {execution}
     </>
   );
 }
