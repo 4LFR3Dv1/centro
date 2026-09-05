@@ -1,25 +1,72 @@
-.admin-student-workspace-grid {
+.admin-student-detail {
   display: grid;
   grid-template-columns: minmax(320px, 340px) minmax(0, 1fr);
-  gap: 22px;
+  column-gap: 22px;
   align-items: start;
-  margin-top: 22px;
-  margin-bottom: 22px;
+}
+
+.admin-student-detail > .admin-back,
+.admin-student-detail > .admin-student-hero,
+.admin-student-detail > .admin-operational-guidance,
+.admin-student-detail > .admin-student-facts,
+.admin-student-detail > .admin-detail-card {
+  grid-column: 1 / -1;
+}
+
+.admin-student-detail > .admin-back {
+  grid-row: 1;
+}
+
+.admin-student-detail > .admin-student-hero {
+  grid-row: 2;
+}
+
+.admin-student-detail > .admin-operational-guidance {
+  grid-row: 3;
+}
+
+.admin-student-detail > .admin-student-facts {
+  grid-row: 4;
+}
+
+.admin-student-detail > .admin-detail-card:not(.admin-enrollment-history):not(.admin-audit-history) {
+  grid-row: 5;
+}
+
+.admin-student-workspace-grid {
+  display: contents;
 }
 
 .admin-student-context-rail,
 .admin-student-operation-column {
   min-width: 0;
+  margin-top: 22px;
 }
 
 .admin-student-context-rail {
+  grid-column: 1;
+  grid-row: 6 / 9;
   display: grid;
   gap: 22px;
   align-content: start;
 }
 
 .admin-student-operation-column {
+  grid-column: 2;
+  grid-row: 6;
   scroll-margin-top: 18px;
+}
+
+.admin-student-detail > .admin-enrollment-history {
+  grid-column: 2;
+  grid-row: 7;
+  margin-top: 22px;
+}
+
+.admin-student-detail > .admin-audit-history {
+  grid-column: 2;
+  grid-row: 8;
+  margin-top: 22px;
 }
 
 .admin-student-context-rail .admin-access-qr-layout {
@@ -97,16 +144,34 @@
 }
 
 @media (max-width: 900px) {
-  .admin-student-workspace-grid {
+  .admin-student-detail {
     grid-template-columns: 1fr;
   }
 
+  .admin-student-detail > .admin-back,
+  .admin-student-detail > .admin-student-hero,
+  .admin-student-detail > .admin-operational-guidance,
+  .admin-student-detail > .admin-student-facts,
+  .admin-student-detail > .admin-detail-card,
+  .admin-student-context-rail,
   .admin-student-operation-column {
-    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .admin-student-operation-column {
+    grid-row: 6;
   }
 
   .admin-student-context-rail {
-    grid-row: 2;
+    grid-row: 7;
+  }
+
+  .admin-student-detail > .admin-enrollment-history {
+    grid-row: 8;
+  }
+
+  .admin-student-detail > .admin-audit-history {
+    grid-row: 9;
   }
 
   .admin-student-context-rail .admin-access-qr-layout {
@@ -135,12 +200,24 @@
 }
 
 @media print {
-  .admin-student-workspace-grid {
+  .admin-student-detail {
     grid-template-columns: 1fr;
   }
 
+  .admin-student-detail > .admin-back,
+  .admin-student-detail > .admin-student-hero,
+  .admin-student-detail > .admin-operational-guidance,
+  .admin-student-detail > .admin-student-facts,
+  .admin-student-detail > .admin-detail-card,
+  .admin-student-context-rail,
+  .admin-student-operation-column {
+    grid-column: 1;
+  }
+
   .admin-student-operation-column,
-  .admin-student-context-rail {
+  .admin-student-context-rail,
+  .admin-student-detail > .admin-enrollment-history,
+  .admin-student-detail > .admin-audit-history {
     grid-row: auto;
   }
 }
