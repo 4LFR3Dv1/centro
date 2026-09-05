@@ -34,7 +34,13 @@ type EnrollmentReceipt = {
 };
 
 type AccessQrPayload = {
-  qr: { id: string; publicToken: string; createdAt: string };
+  qr: {
+    id: string;
+    publicToken: string;
+    createdAt: string;
+    activatedAt: string | null;
+    activationRequired: boolean;
+  };
 };
 
 const RECEIPT_PATH = '/admin/matriculas/receipt';
@@ -146,7 +152,7 @@ function Receipt({ receipt, onNew, onStudent }: { receipt: EnrollmentReceipt; on
         <span>✓ Matrícula</span>
         <span>✓ Identidade {receipt.student.publicId}</span>
         <span>{accessQr ? '✓ QR persistente' : '… QR persistente'}</span>
-        <span>{receipt.credential.created ? '✓ Senha inicial emitida' : '✓ Credencial existente preservada'}</span>
+        <span>{accessQr?.activationRequired ? '○ Aguardando ativação pelo aluno' : accessQr ? '✓ Acesso ativado' : '… Estado de ativação'}</span>
       </div>
 
       <div className="admin-receipt-qr">
@@ -154,9 +160,13 @@ function Receipt({ receipt, onNew, onStudent }: { receipt: EnrollmentReceipt; on
           {accessQr ? <AccessQr publicToken={accessQr.publicToken} size={230} /> : <div className="admin-receipt-qr-placeholder">Gerando QR…</div>}
         </div>
         <div>
-          <span>ESCANEIE PARA ACESSAR</span>
+          <span>{accessQr?.activationRequired ? 'ESCANEIE PARA ATIVAR' : 'ESCANEIE PARA ACESSAR'}</span>
           <strong>{receipt.student.publicId}</strong>
-          <p>O QR abre o login com o ID do aluno preenchido. A senha continua obrigatória.</p>
+          <p>
+            {accessQr?.activationRequired
+              ? 'No primeiro scan, o aluno cria a própria senha e entra diretamente na área do aluno.'
+              : 'O acesso já está ativado. O QR abre o login com o ID Centro preenchido.'}
+          </p>
           {accessQr && <button type="button" onClick={() => void copy(studentAccessUrl(accessQr.publicToken))}>Copiar link de acesso</button>}
           {qrError && <small>{qrError}</small>}
         </div>
@@ -169,23 +179,20 @@ function Receipt({ receipt, onNew, onStudent }: { receipt: EnrollmentReceipt; on
           <button type="button" onClick={() => void copy(receipt.student.publicId)}>Copiar ID</button>
         </div>
         <div>
-          <span>SENHA INICIAL</span>
-          {receipt.credential.created && receipt.credential.initialPassword ? (
-            <>
-              <strong>{receipt.credential.initialPassword}</strong>
-              <button type="button" onClick={() => void copy(receipt.credential.initialPassword!)}>Copiar senha</button>
-            </>
-          ) : (
-            <>
-              <strong className="admin-access-existing">Acesso existente</strong>
-              <small>A senha atual foi preservada e não é exibida novamente.</small>
-            </>
-          )}
+          <span>ATIVAÇÃO</span>
+          <strong className="admin-access-existing">
+            {accessQr?.activationRequired ? 'Aguardando aluno' : accessQr ? 'Acesso ativo' : 'Verificando…'}
+          </strong>
+          <small>
+            {accessQr?.activationRequired
+              ? 'A escola não cria nem conhece a senha. O aluno escolhe a senha ao ativar este QR.'
+              : 'Nenhuma senha é projetada para a escola.'}
+          </small>
         </div>
       </div>
 
-      {receipt.credential.created && (
-        <p className="admin-receipt-warning">Entregue esta senha ao aluno agora. Ela não será armazenada em texto e desaparece ao sair desta tela, recarregar ou encerrar a sessão. O QR permanecerá disponível no cadastro do aluno.</p>
+      {accessQr?.activationRequired && (
+        <p className="admin-receipt-warning">Entregue este QR ao aluno. A credencial só será criada quando ele escanear o código e escolher a própria senha.</p>
       )}
 
       <div className="admin-receipt-actions">
@@ -247,7 +254,7 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
           <p className="admin-eyebrow">MATRÍCULAS</p>
           <h2 id="new-enrollment-title">Nova matrícula</h2>
         </div>
-        <p>A matrícula cria ou reutiliza a identidade do aluno e, quando necessário, gera o primeiro acesso.</p>
+        <p>A matrícula cria ou reutiliza a identidade do aluno e entrega um QR persistente para ativação do portal.</p>
       </div>
 
       <form className="admin-form admin-enrollment-form" onSubmit={submit}>
@@ -287,7 +294,7 @@ function EnrollmentForm({ onCreated }: { onCreated: (receipt: EnrollmentReceipt)
         <label>Observação<textarea name="notes" rows={3} /></label>
         {error && <p className="admin-error" role="alert">{error}</p>}
         <div className="admin-submit-row">
-          <span>A criação é transacional: aluno, QR de acesso, credencial, matrícula e auditoria entram juntos.</span>
+          <span>A criação é transacional: aluno, QR, matrícula e auditoria entram juntos. A senha nasce somente quando o aluno ativa o QR.</span>
           <button className="admin-primary" type="submit" disabled={busy}>{busy ? 'Criando…' : 'Confirmar matrícula'}</button>
         </div>
       </form>

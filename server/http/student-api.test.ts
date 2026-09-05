@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import test from 'node:test';
 import { createDatabasePool } from '../db/pool.js';
 import { materializeEnrollment } from '../enrollments/materialize.js';
+import { hashPassword } from '../ops/credentials.js';
 import { bootstrapFirstAdmin } from '../staff/auth.js';
 import { createStudentApiHandler } from './student-api.js';
 
@@ -10,6 +12,7 @@ const ORIGIN = 'https://centro.test';
 const ADMIN_USER = 'student-api-admin-test';
 const ADMIN_PASSWORD = 'Strong-Student-Test-Admin-2026!';
 const TEST_DOCUMENT = '99888777666';
+const LEGACY_INITIAL_PASSWORD = `Legacy-${randomUUID()}!9`;
 const NEW_PASSWORD = 'Senha-Nova-Do-Aluno-2026!';
 
 function cookieValue(setCookie: string | null): string {
@@ -29,7 +32,8 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<voi
       `DELETE FROM audit_events
        WHERE entity_id = $1
           OR entity_id IN (SELECT id FROM enrollments WHERE student_id = $1)
-          OR entity_id IN (SELECT id FROM sessions WHERE student_id = $1)`,
+          OR entity_id IN (SELECT id FROM sessions WHERE student_id = $1)
+          OR entity_id IN (SELECT id FROM student_access_qrs WHERE student_id = $1)`,
       [studentId],
     );
     await pool.query('DELETE FROM sessions WHERE student_id = $1', [studentId]);
@@ -44,7 +48,7 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<voi
   }
 }
 
-test('STUDENT-001 student portal requires initial password rotation and preserves Student authority', async () => {
+test('STUDENT-001 legacy initial-password credentials still rotate after ACCESS-002 cutover', async () => {
   const pool = createDatabasePool();
   await cleanup(pool);
 
@@ -65,8 +69,16 @@ test('STUDENT-001 student portal requires initial password rotation and preserve
     category: 'B',
     actorStaffUserId: bootstrap.staffUserId,
   });
-  assert.equal(enrollment.credentialCreated, true);
-  assert.ok(enrollment.initialPassword);
+  assert.equal(enrollment.credentialCreated, false);
+  assert.equal(enrollment.initialPassword, null);
+
+  // Explicitly materialize a pre-ACCESS-002 credential to prove the legacy migration path remains valid.
+  const legacyHash = await hashPassword(LEGACY_INITIAL_PASSWORD);
+  await pool.query(
+    `INSERT INTO student_credentials(student_id, password_hash, must_change_password)
+     VALUES ($1, $2, true)`,
+    [enrollment.studentId, legacyHash],
+  );
 
   const handler = createStudentApiHandler(pool, { publicOrigin: ORIGIN, secureCookies: false });
   const server = createServer((req, res) => {
@@ -87,7 +99,7 @@ test('STUDENT-001 student portal requires initial password rotation and preserve
     const wrongOrigin = await fetch(`${base}/api/student/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: 'https://evil.test' },
-      body: JSON.stringify({ publicId: enrollment.studentPublicId, password: enrollment.initialPassword }),
+      body: JSON.stringify({ publicId: enrollment.studentPublicId, password: LEGACY_INITIAL_PASSWORD }),
     });
     assert.equal(wrongOrigin.status, 403);
 
@@ -101,7 +113,7 @@ test('STUDENT-001 student portal requires initial password rotation and preserve
     const login = await fetch(`${base}/api/student/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
-      body: JSON.stringify({ publicId: enrollment.studentPublicId, password: enrollment.initialPassword }),
+      body: JSON.stringify({ publicId: enrollment.studentPublicId, password: LEGACY_INITIAL_PASSWORD }),
     });
     assert.equal(login.status, 200);
     const firstCookie = cookieValue(login.headers.get('set-cookie'));
@@ -122,9 +134,7 @@ test('STUDENT-001 student portal requires initial password rotation and preserve
     assert.equal(loginBody.enrollments[0].status, 'ACTIVE');
     assert.deepEqual(loginBody.nextAction, { code: 'CHANGE_INITIAL_PASSWORD', href: '/aluno/trocar-senha' });
 
-    const session = await fetch(`${base}/api/student/auth/session`, {
-      headers: { Cookie: firstCookie },
-    });
+    const session = await fetch(`${base}/api/student/auth/session`, { headers: { Cookie: firstCookie } });
     assert.equal(session.status, 200);
 
     const shortPassword = await fetch(`${base}/api/student/auth/change-initial-password`, {
@@ -140,10 +150,7 @@ test('STUDENT-001 student portal requires initial password rotation and preserve
       body: JSON.stringify({ newPassword: NEW_PASSWORD }),
     });
     assert.equal(change.status, 200);
-    const changeBody = await change.json() as {
-      credential: { mustChangePassword: boolean };
-      nextAction: unknown;
-    };
+    const changeBody = await change.json() as { credential: { mustChangePassword: boolean }; nextAction: unknown };
     assert.equal(changeBody.credential.mustChangePassword, false);
     assert.equal(changeBody.nextAction, null);
 
@@ -157,7 +164,7 @@ test('STUDENT-001 student portal requires initial password rotation and preserve
     const initialNoLongerWorks = await fetch(`${base}/api/student/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
-      body: JSON.stringify({ publicId: enrollment.studentPublicId, password: enrollment.initialPassword }),
+      body: JSON.stringify({ publicId: enrollment.studentPublicId, password: LEGACY_INITIAL_PASSWORD }),
     });
     assert.equal(initialNoLongerWorks.status, 401);
 
@@ -178,9 +185,7 @@ test('STUDENT-001 student portal requires initial password rotation and preserve
     });
     assert.equal(logout.status, 204);
 
-    const afterLogout = await fetch(`${base}/api/student/auth/session`, {
-      headers: { Cookie: secondCookie },
-    });
+    const afterLogout = await fetch(`${base}/api/student/auth/session`, { headers: { Cookie: secondCookie } });
     assert.equal(afterLogout.status, 401);
 
     const audit = await pool.query<{ action: string; actor_student_id: string }>(

@@ -55,7 +55,13 @@ type StudentWorkspace = {
 };
 
 type AccessQrPayload = {
-  qr: { id: string; publicToken: string; createdAt: string };
+  qr: {
+    id: string;
+    publicToken: string;
+    createdAt: string;
+    activatedAt: string | null;
+    activationRequired: boolean;
+  };
 };
 
 const serviceLabels: Record<StudentEnrollment['serviceType'], string> = {
@@ -75,13 +81,14 @@ const enrollmentStatusLabels: Record<StudentEnrollment['status'], string> = {
 
 const auditLabels: Record<string, string> = {
   STUDENT_CREATED: 'Aluno criado',
-  STUDENT_CREDENTIAL_CREATED: 'Acesso criado',
+  STUDENT_CREDENTIAL_CREATED: 'Acesso legado criado',
   STUDENT_ACCESS_QR_CREATED: 'QR de acesso criado',
   STUDENT_ACCESS_QR_ROTATED: 'QR de acesso substituído',
+  STUDENT_ACCESS_ACTIVATED: 'Acesso ativado pelo aluno',
   ENROLLMENT_CREATED: 'Matrícula criada',
   STUDENT_LOGIN: 'Aluno entrou no portal',
   STUDENT_LOGOUT: 'Aluno saiu do portal',
-  STUDENT_INITIAL_PASSWORD_CHANGED: 'Senha inicial alterada',
+  STUDENT_INITIAL_PASSWORD_CHANGED: 'Senha inicial legada alterada',
   STUDENT_PASSWORD_CHANGED: 'Senha alterada pelo aluno',
   STUDENT_OTHER_SESSIONS_REVOKED: 'Outras sessões encerradas',
   PROCESS_MILESTONE_SCHEDULED: 'Marco processual agendado',
@@ -118,12 +125,12 @@ function documentLabel(value: string | null): string {
 }
 
 function credentialState(credential: StudentCredential): { title: string; detail: string; tone: string } {
-  if (!credential.exists) return { title: 'Sem acesso', detail: 'Nenhuma credencial foi materializada.', tone: 'neutral' };
+  if (!credential.exists) return { title: 'Sem credencial', detail: 'A credencial ainda não foi materializada.', tone: 'neutral' };
   if (credential.disabledAt) return { title: 'Acesso desativado', detail: 'A credencial está desativada.', tone: 'warning' };
   if (credential.lockedUntil && new Date(credential.lockedUntil).getTime() > Date.now()) {
     return { title: 'Acesso bloqueado', detail: `Bloqueio temporário até ${dateTime(credential.lockedUntil)}.`, tone: 'warning' };
   }
-  if (credential.mustChangePassword) return { title: 'Primeiro acesso pendente', detail: 'O aluno ainda precisa substituir a senha inicial.', tone: 'pending' };
+  if (credential.mustChangePassword) return { title: 'Migração de senha pendente', detail: 'Credencial legada ainda exige troca da senha inicial.', tone: 'pending' };
   return { title: 'Acesso ativo', detail: `Senha institucional na versão ${credential.passwordVersion}.`, tone: 'ok' };
 }
 
@@ -249,7 +256,7 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
   }, [studentId]);
 
   async function rotateQr() {
-    if (!workspace || !window.confirm('Substituir o QR atual? Cartões antigos deixarão de abrir o login do aluno.')) return;
+    if (!workspace || !window.confirm('Substituir o QR atual? Cartões antigos deixarão de abrir o login ou a ativação do aluno.')) return;
     setRotating(true);
     setError('');
     try {
@@ -274,7 +281,9 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
   }
 
   const { student, credential, enrollments, recentAudit } = workspace;
-  const access = credentialState(credential);
+  const access = accessQr?.activationRequired
+    ? { title: 'Aguardando ativação', detail: 'O aluno ainda não criou a própria senha. Entregue o QR ativo para concluir o primeiro acesso.', tone: 'pending' }
+    : credentialState(credential);
 
   return (
     <section className="admin-student-detail" aria-labelledby="student-detail-title">
@@ -307,15 +316,25 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
             {accessQr && <AccessQr publicToken={accessQr.publicToken} size={190} />}
             <div>
               <strong>{student.publicId}</strong>
-              {accessQr && <small>QR ativo desde {dateTime(accessQr.createdAt)}</small>}
-              <small>O QR localiza esta identidade. A senha continua obrigatória no portal.</small>
+              {accessQr && <small>QR atual emitido em {dateTime(accessQr.createdAt)}</small>}
+              {accessQr?.activatedAt && <small>Acesso ativado em {dateTime(accessQr.activatedAt)}</small>}
+              <small>
+                {accessQr?.activationRequired
+                  ? 'No primeiro scan deste QR, o aluno cria a própria senha.'
+                  : 'O QR localiza esta identidade. A senha continua obrigatória no portal.'}
+              </small>
             </div>
           </div>
-          {credential.exists && (
+          {credential.exists ? (
             <dl className="admin-detail-list">
-              <div><dt>Troca inicial</dt><dd>{credential.mustChangePassword ? 'Pendente' : 'Concluída'}</dd></div>
+              <div><dt>Credencial</dt><dd>Materializada</dd></div>
               <div><dt>Versão da senha</dt><dd>{credential.passwordVersion ?? '—'}</dd></div>
               <div><dt>Tentativas inválidas</dt><dd>{credential.failedAttempts}</dd></div>
+            </dl>
+          ) : (
+            <dl className="admin-detail-list">
+              <div><dt>Credencial</dt><dd>Aguardando ativação</dd></div>
+              <div><dt>Senha</dt><dd>Não existe ainda</dd></div>
             </dl>
           )}
           <div className="admin-access-actions">
@@ -323,7 +342,7 @@ export function AdminStudentDetail({ studentId, onNewEnrollment }: { studentId: 
             {accessQr && <button className="admin-secondary" type="button" onClick={() => window.print()}>Imprimir QR</button>}
             <button className="admin-secondary" type="button" onClick={() => void rotateQr()} disabled={rotating}>{rotating ? 'Substituindo…' : 'Girar QR'}</button>
           </div>
-          <small>Senhas e hashes nunca são projetados para o admin.</small>
+          <small>A escola nunca cria, recebe ou recupera a senha escolhida pelo aluno.</small>
         </div>
 
         <AdminProcessPanel enrollments={enrollments} />

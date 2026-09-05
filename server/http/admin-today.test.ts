@@ -6,6 +6,7 @@ import { createDatabasePool } from '../db/pool.js';
 import { materializeEnrollment } from '../enrollments/materialize.js';
 import { generateStudentGuide } from '../guides/student-guide.js';
 import { authenticateStaff, bootstrapFirstAdmin } from '../staff/auth.js';
+import { activateStudentAccessQr } from '../student/access.js';
 import { createAdminTodayApiHandler } from './admin-today.js';
 
 const USERNAME = 'admin-004-witness';
@@ -49,7 +50,7 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>) {
   }
 }
 
-test('ADMIN-004 Today is an authenticated projection of accepted operational facts', async () => {
+test('ADMIN-004 Today derives pending first access from QR activation state', async () => {
   const pool = createDatabasePool();
   await cleanup(pool);
   const admin = await bootstrapFirstAdmin(pool, { username: USERNAME, displayName: 'ADMIN-004 Witness', password: PASSPHRASE });
@@ -70,7 +71,10 @@ test('ADMIN-004 Today is an authenticated projection of accepted operational fac
     enrollmentId: scheduled.enrollmentId,
     actorStaffUserId: admin.staffUserId,
   });
-  await pool.query('UPDATE student_credentials SET must_change_password = false WHERE student_id = $1', [scheduled.studentId]);
+  await activateStudentAccessQr(pool, {
+    publicToken: scheduled.accessQr.publicToken,
+    password: `Scheduled-${randomUUID()}-Password`,
+  });
 
   const instructorId = randomUUID();
   const vehicleId = randomUUID();

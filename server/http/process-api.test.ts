@@ -5,7 +5,7 @@ import test from 'node:test';
 import { createDatabasePool } from '../db/pool.js';
 import { materializeEnrollment } from '../enrollments/materialize.js';
 import { authenticateStaff, bootstrapFirstAdmin } from '../staff/auth.js';
-import { authenticateStudent, changeInitialStudentPassword } from '../student/auth.js';
+import { activateStudentAccessQr } from '../student/access.js';
 import { createProcessApiHandler } from './process-api.js';
 
 const ORIGIN = 'https://centro-process.test';
@@ -33,7 +33,7 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<voi
       await pool.query('DELETE FROM enrollments WHERE id = ANY($1::uuid[])', [enrollmentIds]);
     }
     await pool.query('DELETE FROM sessions WHERE student_id = ANY($1::uuid[])', [studentIds]);
-    await pool.query('DELETE FROM audit_events WHERE actor_student_id = ANY($1::uuid[]) OR entity_id = ANY($1::uuid[])', [studentIds]);
+    await pool.query('DELETE FROM audit_events WHERE actor_student_id = ANY($1::uuid[]) OR entity_id = ANY($1::uuid[]) OR entity_id IN (SELECT id FROM student_access_qrs WHERE student_id = ANY($1::uuid[]))', [studentIds]);
     await pool.query('DELETE FROM students WHERE id = ANY($1::uuid[])', [studentIds]);
   }
 
@@ -85,12 +85,14 @@ test('PROCESS-001 derives a linear first-license process, projects Lesson eviden
     notes: 'PROCESS-001 witness',
     actorStaffUserId: bootstrap.staffUserId,
   });
-  assert.ok(receipt.initialPassword);
+  assert.equal(receipt.activationRequired, true);
 
   const staffAuth = await authenticateStaff(pool, ADMIN_USER, ADMIN_PASSWORD);
   assert.ok(staffAuth);
-  const studentAuth = await authenticateStudent(pool, receipt.studentPublicId, receipt.initialPassword!);
-  assert.ok(studentAuth);
+  const studentActivation = await activateStudentAccessQr(pool, {
+    publicToken: receipt.accessQr.publicToken,
+    password: `Process-${randomUUID()}-Student`,
+  });
 
   const handler = createProcessApiHandler(pool, { publicOrigin: ORIGIN });
   const server = createServer((req, res) => {
@@ -106,7 +108,7 @@ test('PROCESS-001 derives a linear first-license process, projects Lesson eviden
   assert.ok(address && typeof address === 'object');
   const base = `http://127.0.0.1:${address.port}`;
   const adminCookie = cookie('centro_admin_session', staffAuth.token);
-  const studentCookie = cookie('centro_student_session', studentAuth.token);
+  const studentCookie = cookie('centro_student_session', studentActivation.token);
 
   const instructorId = randomUUID();
   const vehicleId = randomUUID();
@@ -149,10 +151,6 @@ test('PROCESS-001 derives a linear first-license process, projects Lesson eviden
     assert.equal(theoryScheduleBody.process.nextAction.code, 'ATTEND_THEORY_EXAM');
     assert.equal(theoryScheduleBody.process.milestones.find((m: any) => m.code === 'THEORY_PASSED').scheduledFor, theoryAt);
 
-    const gatedStudent = await fetch(`${base}/api/student/process`, { headers: { Cookie: studentCookie } });
-    assert.equal(gatedStudent.status, 403);
-
-    await changeInitialStudentPassword(pool, studentAuth.session, `Permanent-${randomUUID()}-Password`);
     const studentTheory = await fetch(`${base}/api/student/process`, { headers: { Cookie: studentCookie } });
     assert.equal(studentTheory.status, 200);
     const studentTheoryBody = await studentTheory.json() as { processes: any[] };
@@ -163,14 +161,8 @@ test('PROCESS-001 derives a linear first-license process, projects Lesson eviden
     assert.equal(theory.status, 200);
     assert.equal((await theory.json() as any).process.currentState.code, 'PRACTICE_DONE');
 
-    await pool.query(
-      `INSERT INTO instructors(id, display_name) VALUES ($1, 'PROCESS-001 Instrutor')`,
-      [instructorId],
-    );
-    await pool.query(
-      `INSERT INTO instructor_categories(instructor_id, category) VALUES ($1, 'B')`,
-      [instructorId],
-    );
+    await pool.query(`INSERT INTO instructors(id, display_name) VALUES ($1, 'PROCESS-001 Instrutor')`, [instructorId]);
+    await pool.query(`INSERT INTO instructor_categories(instructor_id, category) VALUES ($1, 'B')`, [instructorId]);
     await pool.query(
       `INSERT INTO vehicles(id, plate, label, category) VALUES ($1, $2, 'PROCESS-001 Veículo', 'B')`,
       [vehicleId, `P${Date.now().toString().slice(-6)}`],

@@ -7,11 +7,7 @@ import {
   type ServiceType,
   assertEnrollmentCombination,
 } from '../ops/contracts.js';
-import {
-  formatStudentPublicId,
-  generateInitialPassword,
-  hashPassword,
-} from '../ops/credentials.js';
+import { formatStudentPublicId } from '../ops/credentials.js';
 import { ensureStudentAccessQr } from '../student/access.js';
 
 export type EnrollmentMaterializationInput = {
@@ -30,8 +26,12 @@ export type EnrollmentReceipt = {
   studentId: string;
   studentPublicId: string;
   enrollmentId: string;
-  credentialCreated: boolean;
-  initialPassword: string | null;
+  /** @deprecated ACCESS-002 never creates a credential during enrollment. */
+  credentialCreated: false;
+  /** @deprecated ACCESS-002 never returns an initial password. */
+  initialPassword: null;
+  credentialExists: boolean;
+  activationRequired: boolean;
   accessQr: {
     id: string;
     publicToken: string;
@@ -74,7 +74,6 @@ export async function materializeEnrollment(
   assertEnrollmentCombination(serviceType, category);
 
   const client = await pool.connect();
-  let initialPassword: string | null = null;
 
   try {
     await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE');
@@ -120,22 +119,13 @@ export async function materializeEnrollment(
       );
     }
 
+    // ACCESS-002: enrollment never invents a password. Existing credentials are preserved;
+    // new students remain credential-less until they activate their persistent QR.
     const credential = await client.query<{ student_id: string }>(
       'SELECT student_id FROM student_credentials WHERE student_id = $1',
       [studentId],
     );
-
-    let credentialCreated = false;
-    if (!credential.rowCount) {
-      initialPassword = generateInitialPassword();
-      const passwordHash = await hashPassword(initialPassword);
-      await client.query(
-        `INSERT INTO student_credentials(student_id, password_hash, must_change_password)
-         VALUES ($1, $2, true)`,
-        [studentId, passwordHash],
-      );
-      credentialCreated = true;
-    }
+    const credentialExists = Boolean(credential.rowCount);
 
     const accessQr = await ensureStudentAccessQr(client, studentId, input.actorStaffUserId);
 
@@ -156,15 +146,6 @@ export async function materializeEnrollment(
       );
     }
 
-    if (credentialCreated) {
-      await client.query(
-        `INSERT INTO audit_events(
-          id, actor_type, actor_staff_user_id, action, entity_type, entity_id, metadata
-         ) VALUES ($1, 'STAFF', $2, 'STUDENT_CREDENTIAL_CREATED', 'StudentCredential', $3, '{}'::jsonb)`,
-        [randomUUID(), input.actorStaffUserId, studentId],
-      );
-    }
-
     await client.query(
       `INSERT INTO audit_events(
         id, actor_type, actor_staff_user_id, action, entity_type, entity_id, metadata
@@ -178,8 +159,10 @@ export async function materializeEnrollment(
       studentId,
       studentPublicId,
       enrollmentId,
-      credentialCreated,
-      initialPassword,
+      credentialCreated: false,
+      initialPassword: null,
+      credentialExists,
+      activationRequired: !credentialExists,
       accessQr: {
         id: accessQr.qr.id,
         publicToken: accessQr.qr.publicToken,
@@ -190,7 +173,6 @@ export async function materializeEnrollment(
     };
   } catch (error) {
     try { await client.query('ROLLBACK'); } catch { /* connection may already be unusable */ }
-    initialPassword = null;
     throw error;
   } finally {
     client.release();

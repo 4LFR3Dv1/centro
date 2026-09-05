@@ -162,12 +162,14 @@ export async function projectAdminToday(pool: pg.Pool): Promise<AdminTodayProjec
     }>(
       `SELECT DISTINCT s.id AS student_id, s.public_id, s.full_name
        FROM students s
-       JOIN student_credentials c ON c.student_id = s.id
        JOIN enrollments e ON e.student_id = s.id
+       LEFT JOIN student_credentials c ON c.student_id = s.id
        WHERE s.status = 'ACTIVE'
          AND e.status = 'ACTIVE'
-         AND c.must_change_password = true
-         AND c.disabled_at IS NULL
+         AND (
+           c.student_id IS NULL
+           OR (c.must_change_password = true AND c.disabled_at IS NULL)
+         )
        ORDER BY s.full_name ASC
        LIMIT 30`,
     ),
@@ -274,7 +276,7 @@ export async function projectAdminToday(pool: pg.Pool): Promise<AdminTodayProjec
     recentNoShows,
     summary: {
       lessonsToday: lessons.length,
-      scheduledRemaining: lessons.filter((lesson) => lesson.status === 'SCHEDULED' && lesson.endsAt.getTime() >= Date.now()).length,
+      scheduledRemaining: lessons.filter((lesson) => lesson.status === 'SCHEDULED' && lesson.endsAt.getTime() > Date.now()).length,
       withoutNextLesson: withoutNextLesson.length,
       pendingFirstAccess: pendingFirstAccess.length,
       withoutGuide: withoutGuide.length,

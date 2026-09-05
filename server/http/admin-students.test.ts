@@ -29,7 +29,7 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<voi
   }
 
   for (const studentId of studentIds) {
-    await pool.query('DELETE FROM audit_events WHERE actor_student_id = $1 OR entity_id = $1 OR entity_id IN (SELECT id FROM enrollments WHERE student_id = $1)', [studentId]);
+    await pool.query('DELETE FROM audit_events WHERE actor_student_id = $1 OR entity_id = $1 OR entity_id IN (SELECT id FROM enrollments WHERE student_id = $1) OR entity_id IN (SELECT id FROM student_access_qrs WHERE student_id = $1)', [studentId]);
     await pool.query('DELETE FROM sessions WHERE student_id = $1', [studentId]);
     await pool.query('DELETE FROM enrollments WHERE student_id = $1', [studentId]);
     await pool.query('DELETE FROM students WHERE id = $1', [studentId]);
@@ -38,7 +38,7 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>): Promise<voi
   if (staffId) await pool.query('DELETE FROM staff_users WHERE id = $1', [staffId]);
 }
 
-test('ADMIN-003 authenticated Student Workspace lists and projects operational Student facts without credential secrets', async () => {
+test('ADMIN-003 workspace projects Student facts and pre-activation state without credential secrets', async () => {
   const pool = createDatabasePool();
   await cleanup(pool);
 
@@ -62,8 +62,9 @@ test('ADMIN-003 authenticated Student Workspace lists and projects operational S
     actorStaffUserId: bootstrap.staffUserId,
   });
 
-  assert.ok(receipt.credentialCreated);
-  assert.ok(receipt.initialPassword);
+  assert.equal(receipt.credentialCreated, false);
+  assert.equal(receipt.initialPassword, null);
+  assert.equal(receipt.activationRequired, true);
 
   const handler = createAdminApiHandler(pool, { publicOrigin: ORIGIN, secureCookies: false });
   const server = createServer((req, res) => {
@@ -118,16 +119,16 @@ test('ADMIN-003 authenticated Student Workspace lists and projects operational S
     assert.equal(detail.status, 200);
     const detailBody = await detail.json() as {
       student: { publicId: string; totalEnrollments: number };
-      credential: Record<string, unknown> & { exists: boolean; mustChangePassword: boolean; passwordVersion: number };
+      credential: Record<string, unknown> & { exists: boolean; mustChangePassword: boolean; passwordVersion: number | null };
       enrollments: Array<{ id: string; serviceType: string; category: string; status: string }>;
       recentAudit: Array<{ action: string; entityType: string }>;
     };
 
     assert.equal(detailBody.student.publicId, receipt.studentPublicId);
     assert.equal(detailBody.student.totalEnrollments, 1);
-    assert.equal(detailBody.credential.exists, true);
-    assert.equal(detailBody.credential.mustChangePassword, true);
-    assert.equal(detailBody.credential.passwordVersion, 1);
+    assert.equal(detailBody.credential.exists, false);
+    assert.equal(detailBody.credential.mustChangePassword, false);
+    assert.equal(detailBody.credential.passwordVersion, null);
     assert.equal('passwordHash' in detailBody.credential, false);
     assert.equal('initialPassword' in detailBody.credential, false);
     assert.equal(detailBody.enrollments.length, 1);
@@ -137,6 +138,7 @@ test('ADMIN-003 authenticated Student Workspace lists and projects operational S
     assert.equal(detailBody.enrollments[0].status, 'ACTIVE');
     assert.ok(detailBody.recentAudit.some((event) => event.action === 'STUDENT_CREATED'));
     assert.ok(detailBody.recentAudit.some((event) => event.action === 'ENROLLMENT_CREATED'));
+    assert.ok(detailBody.recentAudit.some((event) => event.action === 'STUDENT_ACCESS_QR_CREATED'));
 
     const missing = await fetch(`${base}/api/admin/students/00000000-0000-4000-8000-000000000000`, {
       headers: { Cookie: cookie },
