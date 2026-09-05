@@ -26,6 +26,8 @@ async function cleanup(pool: ReturnType<typeof createDatabasePool>) {
   const students = await pool.query<{ id: string }>('SELECT id FROM students WHERE document_normalized = ANY($1::text[])', [[DOC_A, DOC_B]]);
   for (const { id } of students.rows) {
     await pool.query('DELETE FROM student_guides WHERE student_id=$1', [id]);
+    await pool.query('DELETE FROM lessons WHERE student_id=$1', [id]);
+    await pool.query('DELETE FROM enrollment_milestones WHERE enrollment_id IN (SELECT id FROM enrollments WHERE student_id=$1)', [id]);
     await pool.query('DELETE FROM audit_events WHERE actor_student_id=$1 OR entity_id=$1 OR entity_id IN (SELECT id FROM enrollments WHERE student_id=$1) OR entity_id IN (SELECT id FROM student_access_qrs WHERE student_id=$1)', [id]);
     await pool.query('DELETE FROM sessions WHERE student_id=$1', [id]);
     await pool.query('DELETE FROM enrollments WHERE student_id=$1', [id]);
