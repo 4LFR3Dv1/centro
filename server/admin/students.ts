@@ -77,6 +77,14 @@ export type AdminStudentWorkspace = {
   recentAudit: AdminStudentAuditEvent[];
 };
 
+type CivilDateValue = string | Date | null;
+
+function civilDate(value: CivilDateValue): string | null {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return value.slice(0, 10);
+}
+
 function clampLimit(value: number | undefined): number {
   if (!Number.isFinite(value)) return 50;
   return Math.max(1, Math.min(100, Math.trunc(value ?? 50)));
@@ -128,7 +136,7 @@ export async function listAdminStudents(
     email: string | null;
     document_normalized: string | null;
     cpf_normalized: string | null;
-    birth_date: string | null;
+    birth_date: CivilDateValue;
     identity_document_type: AdminStudentIdentityDocument['type'] | null;
     identity_document_number: string | null;
     identity_document_uf: string | null;
@@ -190,7 +198,7 @@ export async function listAdminStudents(
     email: row.email,
     document: row.document_normalized,
     cpf: row.cpf_normalized,
-    birthDate: row.birth_date,
+    birthDate: civilDate(row.birth_date),
     identityDocument: mapIdentity(row),
     address: mapAddress(row),
     status: row.status,
@@ -213,7 +221,7 @@ export async function getAdminStudentWorkspace(
     email: string | null;
     document_normalized: string | null;
     cpf_normalized: string | null;
-    birth_date: string | null;
+    birth_date: CivilDateValue;
     identity_document_type: AdminStudentIdentityDocument['type'] | null;
     identity_document_number: string | null;
     identity_document_uf: string | null;
@@ -346,7 +354,7 @@ export async function getAdminStudentWorkspace(
       email: studentRow.email,
       document: studentRow.document_normalized,
       cpf: studentRow.cpf_normalized,
-      birthDate: studentRow.birth_date,
+      birthDate: civilDate(studentRow.birth_date),
       identityDocument: mapIdentity(studentRow),
       address: mapAddress(studentRow),
       status: studentRow.status,
