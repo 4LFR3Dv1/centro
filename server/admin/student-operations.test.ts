@@ -276,9 +276,25 @@ test('PROCESS-OPS-002 derives theory commands from the THEORY-EXAM-001 attempt l
       result: 'FAILED',
       actorStaffUserId: bootstrap.staffUserId,
     });
-    const retry = await resolveStudentOperationalContext(pool, receipt.studentId);
-    assert.equal(retry.primaryAction?.code, 'SCHEDULE_THEORY_EXAM');
-    assert.equal(retry.primaryAction?.primaryCommand?.kind, 'SCHEDULE_THEORY_EXAM');
+    const retryAfterFailure = await resolveStudentOperationalContext(pool, receipt.studentId);
+    assert.equal(retryAfterFailure.primaryAction?.code, 'THEORY_EXAM_FAILED_RECOVERY');
+    assert.equal(retryAfterFailure.primaryAction?.primaryCommand?.kind, 'SCHEDULE_THEORY_EXAM');
+    assert.equal(retryAfterFailure.primaryAction?.primaryCommand?.label, 'Agendar nova prova');
+
+    const absentAttempt = await createTheoryExamAttempt(pool, {
+      enrollmentId: receipt.enrollmentId,
+      scheduledFor: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+      bookingSource: 'SCHOOL',
+      actorStaffUserId: bootstrap.staffUserId,
+    });
+    await recordTheoryExamAttendance(pool, {
+      attemptId: absentAttempt.id,
+      attendanceStatus: 'ABSENT',
+      actorStaffUserId: bootstrap.staffUserId,
+    });
+    const retryAfterAbsence = await resolveStudentOperationalContext(pool, receipt.studentId);
+    assert.equal(retryAfterAbsence.primaryAction?.code, 'THEORY_EXAM_ABSENCE_RECOVERY');
+    assert.equal(retryAfterAbsence.primaryAction?.primaryCommand?.kind, 'SCHEDULE_THEORY_EXAM');
   } finally {
     await cleanup(pool);
     await pool.end();
